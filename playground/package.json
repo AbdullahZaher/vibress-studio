@@ -1,0 +1,26 @@
+{
+  "name": "vibress-studio-playground",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vibress/studio-core": "file:../packages/studio-core",
+    "@vibress/studio-react": "file:../packages/studio-react",
+    "@vibress/studio-renderer": "file:../packages/studio-renderer",
+    "@vibress/studio-markdown": "file:../packages/studio-markdown",
+    "@vibress/studio-testing": "file:../packages/studio-testing",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.1"
+  }
+}

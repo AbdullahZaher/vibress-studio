@@ -1,0 +1,18 @@
+{
+  "name": "@vibress/studio-renderer",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vibress/studio-core": "file:../studio-core",
+    "@vibress/studio-nodes": "file:../studio-nodes",
+    "@vibress/studio-cards": "file:../studio-cards",
+    "@vibress/studio-serializer": "file:../studio-serializer",
+    "@vibress/studio-utils": "file:../studio-utils"
+  }
+}

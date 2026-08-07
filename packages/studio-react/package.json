@@ -1,0 +1,38 @@
+{
+  "name": "@vibress/studio-react",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vibress/studio-core": "file:../studio-core",
+    "@vibress/studio-nodes": "file:../studio-nodes",
+    "@vibress/studio-transforms": "file:../studio-transforms",
+    "@vibress/studio-cards": "file:../studio-cards",
+    "@vibress/studio-serializer": "file:../studio-serializer",
+    "@vibress/studio-renderer": "file:../studio-renderer",
+    "@vibress/studio-html": "file:../studio-html",
+    "@vibress/studio-markdown": "file:../studio-markdown",
+    "@vibress/studio-plugin-sdk": "file:../studio-plugin-sdk",
+    "@vibress/studio-utils": "file:../studio-utils",
+    "lexical": "0.13.1",
+    "@lexical/react": "0.13.1",
+    "@lexical/rich-text": "0.13.1",
+    "@lexical/list": "0.13.1",
+    "@lexical/link": "0.13.1",
+    "@lexical/code": "0.13.1",
+    "@lexical/utils": "0.13.1",
+    "@lexical/selection": "0.13.1",
+    "@lexical/history": "0.13.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "peerDependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}
