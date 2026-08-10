@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { escapeHtml, sanitizeHtml, sanitizeUrl } from '@vibress/studio-utils';
+import { escapeHtml, sanitizeHtml, sanitizeUrl, parseMarkdownToHtml } from '@vibress/studio-utils';
 import { DecoratorNode, NodeKey, SerializedLexicalNode, Spread } from 'lexical';
 
 export interface StudioCardDefinition<TData = Record<string, unknown>> {
@@ -12,10 +12,12 @@ export interface StudioCardDefinition<TData = Record<string, unknown>> {
 
 // 1. Image Card
 export const ImageCardSchema = z.object({
+  assetId: z.string().optional(),
   src: z.string(),
   alt: z.string().default(''),
-  caption: z.string().default(''),
-  width: z.number().optional(),
+  caption: z.union([z.string(), z.record(z.any())]).default(''),
+  captionHtml: z.string().optional(),
+  width: z.enum(['regular', 'wide', 'full']).optional().default('regular'),
   height: z.number().optional(),
   href: z.string().optional(),
 });
@@ -28,20 +30,27 @@ export const ImageCardDefinition: StudioCardDefinition<ImageCardData> = {
   renderHtml: (data) => {
     const src = sanitizeUrl(data.src);
     const alt = escapeHtml(data.alt || '');
-    const caption = data.caption ? `<figcaption>${sanitizeHtml(data.caption)}</figcaption>` : '';
+    const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+    const caption = capStr ? `<figcaption>${sanitizeHtml(capStr)}</figcaption>` : '';
     const img = `<img src="${src}" alt="${alt}" />`;
+    const layoutClass = data.width && data.width !== 'regular' ? ` kg-width-${data.width}` : '';
     if (data.href) {
-      return `<figure><a href="${sanitizeUrl(data.href)}">${img}</a>${caption}</figure>`;
+      return `<figure class="kg-card kg-image-card${layoutClass}"><a href="${sanitizeUrl(data.href)}">${img}</a>${caption}</figure>`;
     }
-    return `<figure>${img}${caption}</figure>`;
+    return `<figure class="kg-card kg-image-card${layoutClass}">${img}${caption}</figure>`;
   },
-  renderPlainText: (data) => data.alt || data.caption || data.src || '',
+  renderPlainText: (data) => {
+    const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+    return data.alt || capStr || data.src || '';
+  },
 };
 
 // 2. Gallery Card
 export const GalleryCardSchema = z.object({
   images: z.array(ImageCardSchema),
-  caption: z.string().default(''),
+  caption: z.union([z.string(), z.record(z.any())]).default(''),
+  captionHtml: z.string().optional(),
+  width: z.enum(['regular', 'wide', 'full']).optional().default('regular'),
 });
 export type GalleryCardData = z.infer<typeof GalleryCardSchema>;
 
@@ -53,19 +62,24 @@ export const GalleryCardDefinition: StudioCardDefinition<GalleryCardData> = {
     const imgs = data.images
       .map((img) => `<img src="${sanitizeUrl(img.src)}" alt="${escapeHtml(img.alt || '')}" />`)
       .join('');
-    const caption = data.caption ? `<figcaption>${sanitizeHtml(data.caption)}</figcaption>` : '';
-    return `<figure class="kg-gallery-card">${imgs}${caption}</figure>`;
+    const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+    const caption = capStr ? `<figcaption>${sanitizeHtml(capStr)}</figcaption>` : '';
+    const layoutClass = data.width && data.width !== 'regular' ? ` kg-width-${data.width}` : '';
+    return `<figure class="kg-card kg-gallery-card${layoutClass}">${imgs}${caption}</figure>`;
   },
   renderPlainText: (data) => data.images.map((i) => i.alt).filter(Boolean).join(', '),
 };
 
 // 3. Video Card
 export const VideoCardSchema = z.object({
+  assetId: z.string().optional(),
   src: z.string(),
-  caption: z.string().default(''),
+  caption: z.union([z.string(), z.record(z.any())]).default(''),
+  captionHtml: z.string().optional(),
   poster: z.string().optional(),
   loop: z.boolean().default(false),
   autoplay: z.boolean().default(false),
+  width: z.enum(['regular', 'wide', 'full']).optional().default('regular'),
 });
 export type VideoCardData = z.infer<typeof VideoCardSchema>;
 
@@ -76,17 +90,23 @@ export const VideoCardDefinition: StudioCardDefinition<VideoCardData> = {
   renderHtml: (data) => {
     const src = sanitizeUrl(data.src);
     const posterAttr = data.poster ? ` poster="${sanitizeUrl(data.poster)}"` : '';
-    const caption = data.caption ? `<figcaption>${sanitizeHtml(data.caption)}</figcaption>` : '';
-    return `<figure class="kg-video-card"><video src="${src}" controls${posterAttr}></video>${caption}</figure>`;
+    const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+    const caption = capStr ? `<figcaption>${sanitizeHtml(capStr)}</figcaption>` : '';
+    const layoutClass = data.width && data.width !== 'regular' ? ` kg-width-${data.width}` : '';
+    return `<figure class="kg-card kg-video-card${layoutClass}"><video src="${src}" controls${posterAttr}></video>${caption}</figure>`;
   },
-  renderPlainText: (data) => data.caption || data.src || '',
+  renderPlainText: (data) => {
+    const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+    return capStr || data.src || '';
+  },
 };
 
 // 4. Audio Card
 export const AudioCardSchema = z.object({
+  assetId: z.string().optional(),
   src: z.string(),
   title: z.string().default(''),
-  caption: z.string().default(''),
+  caption: z.union([z.string(), z.record(z.any())]).default(''),
 });
 export type AudioCardData = z.infer<typeof AudioCardSchema>;
 
@@ -97,17 +117,21 @@ export const AudioCardDefinition: StudioCardDefinition<AudioCardData> = {
   renderHtml: (data) => {
     const src = sanitizeUrl(data.src);
     const title = data.title ? `<div class="title">${escapeHtml(data.title)}</div>` : '';
-    return `<div class="kg-audio-card">${title}<audio src="${src}" controls></audio></div>`;
+    return `<div class="kg-card kg-audio-card">${title}<audio src="${src}" controls></audio></div>`;
   },
-  renderPlainText: (data) => data.title || data.caption || data.src || '',
+  renderPlainText: (data) => {
+    const capStr = typeof data.caption === 'string' ? data.caption : '';
+    return data.title || capStr || data.src || '';
+  },
 };
 
 // 5. File Card
 export const FileCardSchema = z.object({
+  assetId: z.string().optional(),
   src: z.string(),
   fileName: z.string(),
   fileSize: z.string().default(''),
-  caption: z.string().default(''),
+  caption: z.union([z.string(), z.record(z.any())]).default(''),
 });
 export type FileCardData = z.infer<typeof FileCardSchema>;
 
@@ -119,9 +143,12 @@ export const FileCardDefinition: StudioCardDefinition<FileCardData> = {
     const src = sanitizeUrl(data.src);
     const name = escapeHtml(data.fileName);
     const size = data.fileSize ? ` <span class="size">(${escapeHtml(data.fileSize)})</span>` : '';
-    return `<div class="kg-file-card"><a href="${src}" download>${name}${size}</a></div>`;
+    return `<div class="kg-card kg-file-card"><a href="${src}" download>${name}${size}</a></div>`;
   },
-  renderPlainText: (data) => data.fileName || data.src || '',
+  renderPlainText: (data) => {
+    const capStr = typeof data.caption === 'string' ? data.caption : '';
+    return data.fileName || capStr || data.src || '';
+  },
 };
 
 // 6. Bookmark Card
@@ -144,7 +171,7 @@ export const BookmarkCardDefinition: StudioCardDefinition<BookmarkCardData> = {
     const url = sanitizeUrl(data.url);
     const title = escapeHtml(data.title || data.url);
     const desc = escapeHtml(data.description || '');
-    return `<figure class="kg-bookmark-card"><a href="${url}"><div class="title">${title}</div><div class="desc">${desc}</div></a></figure>`;
+    return `<figure class="kg-card kg-bookmark-card"><a href="${url}"><div class="title">${title}</div><div class="desc">${desc}</div></a></figure>`;
   },
   renderPlainText: (data) => data.title || data.url || '',
 };
@@ -154,7 +181,7 @@ export const EmbedCardSchema = z.object({
   url: z.string(),
   embedType: z.string().default('video'),
   html: z.string().optional(),
-  caption: z.string().default(''),
+  caption: z.union([z.string(), z.record(z.any())]).default(''),
 });
 export type EmbedCardData = z.infer<typeof EmbedCardSchema>;
 
@@ -165,11 +192,14 @@ export const EmbedCardDefinition: StudioCardDefinition<EmbedCardData> = {
   renderHtml: (data) => {
     const url = sanitizeUrl(data.url);
     if (data.html) {
-      return `<figure class="kg-embed-card">${sanitizeHtml(data.html)}</figure>`;
+      return `<figure class="kg-card kg-embed-card">${sanitizeHtml(data.html)}</figure>`;
     }
-    return `<figure class="kg-embed-card"><iframe src="${url}"></iframe></figure>`;
+    return `<figure class="kg-card kg-embed-card"><iframe src="${url}"></iframe></figure>`;
   },
-  renderPlainText: (data) => data.url || '',
+  renderPlainText: (data) => {
+    const capStr = typeof data.caption === 'string' ? data.caption : '';
+    return data.url || capStr || '';
+  },
 };
 
 // 8. Button Card
@@ -187,7 +217,7 @@ export const ButtonCardDefinition: StudioCardDefinition<ButtonCardData> = {
   renderHtml: (data) => {
     const url = sanitizeUrl(data.url);
     const text = escapeHtml(data.text);
-    return `<div class="kg-button-card align-${data.alignment}"><a href="${url}" class="btn">${text}</a></div>`;
+    return `<div class="kg-card kg-button-card align-${data.alignment}"><a href="${url}" class="btn">${text}</a></div>`;
   },
   renderPlainText: (data) => `${data.text} (${data.url})`,
 };
@@ -207,7 +237,7 @@ export const CalloutCardDefinition: StudioCardDefinition<CalloutCardData> = {
   renderHtml: (data) => {
     const emoji = escapeHtml(data.emoji);
     const content = sanitizeHtml(data.text);
-    return `<div class="kg-callout-card bg-${data.backgroundColor}"><span class="emoji">${emoji}</span><div class="content">${content}</div></div>`;
+    return `<div class="kg-card kg-callout-card bg-${data.backgroundColor}"><span class="emoji">${emoji}</span><div class="content">${content}</div></div>`;
   },
   renderPlainText: (data) => `${data.emoji} ${data.text}`,
 };
@@ -226,7 +256,7 @@ export const ToggleCardDefinition: StudioCardDefinition<ToggleCardData> = {
   renderHtml: (data) => {
     const heading = escapeHtml(data.heading);
     const content = sanitizeHtml(data.content);
-    return `<details class="kg-toggle-card"><summary>${heading}</summary><div>${content}</div></details>`;
+    return `<details class="kg-card kg-toggle-card"><summary>${heading}</summary><div>${content}</div></details>`;
   },
   renderPlainText: (data) => `${data.heading}\n${data.content}`,
 };
@@ -241,7 +271,7 @@ export const MarkdownCardDefinition: StudioCardDefinition<MarkdownCardData> = {
   type: 'markdown',
   version: 1,
   validate: (data) => MarkdownCardSchema.parse(data),
-  renderHtml: (data) => `<div class="kg-markdown-card">${sanitizeHtml(data.markdown)}</div>`,
+  renderHtml: (data) => parseMarkdownToHtml(data.markdown),
   renderPlainText: (data) => data.markdown || '',
 };
 
@@ -255,7 +285,7 @@ export const HtmlCardDefinition: StudioCardDefinition<HtmlCardData> = {
   type: 'html',
   version: 1,
   validate: (data) => HtmlCardSchema.parse(data),
-  renderHtml: (data) => `<div class="kg-html-card">${sanitizeHtml(data.html)}</div>`,
+  renderHtml: (data) => data.html,
   renderPlainText: (data) => data.html || '',
 };
 
@@ -269,7 +299,7 @@ export const DividerCardDefinition: StudioCardDefinition<DividerCardData> = {
   type: 'divider',
   version: 1,
   validate: (data) => DividerCardSchema.parse(data),
-  renderHtml: () => `<hr class="kg-divider-card" />`,
+  renderHtml: () => '<hr />',
   renderPlainText: () => '---',
 };
 

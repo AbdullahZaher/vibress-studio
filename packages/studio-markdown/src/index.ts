@@ -1,8 +1,8 @@
 import { StudioDocument, migrateDocument } from '@vibress/studio-core';
 import { renderStudioDocumentToPlainText } from '@vibress/studio-renderer';
-import MarkdownIt from 'markdown-it';
+import { parseMarkdownToHtml } from '@vibress/studio-utils';
 
-const mdParser = new MarkdownIt({ html: false, linkify: true });
+export { parseMarkdownToHtml };
 
 export function studioDocumentToMarkdown(docInput: unknown): string {
   const doc = migrateDocument(docInput);
@@ -72,9 +72,4 @@ function renderNodeToMarkdown(node: any): string {
     default:
       return renderChildren();
   }
-}
-
-export function parseMarkdownToHtml(markdown: string): string {
-  if (!markdown) return '';
-  return mdParser.render(markdown);
 }

@@ -73,3 +73,5 @@ export function slugify(text: string): string {
     .replace(/^-+/, '')
     .replace(/-+$/, '');
 }
+
+export * from './markdown';
