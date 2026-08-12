@@ -107,12 +107,24 @@ export function StudioCardComponent({
   }
   const safeHtml = sanitizeToSafeHtml(html);
 
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      clearSelection();
+      setSelected(true);
+    }
+  };
+
   return (
     <div
+      role="group"
+      aria-label={`${cardType} card`}
+      tabIndex={0}
       onClick={() => {
         clearSelection();
         setSelected(true);
       }}
+      onKeyDown={onKeyDown}
       style={{
         outline: isSelected ? '2px solid #3b82f6' : 'none',
         position: 'relative',

@@ -11,7 +11,7 @@ interface UploadStatusOverlayProps {
 export function UploadStatusOverlay({ state, onRetry, onDismiss }: UploadStatusOverlayProps) {
   if (state.status === 'uploading') {
     return (
-      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 rounded">
+      <div role="status" aria-live="polite" className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 rounded">
         <div className="text-xs text-gray-600 mb-1">Uploading… {state.progress}%</div>
         <div className="w-40 h-1.5 bg-gray-200 rounded overflow-hidden">
           <div

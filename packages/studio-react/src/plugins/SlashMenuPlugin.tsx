@@ -102,10 +102,13 @@ export function SlashMenuPlugin() {
             <div className="px-2 py-1 mb-1 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
               Insert Card
             </div>
-            <ul className="list-none m-0 p-0 flex flex-col">
+            <ul role="listbox" aria-label="Insert card" className="list-none m-0 p-0 flex flex-col">
               {options.map((option, i: number) => (
                 <li
                   key={option.key}
+                  id={`slash-option-${option.key}`}
+                  role="option"
+                  aria-selected={selectedIndex === i}
                   tabIndex={-1}
                   className={`flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md text-sm font-medium transition-colors ${
                     selectedIndex === i

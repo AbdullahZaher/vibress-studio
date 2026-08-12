@@ -101,6 +101,8 @@ export function FloatingFormatToolbarPlugin({ anchorElem = document.body }: { an
   return createPortal(
     <div
       ref={toolbarRef}
+      role="toolbar"
+      aria-label="Text formatting"
       className="floating-text-format-popup"
       style={{
         position: 'absolute',
@@ -119,6 +121,9 @@ export function FloatingFormatToolbarPlugin({ anchorElem = document.body }: { an
       }}
     >
       <button
+        type="button"
+        aria-label="Bold"
+        aria-pressed={isBold}
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}
         style={{
           background: isBold ? '#334155' : 'transparent',
@@ -133,6 +138,9 @@ export function FloatingFormatToolbarPlugin({ anchorElem = document.body }: { an
         B
       </button>
       <button
+        type="button"
+        aria-label="Italic"
+        aria-pressed={isItalic}
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
         style={{
           background: isItalic ? '#334155' : 'transparent',
@@ -147,6 +155,9 @@ export function FloatingFormatToolbarPlugin({ anchorElem = document.body }: { an
         I
       </button>
       <button
+        type="button"
+        aria-label="Underline"
+        aria-pressed={isUnderline}
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline')}
         style={{
           background: isUnderline ? '#334155' : 'transparent',
@@ -161,6 +172,9 @@ export function FloatingFormatToolbarPlugin({ anchorElem = document.body }: { an
         U
       </button>
       <button
+        type="button"
+        aria-label="Strikethrough"
+        aria-pressed={isStrikethrough}
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough')}
         style={{
           background: isStrikethrough ? '#334155' : 'transparent',

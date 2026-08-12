@@ -146,7 +146,13 @@ export function VibressStudio({
         <LexicalComposer initialConfig={initialConfig}>
           <div style={{ position: 'relative', minHeight: '20vh' }}>
             <RichTextPlugin
-              contentEditable={<ContentEditable style={{ outline: 'none', minHeight: '20vh', fontSize: '1.125rem', lineHeight: '1.7', color: 'inherit' }} />}
+              contentEditable={
+                <ContentEditable
+                  aria-label="Editor content"
+                  aria-multiline="true"
+                  style={{ outline: 'none', minHeight: '20vh', fontSize: '1.125rem', lineHeight: '1.7', color: 'inherit' }}
+                />
+              }
               placeholder={
                 <div style={{ position: 'absolute', top: '0', left: '0', color: '#94a3b8', pointerEvents: 'none', fontSize: '1.125rem' }}>
                   {placeholder}
