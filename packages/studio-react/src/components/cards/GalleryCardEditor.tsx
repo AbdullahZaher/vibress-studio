@@ -3,9 +3,14 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import { NodeKey } from 'lexical';
 import { GalleryCardData } from '@vibress/studio-cards';
-import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { NestedCaptionEditor } from './NestedCaptionEditor.js';
 import { $getNodeByKey } from 'lexical';
-import { CardPlaceholder } from '../ui/CardPlaceholder';
+import { CardPlaceholder } from '../ui/CardPlaceholder.js';
+import { UploadStatusOverlay } from '../ui/UploadStatusOverlay.js';
+
+import { useStudioUploadAdapter } from '../../media/UploadAdapterContext.js';
+import { createObjectUrl } from '../../media/object-url.js';
+import { useMediaUpload } from '../../media/useMediaUpload.js';
 
 interface Props {
   nodeKey: NodeKey;
@@ -15,26 +20,53 @@ interface Props {
 export function GalleryCardEditor({ nodeKey, cardData }: Props) {
   const [editor] = useLexicalComposerContext();
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
+  const adapter = useStudioUploadAdapter();
 
-  const isPopulated = cardData.images && cardData.images.length > 0;
-
-  const onFileSelect = (files: File[]) => {
-    if (files.length > 0) {
-      const newImages = files.map(file => ({
-        src: URL.createObjectURL(file),
-        alt: file.name
-      }));
-      
+  const { status, progress, error, upload, retry, clear } = useMediaUpload({
+    adapter,
+    cardType: 'gallery',
+    onSuccess: (uploaded) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
         if (node && 'setCardData' in node) {
           (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
             ...cardData,
-            images: [...(cardData.images || []), ...newImages]
+            images: [
+              ...(cardData.images || []),
+              { src: uploaded.url, alt: uploaded.alt || '' },
+            ],
           });
         }
       });
+    },
+  });
+
+  const isPopulated = !!cardData.images && cardData.images.length > 0;
+
+  const onFileSelect = (files: File[]) => {
+    if (files.length === 0) return;
+    if (!adapter) {
+      const newImages = files.map((file) => ({
+        src: createObjectUrl(file),
+        alt: file.name,
+      }));
+      editor.update(() => {
+        const node = $getNodeByKey(nodeKey);
+        if (node && 'setCardData' in node) {
+          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
+            ...cardData,
+            images: [...(cardData.images || []), ...newImages],
+          });
+        }
+      });
+      return;
     }
+    // Upload sequentially so each persisted asset is appended in order.
+    void (async () => {
+      for (const file of files) {
+        await upload(file);
+      }
+    })();
   };
 
   const onCaptionChange = useCallback(
@@ -85,6 +117,11 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
         transition: 'outline 0.1s ease',
       }}
     >
+      <UploadStatusOverlay
+        state={{ status, progress, error }}
+        onRetry={() => void retry()}
+        onDismiss={clear}
+      />
       <div className="flex flex-wrap gap-2">
         {cardData.images.map((img, i) => (
           <img key={i} src={img.src} alt={img.alt || ''} className="flex-1 object-cover min-w-[200px]" style={{ maxHeight: '300px' }} />

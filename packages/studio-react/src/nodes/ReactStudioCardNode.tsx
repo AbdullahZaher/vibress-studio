@@ -1,7 +1,7 @@
 // Remove unused React import
 import { NodeKey, SerializedLexicalNode, Spread } from 'lexical';
-import { StudioCardNode } from '@vibress/studio-cards';
-import { StudioCardComponent } from '../components/StudioCardComponent';
+import { StudioCardNode } from '@vibress/studio-nodes';
+import { StudioCardComponent } from '../components/StudioCardComponent.js';
 
 export type SerializedReactStudioCardNode = Spread<
   {

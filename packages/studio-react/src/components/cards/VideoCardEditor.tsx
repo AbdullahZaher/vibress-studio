@@ -3,9 +3,14 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import { NodeKey } from 'lexical';
 import { VideoCardData } from '@vibress/studio-cards';
-import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { NestedCaptionEditor } from './NestedCaptionEditor.js';
 import { $getNodeByKey } from 'lexical';
-import { CardPlaceholder } from '../ui/CardPlaceholder';
+import { CardPlaceholder } from '../ui/CardPlaceholder.js';
+import { UploadStatusOverlay } from '../ui/UploadStatusOverlay.js';
+
+import { useStudioUploadAdapter } from '../../media/UploadAdapterContext.js';
+import { createObjectUrl } from '../../media/object-url.js';
+import { useMediaUpload } from '../../media/useMediaUpload.js';
 
 interface Props {
   nodeKey: NodeKey;
@@ -15,24 +20,45 @@ interface Props {
 export function VideoCardEditor({ nodeKey, cardData }: Props) {
   const [editor] = useLexicalComposerContext();
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
+  const adapter = useStudioUploadAdapter();
 
-  const isPopulated = !!cardData.src;
+  const { status, progress, error, asset, previewUrl, upload, retry, clear } = useMediaUpload({
+    adapter,
+    cardType: 'video',
+    onSuccess: (uploaded) => {
+      editor.update(() => {
+        const node = $getNodeByKey(nodeKey);
+        if (node && 'setCardData' in node) {
+          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
+            ...cardData,
+            src: uploaded.url,
+            assetId: uploaded.id,
+          });
+        }
+      });
+    },
+  });
+
+  const isPopulated = !!cardData.src || !!previewUrl;
 
   const onFileSelect = (files: File[]) => {
     const file = files[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-      
-    editor.update(() => {
-      const node = $getNodeByKey(nodeKey);
-      if (node && 'setCardData' in node) {
-        (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
-          ...cardData,
-          src: url,
-          fileName: file.name
-        });
-      }
-    });
+    if (!adapter) {
+      const url = createObjectUrl(file);
+      editor.update(() => {
+        const node = $getNodeByKey(nodeKey);
+        if (node && 'setCardData' in node) {
+          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
+            ...cardData,
+            src: url,
+            fileName: file.name,
+          });
+        }
+      });
+      return;
+    }
+    void upload(file);
   };
 
   const onCaptionChange = useCallback(
@@ -51,14 +77,12 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
     [editor, nodeKey, cardData]
   );
 
-  const widthClass = cardData.width && cardData.width !== 'regular' ? ` vb-width-${cardData.width}` : '';
-
   if (!isPopulated) {
     return (
       <CardPlaceholder
         iconType="video"
         title="Video"
-        description="Click to select a video, or drag and drop"
+        description="Click to select a video file"
         onFileSelect={onFileSelect}
         isSelected={isSelected}
         onClick={() => {
@@ -69,9 +93,11 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
     );
   }
 
+  const displaySrc = previewUrl || asset?.url || cardData.src;
+
   return (
     <figure
-      className={`vb-video-card${widthClass} relative`}
+      className="vb-video-card relative w-full mb-4"
       onClick={() => {
         clearSelection();
         setSelected(true);
@@ -82,7 +108,12 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
         transition: 'outline 0.1s ease',
       }}
     >
-      <video src={cardData.src} poster={cardData.poster} controls className="w-full" />
+      <UploadStatusOverlay
+        state={{ status, progress, error }}
+        onRetry={() => void retry()}
+        onDismiss={clear}
+      />
+      <video src={displaySrc} controls className="w-full" />
       <NestedCaptionEditor
         initialCaptionJSON={typeof cardData.caption === 'object' ? cardData.caption : undefined}
         onChange={onCaptionChange}

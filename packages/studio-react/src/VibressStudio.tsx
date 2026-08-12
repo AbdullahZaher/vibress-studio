@@ -9,14 +9,15 @@ import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import LexicalErrorBoundary from '@lexical/react/LexicalErrorBoundary';
 import { $getRoot, $createParagraphNode } from 'lexical';
-import { SlashMenuPlugin } from './plugins/SlashMenuPlugin';
-import { FloatingFormatToolbarPlugin } from './plugins/FloatingFormatToolbarPlugin';
-import { FloatingCardActionToolbarPlugin } from './plugins/FloatingCardActionToolbarPlugin';
+import { SlashMenuPlugin } from './plugins/SlashMenuPlugin.js';
+import { FloatingFormatToolbarPlugin } from './plugins/FloatingFormatToolbarPlugin.js';
+import { FloatingCardActionToolbarPlugin } from './plugins/FloatingCardActionToolbarPlugin.js';
 import { STUDIO_CORE_NODES } from '@vibress/studio-nodes';
-import { StudioCardNode } from '@vibress/studio-cards';
-import { ReactStudioCardNode } from './nodes/ReactStudioCardNode';
-import { StudioDocument, migrateDocument } from '@vibress/studio-core';
+import { StudioCardNode } from '@vibress/studio-nodes';
+import { ReactStudioCardNode } from './nodes/ReactStudioCardNode.js';
+import { StudioDocument, migrateDocument, StudioUploadAdapter } from '@vibress/studio-core';
 import { serializeStudioDocument } from '@vibress/studio-serializer';
+import { StudioUploadAdapterProvider } from './media/UploadAdapterContext.js';
 
 export interface VibressStudioProps {
   value?: unknown;
@@ -25,6 +26,8 @@ export interface VibressStudioProps {
   placeholder?: string;
   onError?: (error: Error) => void;
   requestMedia?: (req: { cardType: string }) => Promise<Record<string, unknown> | null>;
+  /** Media upload adapter; when omitted, media cards use temporary local previews. */
+  uploadAdapter?: StudioUploadAdapter | null;
   className?: string;
 }
 
@@ -95,6 +98,7 @@ export function VibressStudio({
   readOnly = false,
   placeholder = 'Write content with Vibress Studio...',
   onError,
+  uploadAdapter = null,
   className = '',
 }: VibressStudioProps) {
   const parsedDoc = useMemo(() => migrateDocument(value), [value]);
@@ -137,11 +141,18 @@ export function VibressStudio({
 
   return (
     <StudioErrorBoundary onError={onError}>
-      <div className={`vibress-studio-editor ${className}`}>
+      <StudioUploadAdapterProvider adapter={uploadAdapter}>
+        <div className={`vibress-studio-editor ${className}`}>
         <LexicalComposer initialConfig={initialConfig}>
           <div style={{ position: 'relative', minHeight: '20vh' }}>
             <RichTextPlugin
-              contentEditable={<ContentEditable style={{ outline: 'none', minHeight: '20vh', fontSize: '1.125rem', lineHeight: '1.7', color: 'inherit' }} />}
+              contentEditable={
+                <ContentEditable
+                  aria-label="Editor content"
+                  aria-multiline="true"
+                  style={{ outline: 'none', minHeight: '20vh', fontSize: '1.125rem', lineHeight: '1.7', color: 'inherit' }}
+                />
+              }
               placeholder={
                 <div style={{ position: 'absolute', top: '0', left: '0', color: '#94a3b8', pointerEvents: 'none', fontSize: '1.125rem' }}>
                   {placeholder}
@@ -167,7 +178,8 @@ export function VibressStudio({
             )}
           </div>
         </LexicalComposer>
-      </div>
+        </div>
+      </StudioUploadAdapterProvider>
     </StudioErrorBoundary>
   );
 }

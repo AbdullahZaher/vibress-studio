@@ -8,14 +8,23 @@
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "verify:explicit-any": "node scripts/count-explicit-any.mjs --max 50",
+    "verify:package-exports": "node scripts/verify-package-exports.mjs",
+    "test:security": "vitest run packages/studio-testing/security",
+    "test:a11y": "vitest run packages/studio-testing/a11y",
+    "test:roundtrip": "vitest run packages/studio-testing/security/roundtrip.test.ts packages/studio-testing/roundtrip",
     "repo:health": "node scripts/count-explicit-any.mjs --max 50"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^26.1.2",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "axe-core": "^4.13.0",
     "eslint": "^10.8.0",
     "jsdom": "^24.1.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.66.0",
     "vitest": "^4.1.10"

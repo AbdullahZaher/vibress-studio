@@ -4,18 +4,20 @@ import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection'
 import { mergeRegister } from '@lexical/utils';
 import { $getNodeByKey, $getSelection, $isNodeSelection, COMMAND_PRIORITY_LOW, KEY_BACKSPACE_COMMAND, KEY_DELETE_COMMAND, NodeKey } from 'lexical';
 import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-cards';
-import { ImageCardEditor } from './cards/ImageCardEditor';
-import { VideoCardEditor } from './cards/VideoCardEditor';
-import { GalleryCardEditor } from './cards/GalleryCardEditor';
-import { AudioCardEditor } from './cards/AudioCardEditor';
-import { FileCardEditor } from './cards/FileCardEditor';
-import { BookmarkCardEditor } from './cards/BookmarkCardEditor';
-import { EmbedCardEditor } from './cards/EmbedCardEditor';
-import { ButtonCardEditor } from './cards/ButtonCardEditor';
-import { CalloutCardEditor } from './cards/CalloutCardEditor';
-import { ToggleCardEditor } from './cards/ToggleCardEditor';
-import { MarkdownCardEditor } from './cards/MarkdownCardEditor';
-import { HtmlCardEditor } from './cards/HtmlCardEditor';
+import { SafeHtml, sanitizeToSafeHtml } from '../security/SafeHtml.js';
+import { CardErrorBoundary } from './CardErrorBoundary.js';
+import { ImageCardEditor } from './cards/ImageCardEditor.js';
+import { VideoCardEditor } from './cards/VideoCardEditor.js';
+import { GalleryCardEditor } from './cards/GalleryCardEditor.js';
+import { AudioCardEditor } from './cards/AudioCardEditor.js';
+import { FileCardEditor } from './cards/FileCardEditor.js';
+import { BookmarkCardEditor } from './cards/BookmarkCardEditor.js';
+import { EmbedCardEditor } from './cards/EmbedCardEditor.js';
+import { ButtonCardEditor } from './cards/ButtonCardEditor.js';
+import { CalloutCardEditor } from './cards/CalloutCardEditor.js';
+import { ToggleCardEditor } from './cards/ToggleCardEditor.js';
+import { MarkdownCardEditor } from './cards/MarkdownCardEditor.js';
+import { HtmlCardEditor } from './cards/HtmlCardEditor.js';
 
 // Registry of cards that have rich interactive React editors
 /**
@@ -79,13 +81,20 @@ export function StudioCardComponent({
     );
   }, [editor, onDelete]);
 
-  // If we have an interactive editor component for this card type, render it!
+  // If we have an interactive editor component for this card type, render it
+  // inside an error boundary so a single bad card never crashes the editor.
   const InteractiveEditor = INTERACTIVE_CARDS[cardType];
   if (InteractiveEditor) {
-    return <InteractiveEditor nodeKey={nodeKey} cardData={cardData} />;
+    return (
+      <CardErrorBoundary nodeKey={nodeKey}>
+        <InteractiveEditor nodeKey={nodeKey} cardData={cardData} />
+      </CardErrorBoundary>
+    );
   }
 
-  // Otherwise, fallback to static HTML rendering
+  // Otherwise, fallback to static HTML rendering. The output of every
+  // built-in renderer is already sanitized; we additionally brand it through
+  // the sanitizer boundary so only SafeHtml can mount it.
   const def = STUDIO_CARD_DEFINITIONS[cardType];
   let html = `[Unknown Card: ${cardType}]`;
   if (def) {
@@ -96,13 +105,26 @@ export function StudioCardComponent({
       html = `[Card: ${cardType}] Error`;
     }
   }
+  const safeHtml = sanitizeToSafeHtml(html);
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      clearSelection();
+      setSelected(true);
+    }
+  };
 
   return (
     <div
+      role="group"
+      aria-label={`${cardType} card`}
+      tabIndex={0}
       onClick={() => {
         clearSelection();
         setSelected(true);
       }}
+      onKeyDown={onKeyDown}
       style={{
         outline: isSelected ? '2px solid #3b82f6' : 'none',
         position: 'relative',
@@ -111,7 +133,8 @@ export function StudioCardComponent({
         borderRadius: '4px',
         transition: 'outline 0.1s ease',
       }}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    >
+      <SafeHtml html={safeHtml} />
+    </div>
   );
 }

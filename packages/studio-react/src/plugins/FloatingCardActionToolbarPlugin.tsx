@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $getSelection, $isNodeSelection } from 'lexical';
 import { createPortal } from 'react-dom';
-import { $isReactStudioCardNode, ReactStudioCardNode } from '../nodes/ReactStudioCardNode';
+import { $isReactStudioCardNode, ReactStudioCardNode } from '../nodes/ReactStudioCardNode.js';
 
 export function FloatingCardActionToolbarPlugin({ anchorElem = document.body }: { anchorElem?: HTMLElement }) {
   const [editor] = useLexicalComposerContext();
@@ -41,6 +41,8 @@ export function FloatingCardActionToolbarPlugin({ anchorElem = document.body }: 
 
   return createPortal(
     <div
+      role="toolbar"
+      aria-label="Card actions"
       className="floating-card-action-popup"
       style={{
         position: 'absolute',
@@ -59,17 +61,17 @@ export function FloatingCardActionToolbarPlugin({ anchorElem = document.body }: 
       <span style={{ fontSize: '12px', color: '#64748b', alignSelf: 'center', marginRight: '8px' }}>
         {selectedNode.getCardType().toUpperCase()}
       </span>
-      <button onClick={() => handleWidthChange('regular')} style={btnStyle}>
+      <button type="button" aria-label={`${selectedNode.getCardType()} regular width`} onClick={() => handleWidthChange('regular')} style={btnStyle}>
         Regular
       </button>
-      <button onClick={() => handleWidthChange('wide')} style={btnStyle}>
+      <button type="button" aria-label={`${selectedNode.getCardType()} wide width`} onClick={() => handleWidthChange('wide')} style={btnStyle}>
         Wide
       </button>
-      <button onClick={() => handleWidthChange('full')} style={btnStyle}>
+      <button type="button" aria-label={`${selectedNode.getCardType()} full width`} onClick={() => handleWidthChange('full')} style={btnStyle}>
         Full
       </button>
       <div style={{ width: '1px', backgroundColor: '#e2e8f0', margin: '0 4px' }} />
-      <button onClick={handleDelete} style={{ ...btnStyle, color: '#ef4444' }}>
+      <button type="button" aria-label="Delete card" onClick={handleDelete} style={{ ...btnStyle, color: '#ef4444' }}>
         Delete
       </button>
     </div>,

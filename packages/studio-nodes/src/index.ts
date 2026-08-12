@@ -30,3 +30,10 @@ export const STUDIO_CORE_NODES: Array<Klass<LexicalNode>> = [
   CodeNode,
   CodeHighlightNode,
 ];
+
+export {
+  StudioCardNode,
+  $createStudioCardNode,
+  $isStudioCardNode,
+  type SerializedStudioCardNode,
+} from './cards/StudioCardNode.js';

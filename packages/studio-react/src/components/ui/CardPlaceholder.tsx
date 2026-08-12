@@ -45,10 +45,21 @@ export function CardPlaceholder({
     iconType === 'audio' ? 'audio/*' : 
     '*/*';
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleContainerClick();
+    }
+  };
+
   return (
     <div 
+      role="button"
+      tabIndex={0}
+      aria-label={`Add ${title}`}
       className="relative flex flex-col items-center justify-center p-12 my-4 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer group" 
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       style={{ outline: isSelected ? '2px solid #3b82f6' : 'none' }}
     >
       <div className="flex flex-col items-center justify-center w-full h-full" onClick={handleContainerClick}>
@@ -60,7 +71,10 @@ export function CardPlaceholder({
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
-        className="hidden"
+        style={{ display: 'none' }}
+        tabIndex={-1}
+        aria-hidden="true"
+        aria-label={`Choose ${title.toLowerCase()} file`}
         accept={accept}
         multiple={multiple}
       />

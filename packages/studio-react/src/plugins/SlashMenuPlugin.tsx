@@ -3,7 +3,8 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { LexicalTypeaheadMenuPlugin, MenuOption, useBasicTypeaheadTriggerMatch } from '@lexical/react/LexicalTypeaheadMenuPlugin';
 import { $getSelection, $isRangeSelection, TextNode } from 'lexical';
 import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-cards';
-import { $createReactStudioCardNode } from '../nodes/ReactStudioCardNode';
+import { escapeRegExp } from '@vibress/studio-utils';
+import { $createReactStudioCardNode } from '../nodes/ReactStudioCardNode.js';
 import { createPortal } from 'react-dom';
 import { ImageIcon, Video, Images, File as FileIcon, Code, Minus, MessageSquare, Box, MousePointerClick } from 'lucide-react';
 
@@ -35,7 +36,10 @@ export function SlashMenuPlugin() {
       return allOptions;
     }
 
-    const regex = new RegExp(queryString, 'i');
+    // The query string is user input: escape it before building the RegExp so
+    // that special characters ([, (, *, ...) filter literally instead of
+    // crashing or injecting regex operators.
+    const regex = new RegExp(escapeRegExp(queryString), 'i');
     return allOptions.filter(
       (option) => regex.test(option.title) || regex.test(option.cardType)
     );
@@ -98,10 +102,13 @@ export function SlashMenuPlugin() {
             <div className="px-2 py-1 mb-1 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
               Insert Card
             </div>
-            <ul className="list-none m-0 p-0 flex flex-col">
+            <ul role="listbox" aria-label="Insert card" className="list-none m-0 p-0 flex flex-col">
               {options.map((option, i: number) => (
                 <li
                   key={option.key}
+                  id={`slash-option-${option.key}`}
+                  role="option"
+                  aria-selected={selectedIndex === i}
                   tabIndex={-1}
                   className={`flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-md text-sm font-medium transition-colors ${
                     selectedIndex === i

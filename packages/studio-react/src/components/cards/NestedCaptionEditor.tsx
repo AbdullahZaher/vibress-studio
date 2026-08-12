@@ -45,7 +45,11 @@ export function NestedCaptionEditor({
       <div className="vibress-caption-editor relative mt-2 text-center text-sm text-gray-500">
         <RichTextPlugin
           contentEditable={
-            <ContentEditable className="outline-none min-h-[24px] px-2 py-1 focus:bg-gray-50 rounded" />
+            <ContentEditable
+              aria-label={placeholder || 'Caption'}
+              aria-multiline="true"
+              className="outline-none min-h-[24px] px-2 py-1 focus:bg-gray-50 rounded"
+            />
           }
           placeholder={
             <div className="absolute top-1 left-0 right-0 pointer-events-none opacity-50">
