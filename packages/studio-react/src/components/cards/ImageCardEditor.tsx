@@ -39,10 +39,7 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
     },
   });
 
-  // When the card is removed/cleared, revoke any preview object URL.
-  useEffect(() => {
-    return () => clear();
-  }, []);
+  // The hook revokes any preview object URL on unmount automatically.
 
   const isPopulated = !!cardData.src || !!previewUrl;
 
