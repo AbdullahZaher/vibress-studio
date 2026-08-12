@@ -169,6 +169,12 @@ importers:
       '@vibress/studio-core':
         specifier: workspace:*
         version: link:../studio-core
+      '@vibress/studio-utils':
+        specifier: workspace:*
+        version: link:../studio-utils
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
 
   packages/studio-react:
     dependencies:

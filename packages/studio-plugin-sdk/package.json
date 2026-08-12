@@ -8,8 +8,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@vibress/studio-cards": "workspace:*",
     "@vibress/studio-core": "workspace:*",
-    "@vibress/studio-cards": "workspace:*"
+    "@vibress/studio-utils": "workspace:*",
+    "zod": "^3.25.76"
   },
   "type": "module",
   "exports": {
