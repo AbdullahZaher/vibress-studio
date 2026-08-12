@@ -41,14 +41,17 @@ jobs:
       - name: Verify explicit-any regression guard
         run: pnpm verify:explicit-any
 
+      # Workspace packages resolve each other via their published dist entry
+      # points, so a build must exist before typecheck/tests on a fresh
+      # checkout (typecheck also implies tsc for every package).
+      - name: Build
+        run: pnpm build
+
       - name: Typecheck
         run: pnpm typecheck
 
       - name: Test
         run: pnpm test
-
-      - name: Build
-        run: pnpm build
 
       - name: Verify package exports
         run: pnpm verify:package-exports
