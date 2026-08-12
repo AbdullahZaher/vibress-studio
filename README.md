@@ -69,6 +69,7 @@ pnpm test
 pnpm test:security
 pnpm test:a11y
 pnpm test:roundtrip
+pnpm test:e2e
 pnpm build
 pnpm audit --prod
 pnpm verify:explicit-any
@@ -103,7 +104,7 @@ audit on every push to `main` and on pull requests (`.github/workflows/ci.yml`).
 | [docs/media-upload-adapter.md](docs/media-upload-adapter.md) | Upload adapter contract |
 | [docs/plugin-sdk.md](docs/plugin-sdk.md) | Safe plugin authoring |
 | [docs/package-exports.md](docs/package-exports.md) | Publishing and verification |
-| [docs/testing.md](docs/testing.md) | Test suite organization |
+| [docs/testing.md](docs/testing.md) | Test suite organization incl. browser E2E |
 | [docs/vibress-integration.md](docs/vibress-integration.md) | Vibress core integration guide |
 | [docs/production-readiness.md](docs/production-readiness.md) | Readiness criteria and evidence |
 

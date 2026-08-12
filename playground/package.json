@@ -8,11 +8,17 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@lexical/list": "0.13.1",
+    "@lexical/rich-text": "0.13.1",
+    "@lexical/selection": "0.13.1",
+    "@lexical/utils": "0.13.1",
     "@vibress/studio-core": "workspace:*",
+    "@vibress/studio-html": "workspace:*",
+    "@vibress/studio-markdown": "workspace:*",
     "@vibress/studio-react": "workspace:*",
     "@vibress/studio-renderer": "workspace:*",
-    "@vibress/studio-markdown": "workspace:*",
     "@vibress/studio-testing": "workspace:*",
+    "lexical": "0.13.1",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },

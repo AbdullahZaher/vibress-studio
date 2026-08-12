@@ -6,6 +6,7 @@ import { EmbedCardData, getEmbedProviderName } from '@vibress/studio-cards';
 import { SafeHtml, sanitizeToSafeHtml } from '../../security/SafeHtml.js';
 import { isSafeUrl } from '@vibress/studio-utils';
 import { NestedCaptionEditor } from './NestedCaptionEditor.js';
+import { assertCardSelection } from '../../utils/cardSelection.js';
 import { UrlPlaceholder } from '../ui/UrlPlaceholder.js';
 
 interface Props {
@@ -62,10 +63,7 @@ export function EmbedCardEditor({ nodeKey, cardData }: Props) {
           }
         }}
         isSelected={isSelected}
-        onClick={() => {
-          clearSelection();
-          setSelected(true);
-        }}
+        onClick={() => assertCardSelection(clearSelection, setSelected)}
       />
     );
   }
@@ -83,10 +81,7 @@ export function EmbedCardEditor({ nodeKey, cardData }: Props) {
   return (
     <figure
       className={`vb-embed-card relative w-full mb-4 flex flex-col gap-2`}
-      onClick={() => {
-        clearSelection();
-        setSelected(true);
-      }}
+      onClick={() => assertCardSelection(clearSelection, setSelected)}
       style={{
         outline: isSelected ? '2px solid #3b82f6' : 'none',
         transition: 'outline 0.1s ease',

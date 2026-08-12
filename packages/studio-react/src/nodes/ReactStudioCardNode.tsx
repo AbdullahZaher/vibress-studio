@@ -24,6 +24,19 @@ export class ReactStudioCardNode extends StudioCardNode {
     super(cardType, cardData, key);
   }
 
+  exportJSON(): SerializedReactStudioCardNode {
+    return {
+      type: 'react-studio-card',
+      cardType: this.__cardType,
+      cardData: this.__cardData,
+      version: 1,
+    };
+  }
+
+  static importJSON(serializedNode: SerializedReactStudioCardNode): ReactStudioCardNode {
+    return $createReactStudioCardNode(serializedNode.cardType, serializedNode.cardData);
+  }
+
   decorate(): JSX.Element {
     return (
       <StudioCardComponent

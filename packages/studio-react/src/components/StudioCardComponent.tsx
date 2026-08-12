@@ -5,6 +5,7 @@ import { mergeRegister } from '@lexical/utils';
 import { $getNodeByKey, $getSelection, $isNodeSelection, COMMAND_PRIORITY_LOW, KEY_BACKSPACE_COMMAND, KEY_DELETE_COMMAND, NodeKey } from 'lexical';
 import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-cards';
 import { SafeHtml, sanitizeToSafeHtml } from '../security/SafeHtml.js';
+import { assertCardSelection } from '../utils/cardSelection.js';
 import { CardErrorBoundary } from './CardErrorBoundary.js';
 import { ImageCardEditor } from './cards/ImageCardEditor.js';
 import { VideoCardEditor } from './cards/VideoCardEditor.js';
@@ -110,8 +111,7 @@ export function StudioCardComponent({
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      clearSelection();
-      setSelected(true);
+      assertCardSelection(clearSelection, setSelected);
     }
   };
 
@@ -120,9 +120,9 @@ export function StudioCardComponent({
       role="group"
       aria-label={`${cardType} card`}
       tabIndex={0}
-      onClick={() => {
-        clearSelection();
-        setSelected(true);
+      onClick={(e) => {
+        e.preventDefault();
+        assertCardSelection(clearSelection, setSelected);
       }}
       onKeyDown={onKeyDown}
       style={{

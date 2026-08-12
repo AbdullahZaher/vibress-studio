@@ -3,6 +3,7 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import { NodeKey, $getNodeByKey } from 'lexical';
 import { HtmlCardData } from '@vibress/studio-cards';
+import { assertCardSelection } from '../../utils/cardSelection.js';
 
 interface Props {
   nodeKey: NodeKey;
@@ -41,8 +42,7 @@ export function HtmlCardEditor({ nodeKey, cardData }: Props) {
     <div
       className={`vb-html-card relative w-full mb-4 border rounded-md bg-gray-50 overflow-hidden shadow-sm`}
       onClick={(e) => {
-        clearSelection();
-        setSelected(true);
+        assertCardSelection(clearSelection, setSelected);
         if (!isSelected) {
           e.preventDefault();
         }

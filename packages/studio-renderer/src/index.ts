@@ -99,8 +99,11 @@ function renderNodeToHtml(node: StudioRenderNode, options: RenderOptions): strin
     case 'code':
       return `<pre><code>${renderChildren()}</code></pre>`;
 
-    // Handle Studio Card Nodes
-    case 'studio-card': {
+    // Handle Studio Card Nodes ('react-studio-card' is the Lexical node
+    // type; stored documents are normalized to 'studio-card', but the
+    // renderer handles both defensively).
+    case 'studio-card':
+    case 'react-studio-card': {
       const cardType = node.cardType || '';
       const cardData = node.cardData || {};
       const def = STUDIO_CARD_DEFINITIONS[cardType];
@@ -140,7 +143,7 @@ function renderNodeToPlainText(node: StudioRenderNode): string {
     return node.text || '';
   }
 
-  if (node.type === 'studio-card') {
+  if (node.type === 'studio-card' || node.type === 'react-studio-card') {
     const cardType = node.cardType || '';
     const cardData = node.cardData || {};
     const def = STUDIO_CARD_DEFINITIONS[cardType];

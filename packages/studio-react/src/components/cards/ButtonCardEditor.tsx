@@ -2,6 +2,7 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import { NodeKey, $getNodeByKey } from 'lexical';
 import { ButtonCardData } from '@vibress/studio-cards';
+import { assertCardSelection } from '../../utils/cardSelection.js';
 
 interface Props {
   nodeKey: NodeKey;
@@ -35,10 +36,7 @@ export function ButtonCardEditor({ nodeKey, cardData }: Props) {
   return (
     <div
       className={`vb-button-card relative w-full mb-4`}
-      onClick={() => {
-        clearSelection();
-        setSelected(true);
-      }}
+      onClick={() => assertCardSelection(clearSelection, setSelected)}
     >
       <div 
         className={`flex w-full my-3 ${alignClass} ${isSelected || url ? 'opacity-100' : 'opacity-50'} transition-opacity`}

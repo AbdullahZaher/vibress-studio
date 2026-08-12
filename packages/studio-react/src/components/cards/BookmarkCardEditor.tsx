@@ -5,6 +5,7 @@ import { NodeKey, $getNodeByKey } from 'lexical';
 import { BookmarkCardData } from '@vibress/studio-cards';
 import { isSafeUrl } from '@vibress/studio-utils';
 import { UrlPlaceholder } from '../ui/UrlPlaceholder.js';
+import { assertCardSelection } from '../../utils/cardSelection.js';
 
 interface Props {
   nodeKey: NodeKey;
@@ -66,10 +67,7 @@ export function BookmarkCardEditor({ nodeKey, cardData }: Props) {
         onUrlSubmit={onUrlSubmit}
         validate={(u) => isSafeUrl(u) && parseUrlSafely(u) !== null}
         isSelected={isSelected}
-        onClick={() => {
-          clearSelection();
-          setSelected(true);
-        }}
+        onClick={() => assertCardSelection(clearSelection, setSelected)}
       />
     );
   }
@@ -77,10 +75,7 @@ export function BookmarkCardEditor({ nodeKey, cardData }: Props) {
   return (
     <figure
       className={`vb-bookmark-card relative w-full mb-4`}
-      onClick={() => {
-        clearSelection();
-        setSelected(true);
-      }}
+      onClick={() => assertCardSelection(clearSelection, setSelected)}
       style={{
         outline: isSelected ? '2px solid #3b82f6' : 'none',
         transition: 'outline 0.1s ease',

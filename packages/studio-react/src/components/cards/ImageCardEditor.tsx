@@ -7,6 +7,7 @@ import { NestedCaptionEditor } from './NestedCaptionEditor.js';
 import { CardPlaceholder } from '../ui/CardPlaceholder.js';
 
 import { useStudioUploadAdapter } from '../../media/UploadAdapterContext.js';
+import { assertCardSelection } from '../../utils/cardSelection.js';
 import { createObjectUrl } from '../../media/object-url.js';
 import { useMediaUpload } from '../../media/useMediaUpload.js';
 
@@ -90,10 +91,7 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
         description="Click to select an image, or drag and drop"
         onFileSelect={onFileSelect}
         isSelected={isSelected}
-        onClick={() => {
-          clearSelection();
-          setSelected(true);
-        }}
+        onClick={() => assertCardSelection(clearSelection, setSelected)}
       />
     );
   }
@@ -103,10 +101,7 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
   return (
     <figure
       className={`vb-image-card${widthClass} relative`}
-      onClick={() => {
-        clearSelection();
-        setSelected(true);
-      }}
+      onClick={() => assertCardSelection(clearSelection, setSelected)}
       style={{
         outline: isSelected ? '2px solid #3b82f6' : 'none',
         borderRadius: '4px',

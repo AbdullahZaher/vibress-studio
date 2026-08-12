@@ -8,6 +8,7 @@ import { CardPlaceholder } from '../ui/CardPlaceholder.js';
 import { UploadStatusOverlay } from '../ui/UploadStatusOverlay.js';
 
 import { useStudioUploadAdapter } from '../../media/UploadAdapterContext.js';
+import { assertCardSelection } from '../../utils/cardSelection.js';
 import { createObjectUrl } from '../../media/object-url.js';
 import { useMediaUpload } from '../../media/useMediaUpload.js';
 
@@ -85,10 +86,7 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
         description="Click to select an audio file"
         onFileSelect={onFileSelect}
         isSelected={isSelected}
-        onClick={() => {
-          clearSelection();
-          setSelected(true);
-        }}
+        onClick={() => assertCardSelection(clearSelection, setSelected)}
       />
     );
   }
@@ -98,10 +96,7 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
   return (
     <div
       className="vb-audio-card relative w-full mb-4"
-      onClick={() => {
-        clearSelection();
-        setSelected(true);
-      }}
+      onClick={() => assertCardSelection(clearSelection, setSelected)}
       style={{
         outline: isSelected ? '2px solid #3b82f6' : 'none',
         borderRadius: '4px',

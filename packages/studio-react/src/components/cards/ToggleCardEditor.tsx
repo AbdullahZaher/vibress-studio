@@ -4,6 +4,7 @@ import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection'
 import { NodeKey, $getNodeByKey } from 'lexical';
 import { ToggleCardData } from '@vibress/studio-cards';
 import { ChevronRight } from 'lucide-react';
+import { assertCardSelection } from '../../utils/cardSelection.js';
 
 interface Props {
   nodeKey: NodeKey;
@@ -47,8 +48,7 @@ export function ToggleCardEditor({ nodeKey, cardData }: Props) {
     <div
       className={`vb-toggle-card relative w-full mb-4 border rounded-md bg-white shadow-sm overflow-hidden`}
       onClick={(e) => {
-        clearSelection();
-        setSelected(true);
+        assertCardSelection(clearSelection, setSelected);
         if (!isSelected) {
           e.preventDefault();
         }

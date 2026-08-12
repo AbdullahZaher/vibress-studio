@@ -8,7 +8,7 @@ import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import LexicalErrorBoundary from '@lexical/react/LexicalErrorBoundary';
-import { $getRoot, $createParagraphNode } from 'lexical';
+import { $getRoot, $createParagraphNode, LexicalEditor } from 'lexical';
 import { SlashMenuPlugin } from './plugins/SlashMenuPlugin.js';
 import { FloatingFormatToolbarPlugin } from './plugins/FloatingFormatToolbarPlugin.js';
 import { FloatingCardActionToolbarPlugin } from './plugins/FloatingCardActionToolbarPlugin.js';
@@ -28,6 +28,8 @@ export interface VibressStudioProps {
   requestMedia?: (req: { cardType: string }) => Promise<Record<string, unknown> | null>;
   /** Media upload adapter; when omitted, media cards use temporary local previews. */
   uploadAdapter?: StudioUploadAdapter | null;
+  /** Called once the Lexical editor instance is created (for host toolbars/tests). */
+  onEditorReady?: (editor: LexicalEditor) => void;
   className?: string;
 }
 
@@ -62,6 +64,17 @@ class StudioErrorBoundary extends Component<StudioErrorBoundaryProps, { hasError
 }
 
 // Toolbar has been removed to match the distraction-free floating-only approach.
+
+function EditorReadyPlugin({ onEditorReady }: { onEditorReady?: (editor: LexicalEditor) => void }) {
+  const [editor] = useLexicalComposerContext();
+  const called = useRef(false);
+  useEffect(() => {
+    if (called.current || !onEditorReady) return;
+    called.current = true;
+    onEditorReady(editor);
+  }, [editor, onEditorReady]);
+  return null;
+}
 
 function InitialStatePlugin({ document }: { document: StudioDocument }) {
   const [editor] = useLexicalComposerContext();
@@ -99,6 +112,7 @@ export function VibressStudio({
   placeholder = 'Write content with Vibress Studio...',
   onError,
   uploadAdapter = null,
+  onEditorReady,
   className = '',
 }: VibressStudioProps) {
   const parsedDoc = useMemo(() => migrateDocument(value), [value]);
@@ -144,17 +158,18 @@ export function VibressStudio({
       <StudioUploadAdapterProvider adapter={uploadAdapter}>
         <div className={`vibress-studio-editor ${className}`}>
         <LexicalComposer initialConfig={initialConfig}>
+          <EditorReadyPlugin onEditorReady={onEditorReady} />
           <div style={{ position: 'relative', minHeight: '20vh' }}>
             <RichTextPlugin
               contentEditable={
                 <ContentEditable
-                  aria-label="Editor content"
+                  ariaLabel="Editor content"
                   aria-multiline="true"
                   style={{ outline: 'none', minHeight: '20vh', fontSize: '1.125rem', lineHeight: '1.7', color: 'inherit' }}
                 />
               }
               placeholder={
-                <div style={{ position: 'absolute', top: '0', left: '0', color: '#94a3b8', pointerEvents: 'none', fontSize: '1.125rem' }}>
+                <div style={{ position: 'absolute', top: '0', left: '0', color: '#6b7280', pointerEvents: 'none', fontSize: '1.125rem' }}>
                   {placeholder}
                 </div>
               }

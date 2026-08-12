@@ -46,7 +46,7 @@ export function NestedCaptionEditor({
         <RichTextPlugin
           contentEditable={
             <ContentEditable
-              aria-label={placeholder || 'Caption'}
+              ariaLabel={placeholder || 'Caption'}
               aria-multiline="true"
               className="outline-none min-h-[24px] px-2 py-1 focus:bg-gray-50 rounded"
             />

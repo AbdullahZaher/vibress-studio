@@ -506,7 +506,8 @@ function renderNodeToMarkdown(node: StudioMarkdownNode): string {
     case 'code':
       return `\`\`\`${(node.language as string) || ''}\n${renderChildren()}\n\`\`\``;
 
-    case 'studio-card': {
+    case 'studio-card':
+    case 'react-studio-card': {
       return cardToMarkdown(node);
     }
 

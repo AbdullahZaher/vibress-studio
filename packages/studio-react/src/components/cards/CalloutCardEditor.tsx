@@ -3,6 +3,7 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import { NodeKey, $getNodeByKey } from 'lexical';
 import { CalloutCardData } from '@vibress/studio-cards';
+import { assertCardSelection } from '../../utils/cardSelection.js';
 
 interface Props {
   nodeKey: NodeKey;
@@ -53,10 +54,9 @@ export function CalloutCardEditor({ nodeKey, cardData }: Props) {
     <div
       className={`vb-callout-card relative w-full mb-4 rounded-md border p-4 flex gap-4 ${colorClass}`}
       onClick={(e) => {
-        clearSelection();
-        setSelected(true);
+        assertCardSelection(clearSelection, setSelected);
         if (!isSelected) {
-          e.preventDefault(); // Prevent immediately focusing textarea if just selecting
+          e.preventDefault();
         }
       }}
       style={{

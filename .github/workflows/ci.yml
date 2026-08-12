@@ -49,3 +49,42 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Verify package exports
+        run: pnpm verify:package-exports
+
+      - name: Security regression tests
+        run: pnpm test:security
+
+      - name: Accessibility tests
+        run: pnpm test:a11y
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build packages (dist)
+        run: pnpm build
+
+      - name: Browser E2E (editor, cards, uploads, XSS, import/export, a11y, Lighthouse)
+        run: pnpm test:e2e

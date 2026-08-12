@@ -40,6 +40,11 @@ export class StudioCardNode extends DecoratorNode<JSX.Element | string> {
     return this.__cardData;
   }
 
+  /** Studio cards are block-level, never inline inside a paragraph. */
+  isInline(): boolean {
+    return false;
+  }
+
   setCardData(cardData: Record<string, unknown>): void {
     const writable = this.getWritable();
     writable.__cardData = cardData;

@@ -6,6 +6,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     fileParallelism: false,
+    exclude: ['**/node_modules/**', '**/dist/**', 'e2e/**', 'playwright-report/**', 'test-results/**'],
   },
   resolve: {
     alias: {

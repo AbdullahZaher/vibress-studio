@@ -9,6 +9,9 @@ pnpm test                # full suite (vitest, jsdom)
 pnpm test:security       # security/XSS regression suites
 pnpm test:a11y           # axe accessibility smoke tests
 pnpm test:roundtrip      # import/export roundtrip tests
+pnpm test:e2e            # browser E2E (Playwright + Chromium + Lighthouse)
+pnpm test:e2e:lighthouse # Lighthouse-only E2E run
+pnpm test:e2e:install    # install the Playwright Chromium browser
 pnpm verify:package-exports
 pnpm verify:explicit-any
 pnpm lint
@@ -16,6 +19,45 @@ pnpm typecheck
 pnpm build
 pnpm audit --prod
 ```
+
+## Browser E2E (Playwright)
+
+The `e2e/` directory contains a Playwright harness that runs against the
+playground's dedicated test page (`playground/e2e.html`, built by
+`E2EHarness.tsx`). The harness mounts the editor with a mock upload adapter
+and import/export controls, and exposes `window.__studio` for assertions.
+
+| Spec | Covers |
+|---|---|
+| `01-editor-editing.spec.ts` | editor loads, typing paragraphs, bold, heading/list conversion via UI |
+| `02-slash-menu-cards.spec.ts` | slash menu inserts every built-in card; placeholders render |
+| `03-card-edit-remove-retry.spec.ts` | bookmark URL validation, html/button card edits, keyboard removal |
+| `04-upload-adapter.spec.ts` | mock upload success, error overlay, retry, dismiss, video upload |
+| `05-html-card-xss.spec.ts` | XSS payloads typed into the HTML card never execute in preview |
+| `06-import-export.spec.ts` | HTML/markdown import + export through the UI, malicious input sanitized |
+| `07-keyboard-nav.spec.ts` | slash menu arrow/escape navigation, tab order, focus retention |
+| `08-lighthouse.spec.ts` | Lighthouse accessibility with real-browser color-contrast |
+
+### What the E2E suite caught
+
+The browser harness found and verified fixes for several real editor bugs
+that jsdom tests could not:
+
+1. `ReactStudioCardNode` lacked `exportJSON`/`importJSON` (serialization
+   errors on every card insert).
+2. `DecoratorNode.isInline()` defaults to `true` — cards were inserted
+   *inside* paragraphs instead of as top-level blocks. Cards now override
+   `isInline()` to `false`.
+3. Clicking a card (a `contenteditable="false"` region) made Lexical null the
+   node selection — keyboard deletion of cards was broken. Card selection is
+   now re-asserted (`assertCardSelection`) so Delete/Backspace works.
+4. The editor contenteditable used `aria-label` instead of Lexical's
+   `ariaLabel` prop — the accessible name was missing.
+5. A form `type="url" required` input blocks submission for non-URL values
+   via native browser validation before the app's validation runs (the
+   placeholder now documents this; tests use a URL-shaped unsafe value).
+6. `verify:package-exports` now also verifies dist is Node-ESM-runnable
+   (explicit `.js` extensions).
 
 ## Suites
 

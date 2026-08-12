@@ -26,6 +26,8 @@ production claims.
 | Security tests | PASS | `pnpm test:security` |
 | A11y tests | PASS | `pnpm test:a11y` |
 | Package exports tests | PASS | `verify:package-exports` + `package-exports.test.ts` |
+| Browser E2E (Playwright) | PASS | 43 tests across editor, cards, uploads, XSS, import/export, keyboard, Lighthouse |
+| Visual color contrast (Lighthouse) | PASS | real-browser `color-contrast` audit = 1.0; accessibility score ≥ 0.9 |
 | Docs complete | PASS | `docs/*` + README |
 | No release blockers | PASS | see below |
 
@@ -64,5 +66,5 @@ See the final hardening result report and `docs/security.md` →
 hardening result) — provided every quality gate in `pnpm lint`, `pnpm
 typecheck`, `pnpm test`, `pnpm build`, `pnpm audit --prod`,
 `pnpm verify:explicit-any`, `pnpm verify:package-exports`, `pnpm
-test:security`, `pnpm test:a11y`, and `pnpm test:roundtrip` passes with a
-clean working tree.
+test:security`, `pnpm test:a11y`, `pnpm test:roundtrip`, and `pnpm
+test:e2e` passes with a clean working tree.
