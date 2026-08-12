@@ -148,6 +148,9 @@ importers:
       '@lexical/utils':
         specifier: 0.13.1
         version: 0.13.1(lexical@0.13.1)
+      '@vibress/studio-cards':
+        specifier: workspace:*
+        version: link:../studio-cards
       '@vibress/studio-core':
         specifier: workspace:*
         version: link:../studio-core

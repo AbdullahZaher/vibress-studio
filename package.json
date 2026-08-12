@@ -8,6 +8,10 @@
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "verify:explicit-any": "node scripts/count-explicit-any.mjs --max 50",
+    "verify:package-exports": "node scripts/verify-package-exports.mjs",
+    "test:security": "vitest run packages/studio-testing/security",
+    "test:a11y": "vitest run packages/studio-testing/a11y",
+    "test:roundtrip": "vitest run packages/studio-testing/security/roundtrip.test.ts packages/studio-testing/roundtrip",
     "repo:health": "node scripts/count-explicit-any.mjs --max 50"
   },
   "devDependencies": {

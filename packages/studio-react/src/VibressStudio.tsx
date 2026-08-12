@@ -13,7 +13,7 @@ import { SlashMenuPlugin } from './plugins/SlashMenuPlugin';
 import { FloatingFormatToolbarPlugin } from './plugins/FloatingFormatToolbarPlugin';
 import { FloatingCardActionToolbarPlugin } from './plugins/FloatingCardActionToolbarPlugin';
 import { STUDIO_CORE_NODES } from '@vibress/studio-nodes';
-import { StudioCardNode } from '@vibress/studio-cards';
+import { StudioCardNode } from '@vibress/studio-nodes';
 import { ReactStudioCardNode } from './nodes/ReactStudioCardNode';
 import { StudioDocument, migrateDocument, StudioUploadAdapter } from '@vibress/studio-core';
 import { serializeStudioDocument } from '@vibress/studio-serializer';
