@@ -20,7 +20,7 @@ export function ButtonCardEditor({ nodeKey, cardData }: Props) {
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
       if (node && 'setCardData' in node) {
-        (node as any).setCardData({
+        (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
           ...cardData,
           ...updates,
         });

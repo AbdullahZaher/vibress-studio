@@ -26,7 +26,7 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
         if (node && 'setCardData' in node) {
-          (node as any).setCardData({
+          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
             ...cardData,
             src: url,
             alt: file.name
@@ -36,11 +36,11 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
   };
 
   const onCaptionChange = useCallback(
-    (captionJSON: Record<string, any>, captionHtml: string) => {
+    (captionJSON: Record<string, unknown>, captionHtml: string) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
         if (node && 'setCardData' in node) {
-          (node as any).setCardData({
+          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
             ...cardData,
             caption: captionJSON,
             captionHtml,
