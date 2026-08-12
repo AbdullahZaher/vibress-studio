@@ -2,7 +2,6 @@ import { z } from 'zod';
 
 export const STUDIO_SCHEMA_NAME = 'vibress-studio';
 export const CURRENT_STUDIO_VERSION = 1;
-
 export interface StudioDocument {
   schema: 'vibress-studio';
   version: number;
@@ -117,6 +116,8 @@ export function createDefaultStudioDocument(text = ''): StudioDocument {
     },
   };
 }
+
+export * from './media/upload-adapter';
 
 export function migrateDocument(rawDoc: unknown): StudioDocument {
   if (!rawDoc) {

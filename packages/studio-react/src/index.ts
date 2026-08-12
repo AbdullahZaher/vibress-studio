@@ -3,3 +3,8 @@ export * from './plugins/SlashMenuPlugin';
 export * from './plugins/FloatingFormatToolbarPlugin';
 export { SafeHtml, sanitizeToSafeHtml, type SanitizedHtml } from './security/SafeHtml';
 export { CardErrorBoundary } from './components/CardErrorBoundary';
+export { StudioUploadAdapterProvider, useStudioUploadAdapter } from './media/UploadAdapterContext';
+export { VibressMediaUploadAdapter, type VibressMediaUploadAdapterOptions } from './media/VibressMediaUploadAdapter';
+export { useMediaUpload, type MediaUploadState, type MediaUploadStatus } from './media/useMediaUpload';
+export { createObjectUrl, revokeObjectUrl } from './media/object-url';
+export type { StudioUploadedAsset, StudioUploadAdapter, StudioUploadContext } from '@vibress/studio-core';

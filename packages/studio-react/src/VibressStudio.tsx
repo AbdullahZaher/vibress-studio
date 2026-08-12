@@ -15,8 +15,9 @@ import { FloatingCardActionToolbarPlugin } from './plugins/FloatingCardActionToo
 import { STUDIO_CORE_NODES } from '@vibress/studio-nodes';
 import { StudioCardNode } from '@vibress/studio-cards';
 import { ReactStudioCardNode } from './nodes/ReactStudioCardNode';
-import { StudioDocument, migrateDocument } from '@vibress/studio-core';
+import { StudioDocument, migrateDocument, StudioUploadAdapter } from '@vibress/studio-core';
 import { serializeStudioDocument } from '@vibress/studio-serializer';
+import { StudioUploadAdapterProvider } from './media/UploadAdapterContext';
 
 export interface VibressStudioProps {
   value?: unknown;
@@ -25,6 +26,8 @@ export interface VibressStudioProps {
   placeholder?: string;
   onError?: (error: Error) => void;
   requestMedia?: (req: { cardType: string }) => Promise<Record<string, unknown> | null>;
+  /** Media upload adapter; when omitted, media cards use temporary local previews. */
+  uploadAdapter?: StudioUploadAdapter | null;
   className?: string;
 }
 
@@ -95,6 +98,7 @@ export function VibressStudio({
   readOnly = false,
   placeholder = 'Write content with Vibress Studio...',
   onError,
+  uploadAdapter = null,
   className = '',
 }: VibressStudioProps) {
   const parsedDoc = useMemo(() => migrateDocument(value), [value]);
@@ -137,7 +141,8 @@ export function VibressStudio({
 
   return (
     <StudioErrorBoundary onError={onError}>
-      <div className={`vibress-studio-editor ${className}`}>
+      <StudioUploadAdapterProvider adapter={uploadAdapter}>
+        <div className={`vibress-studio-editor ${className}`}>
         <LexicalComposer initialConfig={initialConfig}>
           <div style={{ position: 'relative', minHeight: '20vh' }}>
             <RichTextPlugin
@@ -167,7 +172,8 @@ export function VibressStudio({
             )}
           </div>
         </LexicalComposer>
-      </div>
+        </div>
+      </StudioUploadAdapterProvider>
     </StudioErrorBoundary>
   );
 }
