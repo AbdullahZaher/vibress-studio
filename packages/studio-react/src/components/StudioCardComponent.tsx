@@ -4,6 +4,7 @@ import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection'
 import { mergeRegister } from '@lexical/utils';
 import { $getNodeByKey, $getSelection, $isNodeSelection, COMMAND_PRIORITY_LOW, KEY_BACKSPACE_COMMAND, KEY_DELETE_COMMAND, NodeKey } from 'lexical';
 import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-cards';
+import { SafeHtml, sanitizeToSafeHtml } from '../security/SafeHtml';
 import { ImageCardEditor } from './cards/ImageCardEditor';
 import { VideoCardEditor } from './cards/VideoCardEditor';
 import { GalleryCardEditor } from './cards/GalleryCardEditor';
@@ -85,7 +86,9 @@ export function StudioCardComponent({
     return <InteractiveEditor nodeKey={nodeKey} cardData={cardData} />;
   }
 
-  // Otherwise, fallback to static HTML rendering
+  // Otherwise, fallback to static HTML rendering. The output of every
+  // built-in renderer is already sanitized; we additionally brand it through
+  // the sanitizer boundary so only SafeHtml can mount it.
   const def = STUDIO_CARD_DEFINITIONS[cardType];
   let html = `[Unknown Card: ${cardType}]`;
   if (def) {
@@ -96,6 +99,7 @@ export function StudioCardComponent({
       html = `[Card: ${cardType}] Error`;
     }
   }
+  const safeHtml = sanitizeToSafeHtml(html);
 
   return (
     <div
@@ -111,7 +115,8 @@ export function StudioCardComponent({
         borderRadius: '4px',
         transition: 'outline 0.1s ease',
       }}
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    >
+      <SafeHtml html={safeHtml} />
+    </div>
   );
 }

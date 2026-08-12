@@ -55,6 +55,8 @@ function getEmbedProviderName(url: string): string | null {
   return null;
 }
 
+export { EMBED_PROVIDER_ALLOWLIST, getEmbedProviderName };
+
 function safeClass(tokens: Array<string | undefined>): string {
   return tokens
     .filter((t): t is string => !!t && SafeClassToken.safeParse(t).success)
