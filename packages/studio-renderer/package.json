@@ -9,10 +9,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@vibress/studio-core": "file:../studio-core",
-    "@vibress/studio-nodes": "file:../studio-nodes",
-    "@vibress/studio-cards": "file:../studio-cards",
-    "@vibress/studio-serializer": "file:../studio-serializer",
-    "@vibress/studio-utils": "file:../studio-utils"
+    "@vibress/studio-core": "workspace:*",
+    "@vibress/studio-nodes": "workspace:*",
+    "@vibress/studio-cards": "workspace:*",
+    "@vibress/studio-serializer": "workspace:*",
+    "@vibress/studio-utils": "workspace:*"
   }
 }

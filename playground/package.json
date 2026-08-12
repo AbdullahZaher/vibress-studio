@@ -8,11 +8,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@vibress/studio-core": "file:../packages/studio-core",
-    "@vibress/studio-react": "file:../packages/studio-react",
-    "@vibress/studio-renderer": "file:../packages/studio-renderer",
-    "@vibress/studio-markdown": "file:../packages/studio-markdown",
-    "@vibress/studio-testing": "file:../packages/studio-testing",
+    "@vibress/studio-core": "workspace:*",
+    "@vibress/studio-react": "workspace:*",
+    "@vibress/studio-renderer": "workspace:*",
+    "@vibress/studio-markdown": "workspace:*",
+    "@vibress/studio-testing": "workspace:*",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },

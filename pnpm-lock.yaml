@@ -36,13 +36,13 @@ importers:
   packages/studio-cards:
     dependencies:
       '@vibress/studio-core':
-        specifier: file:../studio-core
+        specifier: workspace:*
         version: link:../studio-core
       '@vibress/studio-nodes':
-        specifier: file:../studio-nodes
+        specifier: workspace:*
         version: link:../studio-nodes
       '@vibress/studio-utils':
-        specifier: file:../studio-utils
+        specifier: workspace:*
         version: link:../studio-utils
       lexical:
         specifier: 0.13.1
@@ -63,7 +63,7 @@ importers:
         specifier: 0.13.1
         version: 0.13.1(lexical@0.13.1)
       '@vibress/studio-utils':
-        specifier: file:../studio-utils
+        specifier: workspace:*
         version: link:../studio-utils
       lexical:
         specifier: 0.13.1
@@ -78,16 +78,16 @@ importers:
         specifier: 0.13.1
         version: 0.13.1(lexical@0.13.1)
       '@vibress/studio-cards':
-        specifier: file:../studio-cards
+        specifier: workspace:*
         version: link:../studio-cards
       '@vibress/studio-core':
-        specifier: file:../studio-core
+        specifier: workspace:*
         version: link:../studio-core
       '@vibress/studio-nodes':
-        specifier: file:../studio-nodes
+        specifier: workspace:*
         version: link:../studio-nodes
       '@vibress/studio-utils':
-        specifier: file:../studio-utils
+        specifier: workspace:*
         version: link:../studio-utils
       lexical:
         specifier: 0.13.1
@@ -96,13 +96,13 @@ importers:
   packages/studio-markdown:
     dependencies:
       '@vibress/studio-core':
-        specifier: file:../studio-core
+        specifier: workspace:*
         version: link:../studio-core
       '@vibress/studio-renderer':
-        specifier: file:../studio-renderer
-        version: file:packages/studio-renderer(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
+        specifier: workspace:*
+        version: link:../studio-renderer
       '@vibress/studio-utils':
-        specifier: file:../studio-utils
+        specifier: workspace:*
         version: link:../studio-utils
       markdown-it:
         specifier: ^14.1.0
@@ -130,10 +130,10 @@ importers:
         specifier: 0.13.1
         version: 0.13.1(lexical@0.13.1)
       '@vibress/studio-core':
-        specifier: file:../studio-core
+        specifier: workspace:*
         version: link:../studio-core
       '@vibress/studio-utils':
-        specifier: file:../studio-utils
+        specifier: workspace:*
         version: link:../studio-utils
       lexical:
         specifier: 0.13.1
@@ -142,10 +142,10 @@ importers:
   packages/studio-plugin-sdk:
     dependencies:
       '@vibress/studio-cards':
-        specifier: file:../studio-cards
-        version: file:packages/studio-cards(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
+        specifier: workspace:*
+        version: link:../studio-cards
       '@vibress/studio-core':
-        specifier: file:../studio-core
+        specifier: workspace:*
         version: link:../studio-core
 
   packages/studio-react:
@@ -178,34 +178,34 @@ importers:
         specifier: 0.13.1
         version: 0.13.1(lexical@0.13.1)
       '@vibress/studio-cards':
-        specifier: file:../studio-cards
+        specifier: workspace:*
         version: link:../studio-cards
       '@vibress/studio-core':
-        specifier: file:../studio-core
+        specifier: workspace:*
         version: link:../studio-core
       '@vibress/studio-html':
-        specifier: file:../studio-html
+        specifier: workspace:*
         version: link:../studio-html
       '@vibress/studio-markdown':
-        specifier: file:../studio-markdown
-        version: file:packages/studio-markdown(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
+        specifier: workspace:*
+        version: link:../studio-markdown
       '@vibress/studio-nodes':
-        specifier: file:../studio-nodes
+        specifier: workspace:*
         version: link:../studio-nodes
       '@vibress/studio-plugin-sdk':
-        specifier: file:../studio-plugin-sdk
-        version: file:packages/studio-plugin-sdk(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
+        specifier: workspace:*
+        version: link:../studio-plugin-sdk
       '@vibress/studio-renderer':
-        specifier: file:../studio-renderer
+        specifier: workspace:*
         version: link:../studio-renderer
       '@vibress/studio-serializer':
-        specifier: file:../studio-serializer
+        specifier: workspace:*
         version: link:../studio-serializer
       '@vibress/studio-transforms':
-        specifier: file:../studio-transforms
+        specifier: workspace:*
         version: link:../studio-transforms
       '@vibress/studio-utils':
-        specifier: file:../studio-utils
+        specifier: workspace:*
         version: link:../studio-utils
       lexical:
         specifier: 0.13.1
@@ -223,31 +223,31 @@ importers:
   packages/studio-renderer:
     dependencies:
       '@vibress/studio-cards':
-        specifier: file:../studio-cards
+        specifier: workspace:*
         version: link:../studio-cards
       '@vibress/studio-core':
-        specifier: file:../studio-core
+        specifier: workspace:*
         version: link:../studio-core
       '@vibress/studio-nodes':
-        specifier: file:../studio-nodes
+        specifier: workspace:*
         version: link:../studio-nodes
       '@vibress/studio-serializer':
-        specifier: file:../studio-serializer
+        specifier: workspace:*
         version: link:../studio-serializer
       '@vibress/studio-utils':
-        specifier: file:../studio-utils
+        specifier: workspace:*
         version: link:../studio-utils
 
   packages/studio-serializer:
     dependencies:
       '@vibress/studio-cards':
-        specifier: file:../studio-cards
+        specifier: workspace:*
         version: link:../studio-cards
       '@vibress/studio-core':
-        specifier: file:../studio-core
+        specifier: workspace:*
         version: link:../studio-core
       '@vibress/studio-nodes':
-        specifier: file:../studio-nodes
+        specifier: workspace:*
         version: link:../studio-nodes
       lexical:
         specifier: 0.13.1
@@ -256,16 +256,16 @@ importers:
   packages/studio-testing:
     dependencies:
       '@vibress/studio-cards':
-        specifier: file:../studio-cards
+        specifier: workspace:*
         version: link:../studio-cards
       '@vibress/studio-core':
-        specifier: file:../studio-core
+        specifier: workspace:*
         version: link:../studio-core
       '@vibress/studio-nodes':
-        specifier: file:../studio-nodes
+        specifier: workspace:*
         version: link:../studio-nodes
       '@vibress/studio-serializer':
-        specifier: file:../studio-serializer
+        specifier: workspace:*
         version: link:../studio-serializer
 
   packages/studio-transforms:
@@ -280,10 +280,10 @@ importers:
         specifier: 0.13.1
         version: 0.13.1(lexical@0.13.1)
       '@vibress/studio-core':
-        specifier: file:../studio-core
+        specifier: workspace:*
         version: link:../studio-core
       '@vibress/studio-nodes':
-        specifier: file:../studio-nodes
+        specifier: workspace:*
         version: link:../studio-nodes
       lexical:
         specifier: 0.13.1
@@ -305,19 +305,19 @@ importers:
   playground:
     dependencies:
       '@vibress/studio-core':
-        specifier: file:../packages/studio-core
+        specifier: workspace:*
         version: link:../packages/studio-core
       '@vibress/studio-markdown':
-        specifier: file:../packages/studio-markdown
-        version: file:packages/studio-markdown(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
+        specifier: workspace:*
+        version: link:../packages/studio-markdown
       '@vibress/studio-react':
-        specifier: file:../packages/studio-react
-        version: file:packages/studio-react(@lexical/clipboard@0.13.1(lexical@0.13.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: workspace:*
+        version: link:../packages/studio-react
       '@vibress/studio-renderer':
-        specifier: file:../packages/studio-renderer
+        specifier: workspace:*
         version: link:../packages/studio-renderer
       '@vibress/studio-testing':
-        specifier: file:../packages/studio-testing
+        specifier: workspace:*
         version: link:../packages/studio-testing
       react:
         specifier: 18.3.1
@@ -1130,42 +1130,6 @@ packages:
   '@typescript-eslint/visitor-keys@8.66.0':
     resolution: {integrity: sha512-dkKR8q+lKciskj1Y3vthHktl+3cMLWGyVUP23bRiPZ5O9BRT++4EqDDV+TVeIKBL1VXVEqrJlz8MYbcnvJcAlg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@vibress/studio-cards@file:packages/studio-cards':
-    resolution: {directory: packages/studio-cards, type: directory}
-
-  '@vibress/studio-core@file:packages/studio-core':
-    resolution: {directory: packages/studio-core, type: directory}
-
-  '@vibress/studio-html@file:packages/studio-html':
-    resolution: {directory: packages/studio-html, type: directory}
-
-  '@vibress/studio-markdown@file:packages/studio-markdown':
-    resolution: {directory: packages/studio-markdown, type: directory}
-
-  '@vibress/studio-nodes@file:packages/studio-nodes':
-    resolution: {directory: packages/studio-nodes, type: directory}
-
-  '@vibress/studio-plugin-sdk@file:packages/studio-plugin-sdk':
-    resolution: {directory: packages/studio-plugin-sdk, type: directory}
-
-  '@vibress/studio-react@file:packages/studio-react':
-    resolution: {directory: packages/studio-react, type: directory}
-    peerDependencies:
-      react: 18.3.1
-      react-dom: 18.3.1
-
-  '@vibress/studio-renderer@file:packages/studio-renderer':
-    resolution: {directory: packages/studio-renderer, type: directory}
-
-  '@vibress/studio-serializer@file:packages/studio-serializer':
-    resolution: {directory: packages/studio-serializer, type: directory}
-
-  '@vibress/studio-transforms@file:packages/studio-transforms':
-    resolution: {directory: packages/studio-transforms, type: directory}
-
-  '@vibress/studio-utils@file:packages/studio-utils':
-    resolution: {directory: packages/studio-utils, type: directory}
 
   '@vitejs/plugin-react@4.7.0':
     resolution: {integrity: sha512-gUu9hwfWvvEDBBmgtAowQCojwZmJ5mcLn3aufeCsitijs3+f2NsrPtlAWIR6OPiqljl96GVCUbLe0HyqIpVaoA==}
@@ -2791,139 +2755,6 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.66.0
       eslint-visitor-keys: 5.0.1
-
-  '@vibress/studio-cards@file:packages/studio-cards(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))':
-    dependencies:
-      '@vibress/studio-core': file:packages/studio-core(@lexical/clipboard@0.13.1(lexical@0.13.1))
-      '@vibress/studio-nodes': file:packages/studio-nodes(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      '@vibress/studio-utils': file:packages/studio-utils
-      lexical: 0.13.1
-      zod: 3.25.76
-    transitivePeerDependencies:
-      - '@lexical/clipboard'
-      - '@lexical/selection'
-
-  '@vibress/studio-core@file:packages/studio-core(@lexical/clipboard@0.13.1(lexical@0.13.1))':
-    dependencies:
-      '@lexical/rich-text': 0.13.1(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))(@lexical/utils@0.13.1(lexical@0.13.1))(lexical@0.13.1)
-      '@lexical/selection': 0.13.1(lexical@0.13.1)
-      '@lexical/utils': 0.13.1(lexical@0.13.1)
-      '@vibress/studio-utils': file:packages/studio-utils
-      lexical: 0.13.1
-      zod: 3.25.76
-    transitivePeerDependencies:
-      - '@lexical/clipboard'
-
-  '@vibress/studio-html@file:packages/studio-html(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))':
-    dependencies:
-      '@lexical/html': 0.13.1(lexical@0.13.1)
-      '@vibress/studio-cards': file:packages/studio-cards(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      '@vibress/studio-core': file:packages/studio-core(@lexical/clipboard@0.13.1(lexical@0.13.1))
-      '@vibress/studio-nodes': file:packages/studio-nodes(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      '@vibress/studio-utils': file:packages/studio-utils
-      lexical: 0.13.1
-    transitivePeerDependencies:
-      - '@lexical/clipboard'
-      - '@lexical/selection'
-
-  '@vibress/studio-markdown@file:packages/studio-markdown(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))':
-    dependencies:
-      '@vibress/studio-core': file:packages/studio-core(@lexical/clipboard@0.13.1(lexical@0.13.1))
-      '@vibress/studio-renderer': file:packages/studio-renderer(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      '@vibress/studio-utils': file:packages/studio-utils
-      markdown-it: 14.3.0
-    transitivePeerDependencies:
-      - '@lexical/clipboard'
-      - '@lexical/selection'
-
-  '@vibress/studio-nodes@file:packages/studio-nodes(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))':
-    dependencies:
-      '@lexical/code': 0.13.1(lexical@0.13.1)
-      '@lexical/link': 0.13.1(lexical@0.13.1)
-      '@lexical/list': 0.13.1(lexical@0.13.1)
-      '@lexical/rich-text': 0.13.1(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))(@lexical/utils@0.13.1(lexical@0.13.1))(lexical@0.13.1)
-      '@lexical/utils': 0.13.1(lexical@0.13.1)
-      '@vibress/studio-core': file:packages/studio-core(@lexical/clipboard@0.13.1(lexical@0.13.1))
-      '@vibress/studio-utils': file:packages/studio-utils
-      lexical: 0.13.1
-    transitivePeerDependencies:
-      - '@lexical/clipboard'
-      - '@lexical/selection'
-
-  '@vibress/studio-plugin-sdk@file:packages/studio-plugin-sdk(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))':
-    dependencies:
-      '@vibress/studio-cards': file:packages/studio-cards(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      '@vibress/studio-core': file:packages/studio-core(@lexical/clipboard@0.13.1(lexical@0.13.1))
-    transitivePeerDependencies:
-      - '@lexical/clipboard'
-      - '@lexical/selection'
-
-  '@vibress/studio-react@file:packages/studio-react(@lexical/clipboard@0.13.1(lexical@0.13.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
-    dependencies:
-      '@lexical/code': 0.13.1(lexical@0.13.1)
-      '@lexical/history': 0.13.1(lexical@0.13.1)
-      '@lexical/html': 0.13.1(lexical@0.13.1)
-      '@lexical/link': 0.13.1(lexical@0.13.1)
-      '@lexical/list': 0.13.1(lexical@0.13.1)
-      '@lexical/react': 0.13.1(lexical@0.13.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(yjs@13.6.32)
-      '@lexical/rich-text': 0.13.1(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))(@lexical/utils@0.13.1(lexical@0.13.1))(lexical@0.13.1)
-      '@lexical/selection': 0.13.1(lexical@0.13.1)
-      '@lexical/utils': 0.13.1(lexical@0.13.1)
-      '@vibress/studio-cards': file:packages/studio-cards(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      '@vibress/studio-core': file:packages/studio-core(@lexical/clipboard@0.13.1(lexical@0.13.1))
-      '@vibress/studio-html': file:packages/studio-html(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      '@vibress/studio-markdown': file:packages/studio-markdown(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      '@vibress/studio-nodes': file:packages/studio-nodes(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      '@vibress/studio-plugin-sdk': file:packages/studio-plugin-sdk(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      '@vibress/studio-renderer': file:packages/studio-renderer(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      '@vibress/studio-serializer': file:packages/studio-serializer(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      '@vibress/studio-transforms': file:packages/studio-transforms(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      '@vibress/studio-utils': file:packages/studio-utils
-      lexical: 0.13.1
-      lucide-react: 1.30.0(react@18.3.1)
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-    transitivePeerDependencies:
-      - '@lexical/clipboard'
-      - yjs
-
-  '@vibress/studio-renderer@file:packages/studio-renderer(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))':
-    dependencies:
-      '@vibress/studio-cards': file:packages/studio-cards(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      '@vibress/studio-core': file:packages/studio-core(@lexical/clipboard@0.13.1(lexical@0.13.1))
-      '@vibress/studio-nodes': file:packages/studio-nodes(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      '@vibress/studio-serializer': file:packages/studio-serializer(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      '@vibress/studio-utils': file:packages/studio-utils
-    transitivePeerDependencies:
-      - '@lexical/clipboard'
-      - '@lexical/selection'
-
-  '@vibress/studio-serializer@file:packages/studio-serializer(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))':
-    dependencies:
-      '@vibress/studio-cards': file:packages/studio-cards(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      '@vibress/studio-core': file:packages/studio-core(@lexical/clipboard@0.13.1(lexical@0.13.1))
-      '@vibress/studio-nodes': file:packages/studio-nodes(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      lexical: 0.13.1
-    transitivePeerDependencies:
-      - '@lexical/clipboard'
-      - '@lexical/selection'
-
-  '@vibress/studio-transforms@file:packages/studio-transforms(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))':
-    dependencies:
-      '@lexical/list': 0.13.1(lexical@0.13.1)
-      '@lexical/rich-text': 0.13.1(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))(@lexical/utils@0.13.1(lexical@0.13.1))(lexical@0.13.1)
-      '@lexical/utils': 0.13.1(lexical@0.13.1)
-      '@vibress/studio-core': file:packages/studio-core(@lexical/clipboard@0.13.1(lexical@0.13.1))
-      '@vibress/studio-nodes': file:packages/studio-nodes(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))
-      lexical: 0.13.1
-    transitivePeerDependencies:
-      - '@lexical/clipboard'
-      - '@lexical/selection'
-
-  '@vibress/studio-utils@file:packages/studio-utils':
-    dependencies:
-      markdown-it: 14.3.0
-      semver: 7.8.5
 
   '@vitejs/plugin-react@4.7.0(vite@5.4.21(@types/node@26.1.2)(lightningcss@1.33.0))':
     dependencies:

@@ -9,9 +9,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@vibress/studio-core": "file:../studio-core",
-    "@vibress/studio-renderer": "file:../studio-renderer",
-    "@vibress/studio-utils": "file:../studio-utils",
+    "@vibress/studio-core": "workspace:*",
+    "@vibress/studio-renderer": "workspace:*",
+    "@vibress/studio-utils": "workspace:*",
     "markdown-it": "^14.1.0"
   },
   "devDependencies": {

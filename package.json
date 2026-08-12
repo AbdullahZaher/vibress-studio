@@ -6,7 +6,9 @@
     "build": "pnpm -r build",
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",
-    "test": "vitest run"
+    "test": "vitest run",
+    "verify:explicit-any": "node scripts/count-explicit-any.mjs --max 50",
+    "repo:health": "node scripts/count-explicit-any.mjs --max 50"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
@@ -17,5 +19,10 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.66.0",
     "vitest": "^4.1.10"
+  },
+  "packageManager": "pnpm@11.17.0",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": ">=11.17.0"
   }
 }

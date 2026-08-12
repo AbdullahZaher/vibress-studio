@@ -9,9 +9,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@vibress/studio-core": "file:../studio-core",
-    "@vibress/studio-nodes": "file:../studio-nodes",
-    "@vibress/studio-cards": "file:../studio-cards",
+    "@vibress/studio-core": "workspace:*",
+    "@vibress/studio-nodes": "workspace:*",
+    "@vibress/studio-cards": "workspace:*",
     "lexical": "0.13.1"
   }
 }
