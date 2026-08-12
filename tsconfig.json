@@ -13,7 +13,46 @@
     "forceConsistentCasingInFileNames": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "paths": {
+      "@vibress/studio-core": [
+        "./packages/studio-core/src/index.ts"
+      ],
+      "@vibress/studio-cards": [
+        "./packages/studio-cards/src/index.ts"
+      ],
+      "@vibress/studio-utils": [
+        "./packages/studio-utils/src/index.ts"
+      ],
+      "@vibress/studio-html": [
+        "./packages/studio-html/src/index.ts"
+      ],
+      "@vibress/studio-markdown": [
+        "./packages/studio-markdown/src/index.ts"
+      ],
+      "@vibress/studio-renderer": [
+        "./packages/studio-renderer/src/index.ts"
+      ],
+      "@vibress/studio-serializer": [
+        "./packages/studio-serializer/src/index.ts"
+      ],
+      "@vibress/studio-transforms": [
+        "./packages/studio-transforms/src/index.ts"
+      ],
+      "@vibress/studio-plugin-sdk": [
+        "./packages/studio-plugin-sdk/src/index.ts"
+      ],
+      "@vibress/studio-nodes": [
+        "./packages/studio-nodes/src/index.ts"
+      ],
+      "@vibress/studio-react": [
+        "./packages/studio-react/src/index.ts"
+      ],
+      "@vibress/studio-testing": [
+        "./packages/studio-testing/src/index.ts"
+      ]
+    },
+    "baseUrl": "."
   },
   "exclude": [
     "node_modules",
