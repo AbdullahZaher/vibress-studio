@@ -9,7 +9,7 @@ import { join } from 'node:path';
  * resolve without React/Lexical leakage into server packages.
  */
 
-const ROOT = join(import.meta.dirname, '..', '..', '..');
+const ROOT = join(import.meta.dirname, '..', '..');
 const PACKAGES = [
   'studio-core',
   'studio-cards',
