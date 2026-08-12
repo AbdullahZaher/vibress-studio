@@ -2,8 +2,9 @@ packages:
   - 'packages/*'
   - 'playground'
 
-# pnpm 10+/11 blocks dependency build scripts by default. These packages must
-# run their postinstall scripts to install platform binaries (esbuild) or the
-# build/E2E toolchain fails in CI.
-onlyBuiltDependencies:
-  - esbuild
+# pnpm 11 gates dependency build scripts via `allowBuilds` (the v10
+# `onlyBuiltDependencies` array is accepted but not applied). esbuild must run
+# its postinstall to install the platform binary or the build/E2E toolchain
+# fails with ERR_PNPM_IGNORED_BUILDS.
+allowBuilds:
+  esbuild: true
