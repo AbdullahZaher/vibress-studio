@@ -62,15 +62,9 @@ importers:
       '@vibress/studio-core':
         specifier: workspace:*
         version: link:../studio-core
-      '@vibress/studio-nodes':
-        specifier: workspace:*
-        version: link:../studio-nodes
       '@vibress/studio-utils':
         specifier: workspace:*
         version: link:../studio-utils
-      lexical:
-        specifier: 0.13.1
-        version: 0.13.1
       zod:
         specifier: ^3.23.8
         version: 3.25.76
