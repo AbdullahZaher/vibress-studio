@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $getSelection, $isNodeSelection } from 'lexical';
 import { createPortal } from 'react-dom';
-import { $isReactStudioCardNode, ReactStudioCardNode } from '../nodes/ReactStudioCardNode';
+import { $isReactStudioCardNode, ReactStudioCardNode } from '../nodes/ReactStudioCardNode.js';
 
 export function FloatingCardActionToolbarPlugin({ anchorElem = document.body }: { anchorElem?: HTMLElement }) {
   const [editor] = useLexicalComposerContext();

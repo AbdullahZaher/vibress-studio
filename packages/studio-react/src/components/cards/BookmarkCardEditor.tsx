@@ -4,7 +4,7 @@ import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection'
 import { NodeKey, $getNodeByKey } from 'lexical';
 import { BookmarkCardData } from '@vibress/studio-cards';
 import { isSafeUrl } from '@vibress/studio-utils';
-import { UrlPlaceholder } from '../ui/UrlPlaceholder';
+import { UrlPlaceholder } from '../ui/UrlPlaceholder.js';
 
 interface Props {
   nodeKey: NodeKey;

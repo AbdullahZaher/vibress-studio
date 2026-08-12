@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 /**
  * P7: package publish-readiness smoke tests. The verify script
@@ -71,5 +72,42 @@ describe('Server renderer layering (P7)', () => {
   it('studio-cards no longer exports the Lexical node', () => {
     const dist = readFileSync(join(ROOT, 'packages', 'studio-cards', 'dist', 'index.js'), 'utf8');
     expect(dist).not.toContain('StudioCardNode');
+  });
+});
+
+describe('Dist runtime smoke (P12)', () => {
+  const dist = (pkg: string): string =>
+    pathToFileURL(join(ROOT, 'packages', pkg, 'dist', 'index.js')).href;
+
+  it('server renderer dist loads in Node ESM and renders safely', async () => {
+    const { renderStudioDocumentToHtml } = await import(/* @vite-ignore */ dist('studio-renderer'));
+    const html = renderStudioDocumentToHtml({
+      schema: 'vibress-studio',
+      version: 1,
+      root: {
+        type: 'root',
+        children: [
+          { type: 'paragraph', children: [{ type: 'text', text: '<script>alert(1)</script>', format: 0 }] },
+        ],
+      },
+    });
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+  });
+
+  it('studio-html dist imports a document', async () => {
+    const { htmlToStudioDocument } = await import(/* @vite-ignore */ dist('studio-html'));
+    const doc = htmlToStudioDocument('<h1>Hi</h1><p>Body</p>');
+    expect(doc.root.children.length).toBe(2);
+  });
+
+  it('studio-markdown dist exports and imports', async () => {
+    const { studioDocumentToMarkdown } = await import(/* @vite-ignore */ dist('studio-markdown'));
+    const md = studioDocumentToMarkdown({
+      schema: 'vibress-studio',
+      version: 1,
+      root: { type: 'root', children: [{ type: 'heading', tag: 'h1', children: [{ type: 'text', text: 'T', format: 0 }] }] },
+    });
+    expect(md).toContain('# T');
   });
 });

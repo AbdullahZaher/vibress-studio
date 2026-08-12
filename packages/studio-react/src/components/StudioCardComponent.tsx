@@ -4,20 +4,20 @@ import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection'
 import { mergeRegister } from '@lexical/utils';
 import { $getNodeByKey, $getSelection, $isNodeSelection, COMMAND_PRIORITY_LOW, KEY_BACKSPACE_COMMAND, KEY_DELETE_COMMAND, NodeKey } from 'lexical';
 import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-cards';
-import { SafeHtml, sanitizeToSafeHtml } from '../security/SafeHtml';
-import { CardErrorBoundary } from './CardErrorBoundary';
-import { ImageCardEditor } from './cards/ImageCardEditor';
-import { VideoCardEditor } from './cards/VideoCardEditor';
-import { GalleryCardEditor } from './cards/GalleryCardEditor';
-import { AudioCardEditor } from './cards/AudioCardEditor';
-import { FileCardEditor } from './cards/FileCardEditor';
-import { BookmarkCardEditor } from './cards/BookmarkCardEditor';
-import { EmbedCardEditor } from './cards/EmbedCardEditor';
-import { ButtonCardEditor } from './cards/ButtonCardEditor';
-import { CalloutCardEditor } from './cards/CalloutCardEditor';
-import { ToggleCardEditor } from './cards/ToggleCardEditor';
-import { MarkdownCardEditor } from './cards/MarkdownCardEditor';
-import { HtmlCardEditor } from './cards/HtmlCardEditor';
+import { SafeHtml, sanitizeToSafeHtml } from '../security/SafeHtml.js';
+import { CardErrorBoundary } from './CardErrorBoundary.js';
+import { ImageCardEditor } from './cards/ImageCardEditor.js';
+import { VideoCardEditor } from './cards/VideoCardEditor.js';
+import { GalleryCardEditor } from './cards/GalleryCardEditor.js';
+import { AudioCardEditor } from './cards/AudioCardEditor.js';
+import { FileCardEditor } from './cards/FileCardEditor.js';
+import { BookmarkCardEditor } from './cards/BookmarkCardEditor.js';
+import { EmbedCardEditor } from './cards/EmbedCardEditor.js';
+import { ButtonCardEditor } from './cards/ButtonCardEditor.js';
+import { CalloutCardEditor } from './cards/CalloutCardEditor.js';
+import { ToggleCardEditor } from './cards/ToggleCardEditor.js';
+import { MarkdownCardEditor } from './cards/MarkdownCardEditor.js';
+import { HtmlCardEditor } from './cards/HtmlCardEditor.js';
 
 // Registry of cards that have rich interactive React editors
 /**

@@ -1,9 +1,9 @@
-import { sanitizeHtmlFragment } from './sanitize/sanitize-html';
+import { sanitizeHtmlFragment } from './sanitize/sanitize-html.js';
 
-export { escapeHtml } from './sanitize/escape-html';
-export { escapeAttribute } from './sanitize/escape-attribute';
-export { isSafeUrl, sanitizeUrl, ALLOWED_DATA_IMAGE_PREFIXES } from './sanitize/sanitize-url';
-export { sanitizeHtmlFragment, HTML_SANITIZE_POLICY } from './sanitize/sanitize-html';
+export { escapeHtml } from './sanitize/escape-html.js';
+export { escapeAttribute } from './sanitize/escape-attribute.js';
+export { isSafeUrl, sanitizeUrl, ALLOWED_DATA_IMAGE_PREFIXES } from './sanitize/sanitize-url.js';
+export { sanitizeHtmlFragment, HTML_SANITIZE_POLICY } from './sanitize/sanitize-html.js';
 export {
   HTML_ALLOWED_TAGS,
   HTML_ALLOWED_ATTRIBUTES,
@@ -11,7 +11,7 @@ export {
   HARD_DENY_TAGS,
   HARD_DENY_ATTRIBUTES,
   type StudioSanitizePolicy,
-} from './sanitize/policy';
+} from './sanitize/policy.js';
 
 /**
  * Backwards-compatible alias for the allowlist sanitizer. The regex-only
@@ -40,4 +40,4 @@ export function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-export * from './markdown';
+export * from './markdown.js';

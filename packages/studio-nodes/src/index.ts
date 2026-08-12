@@ -36,4 +36,4 @@ export {
   $createStudioCardNode,
   $isStudioCardNode,
   type SerializedStudioCardNode,
-} from './cards/StudioCardNode';
+} from './cards/StudioCardNode.js';

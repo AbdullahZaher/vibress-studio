@@ -3,14 +3,14 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import { NodeKey, $getNodeByKey } from 'lexical';
 import { FileCardData } from '@vibress/studio-cards';
-import { NestedCaptionEditor } from './NestedCaptionEditor';
-import { CardPlaceholder } from '../ui/CardPlaceholder';
-import { UploadStatusOverlay } from '../ui/UploadStatusOverlay';
+import { NestedCaptionEditor } from './NestedCaptionEditor.js';
+import { CardPlaceholder } from '../ui/CardPlaceholder.js';
+import { UploadStatusOverlay } from '../ui/UploadStatusOverlay.js';
 import { File as FileIcon, Download } from 'lucide-react';
 
-import { useStudioUploadAdapter } from '../../media/UploadAdapterContext';
-import { createObjectUrl } from '../../media/object-url';
-import { useMediaUpload } from '../../media/useMediaUpload';
+import { useStudioUploadAdapter } from '../../media/UploadAdapterContext.js';
+import { createObjectUrl } from '../../media/object-url.js';
+import { useMediaUpload } from '../../media/useMediaUpload.js';
 
 interface Props {
   nodeKey: NodeKey;

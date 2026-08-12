@@ -117,7 +117,7 @@ export function createDefaultStudioDocument(text = ''): StudioDocument {
   };
 }
 
-export * from './media/upload-adapter';
+export * from './media/upload-adapter.js';
 
 export function migrateDocument(rawDoc: unknown): StudioDocument {
   if (!rawDoc) {

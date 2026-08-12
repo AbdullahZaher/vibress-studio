@@ -4,7 +4,7 @@ import { LexicalTypeaheadMenuPlugin, MenuOption, useBasicTypeaheadTriggerMatch }
 import { $getSelection, $isRangeSelection, TextNode } from 'lexical';
 import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-cards';
 import { escapeRegExp } from '@vibress/studio-utils';
-import { $createReactStudioCardNode } from '../nodes/ReactStudioCardNode';
+import { $createReactStudioCardNode } from '../nodes/ReactStudioCardNode.js';
 import { createPortal } from 'react-dom';
 import { ImageIcon, Video, Images, File as FileIcon, Code, Minus, MessageSquare, Box, MousePointerClick } from 'lucide-react';
 

@@ -9,15 +9,15 @@ import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import LexicalErrorBoundary from '@lexical/react/LexicalErrorBoundary';
 import { $getRoot, $createParagraphNode } from 'lexical';
-import { SlashMenuPlugin } from './plugins/SlashMenuPlugin';
-import { FloatingFormatToolbarPlugin } from './plugins/FloatingFormatToolbarPlugin';
-import { FloatingCardActionToolbarPlugin } from './plugins/FloatingCardActionToolbarPlugin';
+import { SlashMenuPlugin } from './plugins/SlashMenuPlugin.js';
+import { FloatingFormatToolbarPlugin } from './plugins/FloatingFormatToolbarPlugin.js';
+import { FloatingCardActionToolbarPlugin } from './plugins/FloatingCardActionToolbarPlugin.js';
 import { STUDIO_CORE_NODES } from '@vibress/studio-nodes';
 import { StudioCardNode } from '@vibress/studio-nodes';
-import { ReactStudioCardNode } from './nodes/ReactStudioCardNode';
+import { ReactStudioCardNode } from './nodes/ReactStudioCardNode.js';
 import { StudioDocument, migrateDocument, StudioUploadAdapter } from '@vibress/studio-core';
 import { serializeStudioDocument } from '@vibress/studio-serializer';
-import { StudioUploadAdapterProvider } from './media/UploadAdapterContext';
+import { StudioUploadAdapterProvider } from './media/UploadAdapterContext.js';
 
 export interface VibressStudioProps {
   value?: unknown;

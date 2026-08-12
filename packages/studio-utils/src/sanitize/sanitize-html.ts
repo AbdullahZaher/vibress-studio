@@ -18,11 +18,11 @@
  */
 
 import sanitizeHtmlLib from 'sanitize-html';
-import { HTML_SANITIZE_POLICY, HARD_DENY_TAGS } from './policy';
-import { isSafeUrl } from './sanitize-url';
+import { HTML_SANITIZE_POLICY, HARD_DENY_TAGS } from './policy.js';
+import { isSafeUrl } from './sanitize-url.js';
 
-export type { StudioSanitizePolicy } from './policy';
-export { HTML_SANITIZE_POLICY, HTML_ALLOWED_TAGS, HTML_ALLOWED_ATTRIBUTES } from './policy';
+export type { StudioSanitizePolicy } from './policy.js';
+export { HTML_SANITIZE_POLICY, HTML_ALLOWED_TAGS, HTML_ALLOWED_ATTRIBUTES } from './policy.js';
 
 const DEFAULT_OPTIONS: sanitizeHtmlLib.IOptions = {
   allowedTags: HTML_SANITIZE_POLICY.allowedTags,

@@ -6,7 +6,7 @@ import {
   StudioUploadedAsset,
   validateFileForUpload,
 } from '@vibress/studio-core';
-import { createObjectUrl, revokeObjectUrl } from './object-url';
+import { createObjectUrl, revokeObjectUrl } from './object-url.js';
 
 export type MediaUploadStatus = 'idle' | 'uploading' | 'success' | 'error';
 

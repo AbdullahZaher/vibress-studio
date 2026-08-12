@@ -1,5 +1,5 @@
 import React from 'react';
-import { MediaUploadState } from '../../media/useMediaUpload';
+import { MediaUploadState } from '../../media/useMediaUpload.js';
 
 interface UploadStatusOverlayProps {
   state: Pick<MediaUploadState, 'status' | 'progress' | 'error'>;

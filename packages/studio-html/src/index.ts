@@ -1,2 +1,2 @@
-export * from './sanitize';
-export { htmlToStudioDocument } from './import/html-import';
+export * from './sanitize/index.js';
+export { htmlToStudioDocument } from './import/html-import.js';

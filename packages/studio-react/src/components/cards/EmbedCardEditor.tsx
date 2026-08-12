@@ -3,10 +3,10 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import { NodeKey, $getNodeByKey } from 'lexical';
 import { EmbedCardData, getEmbedProviderName } from '@vibress/studio-cards';
-import { SafeHtml, sanitizeToSafeHtml } from '../../security/SafeHtml';
+import { SafeHtml, sanitizeToSafeHtml } from '../../security/SafeHtml.js';
 import { isSafeUrl } from '@vibress/studio-utils';
-import { NestedCaptionEditor } from './NestedCaptionEditor';
-import { UrlPlaceholder } from '../ui/UrlPlaceholder';
+import { NestedCaptionEditor } from './NestedCaptionEditor.js';
+import { UrlPlaceholder } from '../ui/UrlPlaceholder.js';
 
 interface Props {
   nodeKey: NodeKey;
