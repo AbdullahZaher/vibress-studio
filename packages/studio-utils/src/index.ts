@@ -31,4 +31,13 @@ export function slugify(text: string): string {
     .replace(/-+$/, '');
 }
 
+/**
+ * Escape a string for safe use inside a RegExp constructor. Prevents
+ * user-supplied query strings from breaking the pattern or injecting
+ * regex operators (e.g. `[`, `(`, `*`).
+ */
+export function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export * from './markdown';

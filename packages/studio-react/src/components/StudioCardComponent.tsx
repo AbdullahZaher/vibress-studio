@@ -5,6 +5,7 @@ import { mergeRegister } from '@lexical/utils';
 import { $getNodeByKey, $getSelection, $isNodeSelection, COMMAND_PRIORITY_LOW, KEY_BACKSPACE_COMMAND, KEY_DELETE_COMMAND, NodeKey } from 'lexical';
 import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-cards';
 import { SafeHtml, sanitizeToSafeHtml } from '../security/SafeHtml';
+import { CardErrorBoundary } from './CardErrorBoundary';
 import { ImageCardEditor } from './cards/ImageCardEditor';
 import { VideoCardEditor } from './cards/VideoCardEditor';
 import { GalleryCardEditor } from './cards/GalleryCardEditor';
@@ -80,10 +81,15 @@ export function StudioCardComponent({
     );
   }, [editor, onDelete]);
 
-  // If we have an interactive editor component for this card type, render it!
+  // If we have an interactive editor component for this card type, render it
+  // inside an error boundary so a single bad card never crashes the editor.
   const InteractiveEditor = INTERACTIVE_CARDS[cardType];
   if (InteractiveEditor) {
-    return <InteractiveEditor nodeKey={nodeKey} cardData={cardData} />;
+    return (
+      <CardErrorBoundary nodeKey={nodeKey}>
+        <InteractiveEditor nodeKey={nodeKey} cardData={cardData} />
+      </CardErrorBoundary>
+    );
   }
 
   // Otherwise, fallback to static HTML rendering. The output of every

@@ -4,6 +4,7 @@ import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection'
 import { NodeKey, $getNodeByKey } from 'lexical';
 import { EmbedCardData, getEmbedProviderName } from '@vibress/studio-cards';
 import { SafeHtml, sanitizeToSafeHtml } from '../../security/SafeHtml';
+import { isSafeUrl } from '@vibress/studio-utils';
 import { NestedCaptionEditor } from './NestedCaptionEditor';
 import { UrlPlaceholder } from '../ui/UrlPlaceholder';
 
@@ -53,6 +54,13 @@ export function EmbedCardEditor({ nodeKey, cardData }: Props) {
         title="Embed"
         description="Paste a URL to embed content (e.g. YouTube, Vimeo)"
         onUrlSubmit={onUrlSubmit}
+        validate={(u) => {
+          try {
+            return isSafeUrl(u) && new URL(u) !== null;
+          } catch {
+            return false;
+          }
+        }}
         isSelected={isSelected}
         onClick={() => {
           clearSelection();

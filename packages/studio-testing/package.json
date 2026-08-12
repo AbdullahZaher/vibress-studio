@@ -9,9 +9,15 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@vibress/studio-cards": "workspace:*",
     "@vibress/studio-core": "workspace:*",
     "@vibress/studio-nodes": "workspace:*",
-    "@vibress/studio-cards": "workspace:*",
     "@vibress/studio-serializer": "workspace:*"
+  },
+  "devDependencies": {
+    "@lexical/react": "0.13.1",
+    "@lexical/rich-text": "0.13.1",
+    "@lexical/utils": "0.13.1",
+    "lexical": "0.13.1"
   }
 }

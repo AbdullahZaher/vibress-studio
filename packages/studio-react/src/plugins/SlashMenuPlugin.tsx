@@ -3,6 +3,7 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { LexicalTypeaheadMenuPlugin, MenuOption, useBasicTypeaheadTriggerMatch } from '@lexical/react/LexicalTypeaheadMenuPlugin';
 import { $getSelection, $isRangeSelection, TextNode } from 'lexical';
 import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-cards';
+import { escapeRegExp } from '@vibress/studio-utils';
 import { $createReactStudioCardNode } from '../nodes/ReactStudioCardNode';
 import { createPortal } from 'react-dom';
 import { ImageIcon, Video, Images, File as FileIcon, Code, Minus, MessageSquare, Box, MousePointerClick } from 'lucide-react';
@@ -35,7 +36,10 @@ export function SlashMenuPlugin() {
       return allOptions;
     }
 
-    const regex = new RegExp(queryString, 'i');
+    // The query string is user input: escape it before building the RegExp so
+    // that special characters ([, (, *, ...) filter literally instead of
+    // crashing or injecting regex operators.
+    const regex = new RegExp(escapeRegExp(queryString), 'i');
     return allOptions.filter(
       (option) => regex.test(option.title) || regex.test(option.cardType)
     );
