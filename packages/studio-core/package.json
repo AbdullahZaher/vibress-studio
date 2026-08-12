@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@vibress/studio-utils": "file:../studio-utils",
+    "@vibress/studio-utils": "workspace:*",
     "lexical": "0.13.1",
     "@lexical/rich-text": "0.13.1",
     "@lexical/utils": "0.13.1",

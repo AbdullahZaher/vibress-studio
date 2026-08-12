@@ -4,6 +4,22 @@ import { parseMarkdownToHtml } from '@vibress/studio-utils';
 
 export { parseMarkdownToHtml };
 
+/**
+ * Structural view of a studio document node used by the markdown renderer
+ * (children are stored as unknown[]; renderers narrow each child to this shape).
+ */
+interface StudioMarkdownNode {
+  type: string;
+  text?: string;
+  format?: number;
+  children?: unknown[];
+  url?: string;
+  tag?: string;
+  cardType?: string;
+  cardData?: { markdown?: string; [key: string]: unknown };
+  [key: string]: unknown;
+}
+
 export function studioDocumentToMarkdown(docInput: unknown): string {
   const doc = migrateDocument(docInput);
   if (!doc.root || !Array.isArray(doc.root.children)) {
@@ -11,12 +27,12 @@ export function studioDocumentToMarkdown(docInput: unknown): string {
   }
 
   return doc.root.children
-    .map((node: any) => renderNodeToMarkdown(node))
+    .map((node) => renderNodeToMarkdown(node as StudioMarkdownNode))
     .filter(Boolean)
     .join('\n\n');
 }
 
-function renderNodeToMarkdown(node: any): string {
+function renderNodeToMarkdown(node: StudioMarkdownNode): string {
   if (!node || typeof node !== 'object') return '';
 
   const type = node.type;
@@ -33,7 +49,7 @@ function renderNodeToMarkdown(node: any): string {
 
   const renderChildren = () => {
     if (Array.isArray(node.children)) {
-      return node.children.map((child: any) => renderNodeToMarkdown(child)).join('');
+      return node.children.map((child) => renderNodeToMarkdown(child as StudioMarkdownNode)).join('');
     }
     return '';
   };

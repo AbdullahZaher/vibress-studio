@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
-import { ImageIcon, Video, Images, File as FileIcon, Headphones } from 'lucide-react';
+import { ImageIcon, Video, Images, File as FileIcon, Headphones, type LucideIcon } from 'lucide-react';
 
-const ICONS: Record<string, React.FC<any>> = {
+const ICONS: Record<string, LucideIcon> = {
   image: ImageIcon,
   gallery: Images,
   video: Video,

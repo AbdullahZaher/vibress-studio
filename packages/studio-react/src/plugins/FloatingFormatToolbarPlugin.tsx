@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 
 function getDOMRangeRect(nativeSelection: Selection): DOMRect | null {
   const domRange = nativeSelection.getRangeAt(0);
-  let rect = domRange.getBoundingClientRect();
+  const rect = domRange.getBoundingClientRect();
   
   if (rect.width === 0 && rect.height === 0) {
     return null;

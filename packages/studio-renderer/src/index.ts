@@ -6,16 +6,36 @@ export interface RenderOptions {
   target?: 'web' | 'email';
 }
 
+/**
+ * Structural view of a studio document node used by the renderers. The stored
+ * document keeps `children` as unknown[] (StudioDocument), so renderers narrow
+ * each child to this shape before walking it.
+ */
+interface StudioRenderNode {
+  type: string;
+  text?: string;
+  format?: number;
+  children?: unknown[];
+  url?: string;
+  rel?: string;
+  target?: string;
+  tag?: string;
+  listType?: string;
+  cardType?: string;
+  cardData?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 export function renderStudioDocumentToHtml(docInput: unknown, options: RenderOptions = {}): string {
   const doc = migrateDocument(docInput);
   if (!doc.root || !Array.isArray(doc.root.children)) {
     return '';
   }
 
-  return doc.root.children.map((node) => renderNodeToHtml(node, options)).join('');
+  return doc.root.children.map((node) => renderNodeToHtml(node as StudioRenderNode, options)).join('');
 }
 
-function renderNodeToHtml(node: any, options: RenderOptions): string {
+function renderNodeToHtml(node: StudioRenderNode, options: RenderOptions): string {
   if (!node || typeof node !== 'object') return '';
 
   const type = node.type;
@@ -38,7 +58,7 @@ function renderNodeToHtml(node: any, options: RenderOptions): string {
   // Render children helper
   const renderChildren = () => {
     if (Array.isArray(node.children)) {
-      return node.children.map((child: any) => renderNodeToHtml(child, options)).join('');
+      return node.children.map((child) => renderNodeToHtml(child as StudioRenderNode, options)).join('');
     }
     return '';
   };
@@ -81,7 +101,7 @@ function renderNodeToHtml(node: any, options: RenderOptions): string {
 
     // Handle Studio Card Nodes
     case 'studio-card': {
-      const cardType = node.cardType;
+      const cardType = node.cardType || '';
       const cardData = node.cardData || {};
       const def = STUDIO_CARD_DEFINITIONS[cardType];
       if (def) {
@@ -108,12 +128,12 @@ export function renderStudioDocumentToPlainText(docInput: unknown): string {
   }
 
   return doc.root.children
-    .map((node) => renderNodeToPlainText(node))
+    .map((node) => renderNodeToPlainText(node as StudioRenderNode))
     .filter(Boolean)
     .join('\n\n');
 }
 
-function renderNodeToPlainText(node: any): string {
+function renderNodeToPlainText(node: StudioRenderNode): string {
   if (!node || typeof node !== 'object') return '';
 
   if (node.type === 'text') {
@@ -121,7 +141,7 @@ function renderNodeToPlainText(node: any): string {
   }
 
   if (node.type === 'studio-card') {
-    const cardType = node.cardType;
+    const cardType = node.cardType || '';
     const cardData = node.cardData || {};
     const def = STUDIO_CARD_DEFINITIONS[cardType];
     if (def) {
@@ -136,7 +156,7 @@ function renderNodeToPlainText(node: any): string {
   }
 
   if (Array.isArray(node.children)) {
-    return node.children.map((child: any) => renderNodeToPlainText(child)).join('');
+    return node.children.map((child) => renderNodeToPlainText(child as StudioRenderNode)).join('');
   }
 
   return '';

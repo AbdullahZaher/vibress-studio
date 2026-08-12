@@ -18,19 +18,31 @@ import { MarkdownCardEditor } from './cards/MarkdownCardEditor';
 import { HtmlCardEditor } from './cards/HtmlCardEditor';
 
 // Registry of cards that have rich interactive React editors
-const INTERACTIVE_CARDS: Record<string, React.FC<{ nodeKey: NodeKey; cardData: any }>> = {
-  image: ImageCardEditor,
-  video: VideoCardEditor,
-  gallery: GalleryCardEditor,
-  audio: AudioCardEditor,
-  file: FileCardEditor,
-  bookmark: BookmarkCardEditor,
-  embed: EmbedCardEditor,
-  button: ButtonCardEditor,
-  callout: CalloutCardEditor,
-  toggle: ToggleCardEditor,
-  markdown: MarkdownCardEditor,
-  html: HtmlCardEditor,
+/**
+ * Card editors receive their own validated card-data type (e.g. ImageCardData);
+ * the registry widens the prop contract to unknown so heterogeneous editors can
+ * be looked up by card type. The single cast below is the boundary between the
+ * registry and the per-card prop types (no any).
+ */
+function asCardEditor<T>(
+  component: React.FC<{ nodeKey: NodeKey; cardData: T }>
+): React.FC<{ nodeKey: NodeKey; cardData: unknown }> {
+  return component as React.FC<{ nodeKey: NodeKey; cardData: unknown }>;
+}
+
+const INTERACTIVE_CARDS: Record<string, React.FC<{ nodeKey: NodeKey; cardData: unknown }>> = {
+  image: asCardEditor(ImageCardEditor),
+  video: asCardEditor(VideoCardEditor),
+  gallery: asCardEditor(GalleryCardEditor),
+  audio: asCardEditor(AudioCardEditor),
+  file: asCardEditor(FileCardEditor),
+  bookmark: asCardEditor(BookmarkCardEditor),
+  embed: asCardEditor(EmbedCardEditor),
+  button: asCardEditor(ButtonCardEditor),
+  callout: asCardEditor(CalloutCardEditor),
+  toggle: asCardEditor(ToggleCardEditor),
+  markdown: asCardEditor(MarkdownCardEditor),
+  html: asCardEditor(HtmlCardEditor),
 };
 
 export function StudioCardComponent({
