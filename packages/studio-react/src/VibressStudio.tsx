@@ -4,20 +4,26 @@ import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
+import { CheckListPlugin } from '@lexical/react/LexicalCheckListPlugin';
+import { TablePlugin } from '@lexical/react/LexicalTablePlugin';
+import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
+import { TRANSFORMERS } from '@lexical/markdown';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import LexicalErrorBoundary from '@lexical/react/LexicalErrorBoundary';
-import { $getRoot, $createParagraphNode, LexicalEditor } from 'lexical';
-import { SlashMenuPlugin } from './plugins/SlashMenuPlugin.js';
-import { FloatingFormatToolbarPlugin } from './plugins/FloatingFormatToolbarPlugin.js';
-import { FloatingCardActionToolbarPlugin } from './plugins/FloatingCardActionToolbarPlugin.js';
+import { $getRoot, $createParagraphNode } from 'lexical';
+import { SlashMenuPlugin } from './plugins/SlashMenuPlugin';
+import { FloatingFormatToolbarPlugin } from './plugins/FloatingFormatToolbarPlugin';
+import { FloatingCardActionToolbarPlugin } from './plugins/FloatingCardActionToolbarPlugin';
+import { BlockHandleGutterPlugin } from './plugins/BlockHandleGutterPlugin';
+import { InlineAIPlugin } from './plugins/InlineAIPlugin';
 import { STUDIO_CORE_NODES } from '@vibress/studio-nodes';
-import { StudioCardNode } from '@vibress/studio-nodes';
-import { ReactStudioCardNode } from './nodes/ReactStudioCardNode.js';
-import { StudioDocument, migrateDocument, StudioUploadAdapter } from '@vibress/studio-core';
+import { StudioCardNode } from '@vibress/studio-cards';
+import { ReactStudioCardNode } from './nodes/ReactStudioCardNode';
+import { StudioDocument, migrateDocument } from '@vibress/studio-core';
 import { serializeStudioDocument } from '@vibress/studio-serializer';
-import { StudioUploadAdapterProvider } from './media/UploadAdapterContext.js';
+import { StudioUploadContext, StudioUploadApi } from './upload-context';
 
 export interface VibressStudioProps {
   value?: unknown;
@@ -26,10 +32,9 @@ export interface VibressStudioProps {
   placeholder?: string;
   onError?: (error: Error) => void;
   requestMedia?: (req: { cardType: string }) => Promise<Record<string, unknown> | null>;
-  /** Media upload adapter; when omitted, media cards use temporary local previews. */
-  uploadAdapter?: StudioUploadAdapter | null;
-  /** Called once the Lexical editor instance is created (for host toolbars/tests). */
-  onEditorReady?: (editor: LexicalEditor) => void;
+  /** Durable upload adapter: local file → assetId/src payload. Card editors
+   *  must use this instead of transient blob: URLs. */
+  uploadMedia?: StudioUploadApi['uploadMedia'];
   className?: string;
 }
 
@@ -63,19 +68,6 @@ class StudioErrorBoundary extends Component<StudioErrorBoundaryProps, { hasError
   }
 }
 
-// Toolbar has been removed to match the distraction-free floating-only approach.
-
-function EditorReadyPlugin({ onEditorReady }: { onEditorReady?: (editor: LexicalEditor) => void }) {
-  const [editor] = useLexicalComposerContext();
-  const called = useRef(false);
-  useEffect(() => {
-    if (called.current || !onEditorReady) return;
-    called.current = true;
-    onEditorReady(editor);
-  }, [editor, onEditorReady]);
-  return null;
-}
-
 function InitialStatePlugin({ document }: { document: StudioDocument }) {
   const [editor] = useLexicalComposerContext();
   const initialized = useRef(false);
@@ -88,7 +80,7 @@ function InitialStatePlugin({ document }: { document: StudioDocument }) {
       const root = $getRoot();
       if (document && document.root) {
         try {
-          const editorState = editor.parseEditorState({ root: { ...document.root, version: 1 } } as unknown as Parameters<typeof editor.parseEditorState>[0]);
+          const editorState = editor.parseEditorState({ root: { ...document.root, version: 1 } } as never);
           editor.setEditorState(editorState);
         } catch (err) {
           console.error("Failed to parse editor state", err);
@@ -109,10 +101,10 @@ export function VibressStudio({
   value,
   onChange,
   readOnly = false,
-  placeholder = 'Write content with Vibress Studio...',
+  placeholder = 'Write content with Vibress Studio (type "/" for commands, Space for AI)...',
   onError,
-  uploadAdapter = null,
-  onEditorReady,
+  requestMedia,
+  uploadMedia,
   className = '',
 }: VibressStudioProps) {
   const parsedDoc = useMemo(() => migrateDocument(value), [value]);
@@ -125,8 +117,12 @@ export function VibressStudio({
         ReactStudioCardNode,
         {
           replace: StudioCardNode,
+          // IMPORTANT: do not pass the original node's key. $setNodeKey
+          // already registered the original under that key; a replacement
+          // with the same key never enters the node map. A fresh key makes
+          // the replacement the real rendered node.
           with: (node: StudioCardNode) => {
-            return new ReactStudioCardNode(node.getCardType(), node.getCardData(), node.getKey());
+            return new ReactStudioCardNode(node.getCardType(), node.getCardData());
           },
         },
       ],
@@ -141,6 +137,22 @@ export function VibressStudio({
           h2: 'studio-h2',
           h3: 'studio-h3',
         },
+        list: {
+          ul: 'studio-ul',
+          ol: 'studio-ol',
+          listitem: 'studio-listitem',
+          nested: {
+            listitem: 'studio-nested-listitem',
+          },
+          listitemChecked: 'studio-checklist-checked',
+          listitemUnchecked: 'studio-checklist-unchecked',
+        },
+        table: 'studio-table',
+        tableCell: 'studio-table-cell',
+        tableCellHeader: 'studio-table-cell-header',
+        tableRow: 'studio-table-row',
+        quote: 'studio-quote',
+        code: 'studio-code-block',
         text: {
           bold: 'studio-bold',
           italic: 'studio-italic',
@@ -155,46 +167,63 @@ export function VibressStudio({
 
   return (
     <StudioErrorBoundary onError={onError}>
-      <StudioUploadAdapterProvider adapter={uploadAdapter}>
+      <StudioUploadContext.Provider value={{ uploadMedia }}>
         <div className={`vibress-studio-editor ${className}`}>
-        <LexicalComposer initialConfig={initialConfig}>
-          <EditorReadyPlugin onEditorReady={onEditorReady} />
-          <div style={{ position: 'relative', minHeight: '20vh' }}>
-            <RichTextPlugin
-              contentEditable={
-                <ContentEditable
-                  ariaLabel="Editor content"
-                  aria-multiline="true"
-                  style={{ outline: 'none', minHeight: '20vh', fontSize: '1.125rem', lineHeight: '1.7', color: 'inherit' }}
-                />
-              }
-              placeholder={
-                <div style={{ position: 'absolute', top: '0', left: '0', color: '#6b7280', pointerEvents: 'none', fontSize: '1.125rem' }}>
-                  {placeholder}
-                </div>
-              }
-              ErrorBoundary={LexicalErrorBoundary}
-            />
-            <HistoryPlugin />
-            <ListPlugin />
-            <LinkPlugin />
-            <SlashMenuPlugin />
-            <FloatingFormatToolbarPlugin />
-            <FloatingCardActionToolbarPlugin />
-            <InitialStatePlugin document={parsedDoc} />
-            {onChange && (
-              <OnChangePlugin
-                onChange={(editorState) => {
-                  const rootNode = editorState.toJSON().root;
-                  const studioDoc = serializeStudioDocument(rootNode);
-                  onChange(studioDoc);
-                }}
+          <LexicalComposer initialConfig={initialConfig}>
+            <div style={{ position: 'relative', minHeight: '30vh', paddingLeft: '32px' }}>
+              <RichTextPlugin
+                contentEditable={
+                  <ContentEditable
+                    style={{
+                      outline: 'none',
+                      minHeight: '30vh',
+                      fontSize: '1.0625rem',
+                      lineHeight: '1.75',
+                      color: 'inherit',
+                    }}
+                  />
+                }
+                placeholder={
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '0',
+                      left: '32px',
+                      color: '#94a3b8',
+                      pointerEvents: 'none',
+                      fontSize: '1.0625rem',
+                    }}
+                  >
+                    {placeholder}
+                  </div>
+                }
+                ErrorBoundary={LexicalErrorBoundary}
               />
-            )}
-          </div>
-        </LexicalComposer>
+              <HistoryPlugin />
+              <ListPlugin />
+              <CheckListPlugin />
+              <TablePlugin hasCellMerge hasCellBackgroundColor hasTabHandler />
+              <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
+              <LinkPlugin />
+              <SlashMenuPlugin requestMedia={requestMedia} />
+              <FloatingFormatToolbarPlugin />
+              <FloatingCardActionToolbarPlugin />
+              {!readOnly && <BlockHandleGutterPlugin />}
+              {!readOnly && <InlineAIPlugin />}
+              <InitialStatePlugin document={parsedDoc} />
+              {onChange && (
+                <OnChangePlugin
+                  onChange={(editorState) => {
+                    const rootNode = editorState.toJSON().root;
+                    const studioDoc = serializeStudioDocument(rootNode);
+                    onChange(studioDoc);
+                  }}
+                />
+              )}
+            </div>
+          </LexicalComposer>
         </div>
-      </StudioUploadAdapterProvider>
+      </StudioUploadContext.Provider>
     </StudioErrorBoundary>
   );
 }

@@ -1,17 +1,13 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import { NodeKey } from 'lexical';
-import { VideoCardData } from '@vibress/studio-cards';
-import { NestedCaptionEditor } from './NestedCaptionEditor.js';
-import { $getNodeByKey } from 'lexical';
-import { CardPlaceholder } from '../ui/CardPlaceholder.js';
-import { UploadStatusOverlay } from '../ui/UploadStatusOverlay.js';
+import { VideoCardData, StudioCardNode } from '@vibress/studio-cards';
 
-import { useStudioUploadAdapter } from '../../media/UploadAdapterContext.js';
-import { assertCardSelection } from '../../utils/cardSelection.js';
-import { createObjectUrl } from '../../media/object-url.js';
-import { useMediaUpload } from '../../media/useMediaUpload.js';
+import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { $getNodeByKey } from 'lexical';
+import { CardPlaceholder } from '../ui/CardPlaceholder';
+import { useStudioUpload } from '../../upload-context';
 
 interface Props {
   nodeKey: NodeKey;
@@ -21,53 +17,34 @@ interface Props {
 export function VideoCardEditor({ nodeKey, cardData }: Props) {
   const [editor] = useLexicalComposerContext();
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
-  const adapter = useStudioUploadAdapter();
+  const { uploadMedia } = useStudioUpload();
+  const [uploading, setUploading] = useState(false);
 
-  const { status, progress, error, asset, previewUrl, upload, retry, clear } = useMediaUpload({
-    adapter,
-    cardType: 'video',
-    onSuccess: (uploaded) => {
-      editor.update(() => {
-        const node = $getNodeByKey(nodeKey);
-        if (node && 'setCardData' in node) {
-          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
-            ...cardData,
-            src: uploaded.url,
-            assetId: uploaded.id,
-          });
-        }
-      });
-    },
-  });
-
-  const isPopulated = !!cardData.src || !!previewUrl;
+  const isPopulated = !!cardData.src;
 
   const onFileSelect = (files: File[]) => {
     const file = files[0];
-    if (!file) return;
-    if (!adapter) {
-      const url = createObjectUrl(file);
-      editor.update(() => {
-        const node = $getNodeByKey(nodeKey);
-        if (node && 'setCardData' in node) {
-          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
-            ...cardData,
-            src: url,
-            fileName: file.name,
-          });
-        }
-      });
-      return;
-    }
-    void upload(file);
+    if (!file || !uploadMedia) return;
+    setUploading(true);
+    uploadMedia(file, 'video')
+      .then((payload) => {
+        if (!payload) return;
+        editor.update(() => {
+          const node = $getNodeByKey(nodeKey);
+          if (node instanceof StudioCardNode) {
+            node.setCardData({ ...cardData, ...payload, fileName: file.name });
+          }
+        });
+      })
+      .finally(() => setUploading(false));
   };
 
   const onCaptionChange = useCallback(
     (captionJSON: Record<string, unknown>, captionHtml: string) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node && 'setCardData' in node) {
-          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
+        if (node instanceof StudioCardNode) {
+          node.setCardData({
             ...cardData,
             caption: captionJSON,
             captionHtml,
@@ -78,37 +55,39 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
     [editor, nodeKey, cardData]
   );
 
+  const widthClass = cardData.width && cardData.width !== 'regular' ? ` vb-width-${cardData.width}` : '';
+
   if (!isPopulated) {
     return (
       <CardPlaceholder
         iconType="video"
         title="Video"
-        description="Click to select a video file"
+        description="Click to select a video, or drag and drop"
         onFileSelect={onFileSelect}
+        uploading={uploading}
         isSelected={isSelected}
-        onClick={() => assertCardSelection(clearSelection, setSelected)}
+        onClick={() => {
+          clearSelection();
+          setSelected(true);
+        }}
       />
     );
   }
 
-  const displaySrc = previewUrl || asset?.url || cardData.src;
-
   return (
     <figure
-      className="vb-video-card relative w-full mb-4"
-      onClick={() => assertCardSelection(clearSelection, setSelected)}
+      className={`vb-video-card${widthClass} relative my-3.5`}
+      onClick={() => {
+        clearSelection();
+        setSelected(true);
+      }}
       style={{
-        outline: isSelected ? '2px solid #3b82f6' : 'none',
-        borderRadius: '4px',
+        outline: isSelected ? '2px solid #6366f1' : 'none',
+        borderRadius: '12px',
         transition: 'outline 0.1s ease',
       }}
     >
-      <UploadStatusOverlay
-        state={{ status, progress, error }}
-        onRetry={() => void retry()}
-        onDismiss={clear}
-      />
-      <video src={displaySrc} controls className="w-full" />
+      <video src={cardData.src} poster={cardData.poster} controls className="w-full rounded-xl overflow-hidden shadow-sm" />
       <NestedCaptionEditor
         initialCaptionJSON={typeof cardData.caption === 'object' ? cardData.caption : undefined}
         onChange={onCaptionChange}

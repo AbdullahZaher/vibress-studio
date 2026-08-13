@@ -1,13 +1,3 @@
-export { VibressStudio, type VibressStudioProps } from './VibressStudio.js';
-export * from './plugins/SlashMenuPlugin.js';
-export * from './plugins/FloatingFormatToolbarPlugin.js';
-export { SafeHtml, sanitizeToSafeHtml, type SanitizedHtml } from './security/SafeHtml.js';
-export { CardErrorBoundary } from './components/CardErrorBoundary.js';
-export { UrlPlaceholder } from './components/ui/UrlPlaceholder.js';
-export { CardPlaceholder } from './components/ui/CardPlaceholder.js';
-export { UploadStatusOverlay } from './components/ui/UploadStatusOverlay.js';
-export { StudioUploadAdapterProvider, useStudioUploadAdapter } from './media/UploadAdapterContext.js';
-export { VibressMediaUploadAdapter, type VibressMediaUploadAdapterOptions } from './media/VibressMediaUploadAdapter.js';
-export { useMediaUpload, type MediaUploadState, type MediaUploadStatus } from './media/useMediaUpload.js';
-export { createObjectUrl, revokeObjectUrl } from './media/object-url.js';
-export type { StudioUploadedAsset, StudioUploadAdapter, StudioUploadContext } from '@vibress/studio-core';
+export { VibressStudio, type VibressStudioProps } from './VibressStudio';
+export * from './plugins/SlashMenuPlugin';
+export * from './plugins/FloatingFormatToolbarPlugin';

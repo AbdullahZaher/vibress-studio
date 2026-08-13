@@ -2,9 +2,9 @@ import { useRef, useEffect, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import { NodeKey, $getNodeByKey } from 'lexical';
-import { ToggleCardData } from '@vibress/studio-cards';
+import { ToggleCardData, StudioCardNode } from '@vibress/studio-cards';
+
 import { ChevronRight } from 'lucide-react';
-import { assertCardSelection } from '../../utils/cardSelection.js';
 
 interface Props {
   nodeKey: NodeKey;
@@ -15,7 +15,7 @@ export function ToggleCardEditor({ nodeKey, cardData }: Props) {
   const [editor] = useLexicalComposerContext();
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
   const [isOpen, setIsOpen] = useState(true); // Default open in editor
-  
+
   const headingRef = useRef<HTMLTextAreaElement>(null);
   const contentRef = useRef<HTMLTextAreaElement>(null);
 
@@ -25,8 +25,8 @@ export function ToggleCardEditor({ nodeKey, cardData }: Props) {
   const updateCardData = (updates: Partial<ToggleCardData>) => {
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
-      if (node && 'setCardData' in node) {
-        (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
+      if (node instanceof StudioCardNode) {
+        node.setCardData({
           ...cardData,
           ...updates,
         });
@@ -46,21 +46,22 @@ export function ToggleCardEditor({ nodeKey, cardData }: Props) {
 
   return (
     <div
-      className={`vb-toggle-card relative w-full mb-4 border rounded-md bg-white shadow-sm overflow-hidden`}
+      className={`vb-toggle-card relative w-full my-3 border border-border/80 dark:border-white/10 rounded-xl bg-card dark:bg-[#1a1c20]/90 backdrop-blur-md text-foreground shadow-sm overflow-hidden`}
       onClick={(e) => {
-        assertCardSelection(clearSelection, setSelected);
+        clearSelection();
+        setSelected(true);
         if (!isSelected) {
           e.preventDefault();
         }
       }}
       style={{
-        outline: isSelected ? '2px solid #3b82f6' : 'none',
+        outline: isSelected ? '2px solid #6366f1' : 'none',
         transition: 'outline 0.1s ease',
       }}
     >
-      <div className="flex items-start p-4">
+      <div className="flex items-start py-3 px-3.5">
         <button 
-          className="mt-1 mr-2 text-gray-400 hover:text-gray-700 transition-colors focus:outline-none"
+          className="mt-1 mr-2 text-muted-foreground hover:text-foreground transition-colors focus:outline-none"
           onClick={(e) => {
             e.stopPropagation();
             setIsOpen(!isOpen);
@@ -74,19 +75,19 @@ export function ToggleCardEditor({ nodeKey, cardData }: Props) {
              value={heading}
              onChange={(e) => updateCardData({ heading: e.target.value })}
              placeholder="Toggle heading..."
-             className="w-full text-lg font-semibold bg-transparent outline-none resize-none placeholder-gray-400"
+             className="w-full text-base font-semibold bg-transparent outline-none resize-none placeholder:text-muted-foreground text-foreground"
              rows={1}
              onFocus={(e) => e.stopPropagation()}
           />
-          
+
           {isOpen && (
-            <div className="mt-2 pt-2 border-t border-gray-100">
+            <div className="mt-2 pt-2 border-t border-border/60 dark:border-white/10">
                <textarea
                  ref={contentRef}
                  value={content}
                  onChange={(e) => updateCardData({ content: e.target.value })}
                  placeholder="Toggle content..."
-                 className="w-full text-gray-700 bg-transparent outline-none resize-none placeholder-gray-400"
+                 className="w-full text-sm text-foreground/90 bg-transparent outline-none resize-none placeholder:text-muted-foreground"
                  rows={2}
                  onFocus={(e) => e.stopPropagation()}
               />

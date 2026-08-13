@@ -2,8 +2,8 @@ import { useRef, useEffect } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import { NodeKey, $getNodeByKey } from 'lexical';
-import { MarkdownCardData } from '@vibress/studio-cards';
-import { assertCardSelection } from '../../utils/cardSelection.js';
+import { MarkdownCardData, StudioCardNode } from '@vibress/studio-cards';
+
 
 interface Props {
   nodeKey: NodeKey;
@@ -21,8 +21,8 @@ export function MarkdownCardEditor({ nodeKey, cardData }: Props) {
     const value = e.target.value;
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
-      if (node && 'setCardData' in node) {
-        (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
+      if (node instanceof StudioCardNode) {
+        node.setCardData({
           ...cardData,
           markdown: value,
         });
@@ -40,21 +40,22 @@ export function MarkdownCardEditor({ nodeKey, cardData }: Props) {
 
   return (
     <div
-      className={`vb-markdown-card relative w-full mb-4 border rounded-md bg-gray-50 overflow-hidden shadow-sm`}
+      className={`vb-markdown-card relative w-full mb-4 border border-border/80 dark:border-white/10 rounded-xl bg-card dark:bg-[#1a1c20]/90 backdrop-blur-md text-foreground shadow-sm overflow-hidden`}
       onClick={(e) => {
-        assertCardSelection(clearSelection, setSelected);
+        clearSelection();
+        setSelected(true);
         // Don't focus textarea immediately if clicking the outer container unless it's already selected
         if (!isSelected) {
           e.preventDefault();
         }
       }}
       style={{
-        outline: isSelected ? '2px solid #3b82f6' : 'none',
+        outline: isSelected ? '2px solid #6366f1' : 'none',
         transition: 'outline 0.1s ease',
       }}
     >
-      <div className="bg-gray-100 border-b px-3 py-1 flex items-center justify-between select-none">
-        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Markdown</span>
+      <div className="bg-muted/60 dark:bg-white/[0.04] border-b border-border/60 dark:border-white/10 px-3 py-1.5 flex items-center justify-between select-none">
+        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Markdown</span>
       </div>
       <div className="p-3">
         {isSelected ? (

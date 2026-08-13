@@ -31,7 +31,7 @@ export function NestedCaptionEditor({
 
     if (initialCaptionJSON && Object.keys(initialCaptionJSON).length > 0) {
       try {
-        const parsed = editor.parseEditorState(initialCaptionJSON as unknown as Parameters<typeof editor.parseEditorState>[0]);
+        const parsed = editor.parseEditorState(initialCaptionJSON as never);
         editor.setEditorState(parsed);
       } catch (e) {
         console.error('Failed to parse caption JSON', e);
@@ -42,17 +42,13 @@ export function NestedCaptionEditor({
 
   return (
     <LexicalNestedComposer initialEditor={captionEditor}>
-      <div className="vibress-caption-editor relative mt-2 text-center text-sm text-gray-500">
+      <div className="vibress-caption-editor relative mt-2 text-center text-xs text-muted-foreground">
         <RichTextPlugin
           contentEditable={
-            <ContentEditable
-              ariaLabel={placeholder || 'Caption'}
-              aria-multiline="true"
-              className="outline-none min-h-[24px] px-2 py-1 focus:bg-gray-50 rounded"
-            />
+            <ContentEditable className="outline-none min-h-[24px] px-2 py-1 focus:bg-muted/40 dark:focus:bg-white/[0.04] rounded-lg transition text-foreground/80 placeholder:text-muted-foreground" />
           }
           placeholder={
-            <div className="absolute top-1 left-0 right-0 pointer-events-none opacity-50">
+            <div className="absolute top-1 left-0 right-0 pointer-events-none opacity-50 text-muted-foreground">
               {placeholder}
             </div>
           }

@@ -1,15 +1,13 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
-import { NodeKey, $getNodeByKey } from 'lexical';
-import { ImageCardData } from '@vibress/studio-cards';
-import { NestedCaptionEditor } from './NestedCaptionEditor.js';
-import { CardPlaceholder } from '../ui/CardPlaceholder.js';
+import { NodeKey } from 'lexical';
+import { ImageCardData, StudioCardNode } from '@vibress/studio-cards';
 
-import { useStudioUploadAdapter } from '../../media/UploadAdapterContext.js';
-import { assertCardSelection } from '../../utils/cardSelection.js';
-import { createObjectUrl } from '../../media/object-url.js';
-import { useMediaUpload } from '../../media/useMediaUpload.js';
+import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { $getNodeByKey } from 'lexical';
+import { CardPlaceholder } from '../ui/CardPlaceholder';
+import { useStudioUpload } from '../../upload-context';
 
 interface Props {
   nodeKey: NodeKey;
@@ -19,58 +17,35 @@ interface Props {
 export function ImageCardEditor({ nodeKey, cardData }: Props) {
   const [editor] = useLexicalComposerContext();
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
-  const adapter = useStudioUploadAdapter();
+  const { uploadMedia } = useStudioUpload();
+  const [uploading, setUploading] = useState(false);
 
-  const { status, progress, error, asset, previewUrl, upload, retry, clear } = useMediaUpload({
-    adapter,
-    cardType: 'image',
-    onSuccess: (uploaded) => {
-      editor.update(() => {
-        const node = $getNodeByKey(nodeKey);
-        if (node && 'setCardData' in node) {
-          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
-            ...cardData,
-            src: uploaded.url,
-            assetId: uploaded.id,
-            alt: uploaded.alt || cardData.alt || '',
-            height: uploaded.height,
-          });
-        }
-      });
-    },
-  });
-
-  // The hook revokes any preview object URL on unmount automatically.
-
-  const isPopulated = !!cardData.src || !!previewUrl;
+  const isPopulated = !!cardData.src;
 
   const onFileSelect = (files: File[]) => {
     const file = files[0];
-    if (!file) return;
-    // No adapter: store the local preview src so the card shows the image.
-    if (!adapter) {
-      const previewUrl = createObjectUrl(file);
-      editor.update(() => {
-        const node = $getNodeByKey(nodeKey);
-        if (node && 'setCardData' in node) {
-          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
-            ...cardData,
-            src: previewUrl,
-            alt: file.name,
-          });
-        }
-      });
-      return;
-    }
-    void upload(file);
+    if (!file || !uploadMedia) return;
+    // Upload through the durable media adapter — never persist blob: URLs.
+    setUploading(true);
+    uploadMedia(file, 'image')
+      .then((payload) => {
+        if (!payload) return;
+        editor.update(() => {
+          const node = $getNodeByKey(nodeKey);
+          if (node instanceof StudioCardNode) {
+            node.setCardData({ ...cardData, ...payload });
+          }
+        });
+      })
+      .finally(() => setUploading(false));
   };
 
   const onCaptionChange = useCallback(
     (captionJSON: Record<string, unknown>, captionHtml: string) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node && 'setCardData' in node) {
-          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
+        if (node instanceof StudioCardNode) {
+          node.setCardData({
             ...cardData,
             caption: captionJSON,
             captionHtml,
@@ -90,54 +65,30 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
         title="Image"
         description="Click to select an image, or drag and drop"
         onFileSelect={onFileSelect}
+        uploading={uploading}
         isSelected={isSelected}
-        onClick={() => assertCardSelection(clearSelection, setSelected)}
+        onClick={() => {
+          clearSelection();
+          setSelected(true);
+        }}
       />
     );
   }
 
-  const displaySrc = previewUrl || asset?.url || cardData.src;
-
   return (
     <figure
-      className={`vb-image-card${widthClass} relative`}
-      onClick={() => assertCardSelection(clearSelection, setSelected)}
+      className={`vb-image-card${widthClass} relative my-3.5`}
+      onClick={() => {
+        clearSelection();
+        setSelected(true);
+      }}
       style={{
-        outline: isSelected ? '2px solid #3b82f6' : 'none',
-        borderRadius: '4px',
+        outline: isSelected ? '2px solid #6366f1' : 'none',
+        borderRadius: '12px',
         transition: 'outline 0.1s ease',
       }}
     >
-      {status === 'uploading' && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/70 rounded">
-          <div className="text-xs text-gray-600 mb-1">Uploading… {progress}%</div>
-          <div className="w-40 h-1.5 bg-gray-200 rounded overflow-hidden">
-            <div className="h-full bg-blue-500 transition-all" style={{ width: `${progress}%` }} />
-          </div>
-        </div>
-      )}
-      {status === 'error' && (
-        <div role="alert" className="absolute inset-x-0 top-0 z-10 flex flex-col gap-1.5 items-center justify-center bg-red-50 border border-red-200 rounded p-3">
-          <p className="text-xs text-red-700">Upload failed: {error}</p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => void retry()}
-              className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
-            >
-              Retry
-            </button>
-            <button
-              type="button"
-              onClick={clear}
-              className="px-2 py-1 text-xs bg-white border border-red-300 text-red-700 rounded hover:bg-red-100"
-            >
-              Dismiss
-            </button>
-          </div>
-        </div>
-      )}
-      <img src={displaySrc} alt={cardData.alt || ''} className="w-full" />
+      <img src={cardData.src} alt={cardData.alt || ''} className="w-full rounded-xl overflow-hidden shadow-sm" />
       <NestedCaptionEditor
         initialCaptionJSON={typeof cardData.caption === 'object' ? cardData.caption : undefined}
         onChange={onCaptionChange}

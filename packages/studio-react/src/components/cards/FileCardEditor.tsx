@@ -1,17 +1,13 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import { NodeKey, $getNodeByKey } from 'lexical';
-import { FileCardData } from '@vibress/studio-cards';
-import { NestedCaptionEditor } from './NestedCaptionEditor.js';
-import { CardPlaceholder } from '../ui/CardPlaceholder.js';
-import { UploadStatusOverlay } from '../ui/UploadStatusOverlay.js';
-import { File as FileIcon, Download } from 'lucide-react';
+import { FileCardData, StudioCardNode } from '@vibress/studio-cards';
 
-import { useStudioUploadAdapter } from '../../media/UploadAdapterContext.js';
-import { assertCardSelection } from '../../utils/cardSelection.js';
-import { createObjectUrl } from '../../media/object-url.js';
-import { useMediaUpload } from '../../media/useMediaUpload.js';
+import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { CardPlaceholder } from '../ui/CardPlaceholder';
+import { useStudioUpload } from '../../upload-context';
+import { File as FileIcon, Download } from 'lucide-react';
 
 interface Props {
   nodeKey: NodeKey;
@@ -21,58 +17,34 @@ interface Props {
 export function FileCardEditor({ nodeKey, cardData }: Props) {
   const [editor] = useLexicalComposerContext();
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
-  const adapter = useStudioUploadAdapter();
+  const { uploadMedia } = useStudioUpload();
+  const [uploading, setUploading] = useState(false);
 
-  const { status, progress, error, asset, previewUrl, upload, retry, clear } = useMediaUpload({
-    adapter,
-    cardType: 'file',
-    onSuccess: (uploaded) => {
-      const fileSize = (uploaded.size / (1024 * 1024)).toFixed(2) + ' MB';
-      editor.update(() => {
-        const node = $getNodeByKey(nodeKey);
-        if (node && 'setCardData' in node) {
-          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
-            ...cardData,
-            src: uploaded.url,
-            assetId: uploaded.id,
-            fileName: uploaded.alt || cardData.fileName || '',
-            fileSize,
-          });
-        }
-      });
-    },
-  });
-
-  const isPopulated = !!cardData.src || !!previewUrl;
+  const isPopulated = !!cardData.src;
 
   const onFileSelect = (files: File[]) => {
     const file = files[0];
-    if (!file) return;
-    if (!adapter) {
-      const url = createObjectUrl(file);
-      const fileSize = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
-      editor.update(() => {
-        const node = $getNodeByKey(nodeKey);
-        if (node && 'setCardData' in node) {
-          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
-            ...cardData,
-            src: url,
-            fileName: file.name,
-            fileSize,
-          });
-        }
-      });
-      return;
-    }
-    void upload(file);
+    if (!file || !uploadMedia) return;
+    setUploading(true);
+    uploadMedia(file, 'file')
+      .then((payload) => {
+        if (!payload) return;
+        editor.update(() => {
+          const node = $getNodeByKey(nodeKey);
+          if (node instanceof StudioCardNode) {
+            node.setCardData({ ...cardData, ...payload });
+          }
+        });
+      })
+      .finally(() => setUploading(false));
   };
 
   const onCaptionChange = useCallback(
     (captionJSON: Record<string, unknown>, captionHtml: string) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node && 'setCardData' in node) {
-          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
+        if (node instanceof StudioCardNode) {
+          node.setCardData({
             ...cardData,
             caption: captionJSON,
             captionHtml,
@@ -88,48 +60,47 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
       <CardPlaceholder
         iconType="file"
         title="File"
-        description="Click to select a file to attach"
+        description="Click to select a file, or drag and drop"
         onFileSelect={onFileSelect}
+        uploading={uploading}
         isSelected={isSelected}
-        onClick={() => assertCardSelection(clearSelection, setSelected)}
+        onClick={() => {
+          clearSelection();
+          setSelected(true);
+        }}
       />
     );
   }
 
-  const displaySrc = previewUrl || asset?.url || cardData.src;
-
   return (
-    <div
-      className="vb-file-card relative w-full mb-4"
-      onClick={() => assertCardSelection(clearSelection, setSelected)}
+    <figure
+      className={`vb-file-card relative my-3`}
+      onClick={() => {
+        clearSelection();
+        setSelected(true);
+      }}
       style={{
-        outline: isSelected ? '2px solid #3b82f6' : 'none',
-        borderRadius: '4px',
+        outline: isSelected ? '2px solid #6366f1' : 'none',
         transition: 'outline 0.1s ease',
       }}
     >
-      <UploadStatusOverlay
-        state={{ status, progress, error }}
-        onRetry={() => void retry()}
-        onDismiss={clear}
-      />
-      <a
-        href={displaySrc}
-        download
-        className="flex items-center gap-3 p-4 border rounded-md bg-white hover:bg-gray-50 no-underline text-current shadow-sm"
-      >
-        <FileIcon className="w-8 h-8 text-gray-400" strokeWidth={1.5} />
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium truncate">{cardData.fileName || 'Untitled file'}</div>
-          {cardData.fileSize && <div className="text-xs text-gray-500">{cardData.fileSize}</div>}
+      <div className="flex items-center gap-3.5 py-2.5 px-3.5 border border-border/80 dark:border-white/10 rounded-xl bg-card dark:bg-[#1a1c20]/90 backdrop-blur-md text-foreground shadow-sm">
+        <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center flex-shrink-0">
+          <FileIcon size={20} />
         </div>
-        <Download className="w-4 h-4 text-gray-400" />
-      </a>
+        <div className="flex-1 overflow-hidden">
+          <div className="font-semibold text-sm truncate text-foreground">{cardData.fileName}</div>
+          <div className="text-xs text-muted-foreground">{cardData.fileSize}</div>
+        </div>
+        <div className="p-2 bg-muted/60 dark:bg-white/[0.08] border border-border/60 dark:border-white/10 rounded-lg shadow-sm flex-shrink-0 text-muted-foreground">
+          <Download size={16} />
+        </div>
+      </div>
       <NestedCaptionEditor
         initialCaptionJSON={typeof cardData.caption === 'object' ? cardData.caption : undefined}
         onChange={onCaptionChange}
         placeholder="Type caption for file (optional)"
       />
-    </div>
+    </figure>
   );
 }

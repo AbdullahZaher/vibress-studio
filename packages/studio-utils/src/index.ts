@@ -1,23 +1,62 @@
-import { sanitizeHtmlFragment } from './sanitize/sanitize-html.js';
+export function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
-export { escapeHtml } from './sanitize/escape-html.js';
-export { escapeAttribute } from './sanitize/escape-attribute.js';
-export { isSafeUrl, sanitizeUrl, ALLOWED_DATA_IMAGE_PREFIXES } from './sanitize/sanitize-url.js';
-export { sanitizeHtmlFragment, HTML_SANITIZE_POLICY } from './sanitize/sanitize-html.js';
-export {
-  HTML_ALLOWED_TAGS,
-  HTML_ALLOWED_ATTRIBUTES,
-  HTML_ALLOWED_SCHEMES,
-  HARD_DENY_TAGS,
-  HARD_DENY_ATTRIBUTES,
-  type StudioSanitizePolicy,
-} from './sanitize/policy.js';
+export function isSafeUrl(url: unknown): boolean {
+  if (typeof url !== 'string') return false;
+  const trimmed = url.trim().toLowerCase();
+
+  // Reject dangerous protocols
+  if (
+    trimmed.startsWith('javascript:') ||
+    trimmed.startsWith('vbscript:') ||
+    trimmed.startsWith('file:')
+  ) {
+    return false;
+  }
+
+  // Allow safe protocols or relative paths
+  if (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('mailto:') ||
+    trimmed.startsWith('tel:') ||
+    trimmed.startsWith('/') ||
+    trimmed.startsWith('#') ||
+    trimmed.startsWith('data:image/')
+  ) {
+    return true;
+  }
+
+  // If no scheme present (e.g. "example.com"), treat as relative/safe unless it contains colon early
+  const firstColon = trimmed.indexOf(':');
+  if (firstColon === -1) return true;
+
+  return false;
+}
+
+export function sanitizeUrl(url: string, fallback = '#'): string {
+  if (!url || !isSafeUrl(url)) {
+    return fallback;
+  }
+  return url.trim();
+}
 
 /**
- * Backwards-compatible alias for the allowlist sanitizer. The regex-only
- * sanitizer was removed in the P1 hardening phase.
+ * Sanitize arbitrary HTML against the Studio allowlist.
+ *
+ * Implemented with a real HTML parser (parse5) — NOT a regex filter.
+ * Safe semantic markup survives; script/event-handler/unsafe-URL vectors are
+ * removed. See sanitize.ts for the full allowlist and URL rules.
  */
-export const sanitizeHtml = sanitizeHtmlFragment;
+export function sanitizeHtml(html: string): string {
+  return sanitizeStudioHtml(html);
+}
 
 export function slugify(text: string): string {
   return text
@@ -31,13 +70,7 @@ export function slugify(text: string): string {
     .replace(/-+$/, '');
 }
 
-/**
- * Escape a string for safe use inside a RegExp constructor. Prevents
- * user-supplied query strings from breaking the pattern or injecting
- * regex operators (e.g. `[`, `(`, `*`).
- */
-export function escapeRegExp(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+import { sanitizeStudioHtml } from './sanitize';
 
-export * from './markdown.js';
+export * from './markdown';
+export * from './sanitize';

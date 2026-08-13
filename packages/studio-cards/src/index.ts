@@ -1,12 +1,6 @@
 import { z } from 'zod';
-import {
-  escapeHtml,
-  escapeAttribute,
-  sanitizeHtmlFragment,
-  sanitizeUrl,
-  isSafeUrl,
-  parseMarkdownToHtml,
-} from '@vibress/studio-utils';
+import { escapeHtml, sanitizeHtml, sanitizeUrl, stripHtml, getEmbedProvider, parseMarkdownToHtml } from '@vibress/studio-utils';
+import { $applyNodeReplacement, DecoratorNode, NodeKey, SerializedLexicalNode, Spread } from 'lexical';
 
 export interface StudioCardDefinition<TData = Record<string, unknown>> {
   type: string;
@@ -16,85 +10,20 @@ export interface StudioCardDefinition<TData = Record<string, unknown>> {
   renderPlainText(data: TData): string;
 }
 
-/** Safe CSS-class token: letters, digits, `-`, `_`. Prevents class injection. */
-const SafeClassToken = z
-  .string()
-  .regex(/^[a-z0-9_-]+$/i, 'unsafe class token');
-
-const SafeWidth = z.enum(['regular', 'wide', 'full']).default('regular');
-const SafeUrl = z.string().refine((u) => isSafeUrl(u), 'unsafe URL');
-const SafePositiveInt = z.number().int().positive().optional();
-
-/**
- * Embed provider allowlist. An iframe is only emitted when the embed URL
- * belongs to one of these providers; everything else degrades to a safe link.
- */
-const EMBED_PROVIDER_ALLOWLIST: Array<{ name: string; hostPattern: RegExp }> = [
-  { name: 'youtube', hostPattern: /(^|\.)youtube\.com$|youtu\.be$/i },
-  { name: 'vimeo', hostPattern: /(^|\.)vimeo\.com$|player\.vimeo\.com$/i },
-  { name: 'spotify', hostPattern: /(^|\.)spotify\.com$|open\.spotify\.com$/i },
-  { name: 'soundcloud', hostPattern: /(^|\.)soundcloud\.com$/i },
-  { name: 'codepen', hostPattern: /(^|\.)codepen\.io$|cdpn\.io$/i },
-  { name: 'codesandbox', hostPattern: /(^|\.)codesandbox\.io$|codesandbox\.io$/i },
-  { name: 'twitter', hostPattern: /(^|\.)twitter\.com$|(^|\.)x\.com$/i },
-  { name: 'figma', hostPattern: /(^|\.)figma\.com$/i },
-];
-
-function getEmbedProviderName(url: string): string | null {
-  try {
-    const hostname = new URL(url).hostname;
-    for (const provider of EMBED_PROVIDER_ALLOWLIST) {
-      if (provider.hostPattern.test(hostname)) {
-        return provider.name;
-      }
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
-
-export { EMBED_PROVIDER_ALLOWLIST, getEmbedProviderName };
-
-function safeClass(tokens: Array<string | undefined>): string {
-  return tokens
-    .filter((t): t is string => !!t && SafeClassToken.safeParse(t).success)
-    .join(' ');
-}
-
-function imgAttrs(attrs: { src: string; alt?: string; title?: string; width?: number; height?: number; loading?: string }): string {
-  const src = sanitizeUrl(attrs.src);
-  const parts = [`src="${escapeAttribute(src)}"`];
-  if (attrs.alt !== undefined) parts.push(`alt="${escapeAttribute(attrs.alt)}"`);
-  if (attrs.title !== undefined) parts.push(`title="${escapeAttribute(attrs.title)}"`);
-  if (typeof attrs.width === 'number' && Number.isFinite(attrs.width) && attrs.width > 0) {
-    parts.push(`width="${Math.round(attrs.width)}"`);
-  }
-  if (typeof attrs.height === 'number' && Number.isFinite(attrs.height) && attrs.height > 0) {
-    parts.push(`height="${Math.round(attrs.height)}"`);
-  }
-  parts.push(`loading="${attrs.loading === 'eager' ? 'eager' : 'lazy'}"`);
-  parts.push('decoding="async"');
-  return parts.join(' ');
-}
-
-function captionHtml(data: { caption?: unknown; captionHtml?: string }): string {
-  const capStr =
-    data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
-  if (!capStr) return '';
-  return `<figcaption>${sanitizeHtmlFragment(capStr)}</figcaption>`;
-}
-
 // 1. Image Card
 export const ImageCardSchema = z.object({
   assetId: z.string().optional(),
-  src: SafeUrl,
+  src: z.string(),
   alt: z.string().default(''),
   caption: z.union([z.string(), z.record(z.unknown())]).default(''),
   captionHtml: z.string().optional(),
-  width: SafeWidth.optional(),
-  height: SafePositiveInt.optional(),
-  href: z.string().optional().refine((u) => (u === undefined ? true : isSafeUrl(u)), 'unsafe URL'),
+  // `width` is the LAYOUT width ('regular'|'wide'|'full'), but the media
+  // pipeline also records the asset's pixel width here (number). Both are
+  // accepted; only the enum drives layout, numeric values are used as
+  // intrinsic dimensions for CLS.
+  width: z.union([z.enum(['regular', 'wide', 'full']), z.number()]).optional(),
+  height: z.number().optional(),
+  href: z.string().optional(),
 });
 export type ImageCardData = z.infer<typeof ImageCardSchema>;
 
@@ -103,11 +32,22 @@ export const ImageCardDefinition: StudioCardDefinition<ImageCardData> = {
   version: 1,
   validate: (data) => ImageCardSchema.parse(data),
   renderHtml: (data) => {
-    const caption = captionHtml(data);
-    const layoutClass = data.width && data.width !== 'regular' ? ` kg-width-${data.width}` : '';
-    const img = `<img ${imgAttrs({ src: data.src, alt: data.alt, height: data.height })} />`;
-    const inner = data.href ? `<a href="${escapeAttribute(sanitizeUrl(data.href))}">${img}</a>` : img;
-    return `<figure class="kg-card kg-image-card${layoutClass}">${inner}${caption}</figure>`;
+    const src = sanitizeUrl(data.src);
+    const alt = escapeHtml(data.alt || '');
+    const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+    const caption = capStr ? `<figcaption>${sanitizeHtml(capStr)}</figcaption>` : '';
+    // Numeric width/height (pixel dimensions from the media asset) are emitted
+    // as intrinsic attributes to reduce CLS; the layout enum drives kg-width-*.
+    const layout = typeof data.width === 'string' && data.width !== 'regular' ? ` kg-width-${data.width}` : '';
+    const dims =
+      typeof data.width === 'number' && typeof data.height === 'number'
+        ? ` width="${data.width}" height="${data.height}"`
+        : '';
+    const img = `<img src="${src}" alt="${alt}"${dims} />`;
+    if (data.href) {
+      return `<figure class="kg-card kg-image-card${layout}"><a href="${sanitizeUrl(data.href)}">${img}</a>${caption}</figure>`;
+    }
+    return `<figure class="kg-card kg-image-card${layout}">${img}${caption}</figure>`;
   },
   renderPlainText: (data) => {
     const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
@@ -117,10 +57,10 @@ export const ImageCardDefinition: StudioCardDefinition<ImageCardData> = {
 
 // 2. Gallery Card
 export const GalleryCardSchema = z.object({
-  images: z.array(ImageCardSchema).max(50),
+  images: z.array(ImageCardSchema),
   caption: z.union([z.string(), z.record(z.unknown())]).default(''),
   captionHtml: z.string().optional(),
-  width: SafeWidth.optional(),
+  width: z.enum(['regular', 'wide', 'full']).optional().default('regular'),
 });
 export type GalleryCardData = z.infer<typeof GalleryCardSchema>;
 
@@ -130,9 +70,10 @@ export const GalleryCardDefinition: StudioCardDefinition<GalleryCardData> = {
   validate: (data) => GalleryCardSchema.parse(data),
   renderHtml: (data) => {
     const imgs = data.images
-      .map((img) => `<img ${imgAttrs({ src: img.src, alt: img.alt })} />`)
+      .map((img) => `<img src="${sanitizeUrl(img.src)}" alt="${escapeHtml(img.alt || '')}" />`)
       .join('');
-    const caption = captionHtml(data);
+    const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+    const caption = capStr ? `<figcaption>${sanitizeHtml(capStr)}</figcaption>` : '';
     const layoutClass = data.width && data.width !== 'regular' ? ` kg-width-${data.width}` : '';
     return `<figure class="kg-card kg-gallery-card${layoutClass}">${imgs}${caption}</figure>`;
   },
@@ -142,13 +83,13 @@ export const GalleryCardDefinition: StudioCardDefinition<GalleryCardData> = {
 // 3. Video Card
 export const VideoCardSchema = z.object({
   assetId: z.string().optional(),
-  src: SafeUrl,
+  src: z.string(),
   caption: z.union([z.string(), z.record(z.unknown())]).default(''),
   captionHtml: z.string().optional(),
-  poster: z.string().optional().refine((u) => (u === undefined ? true : isSafeUrl(u)), 'unsafe URL'),
+  poster: z.string().optional(),
   loop: z.boolean().default(false),
   autoplay: z.boolean().default(false),
-  width: SafeWidth.optional(),
+  width: z.enum(['regular', 'wide', 'full']).optional().default('regular'),
 });
 export type VideoCardData = z.infer<typeof VideoCardSchema>;
 
@@ -157,13 +98,12 @@ export const VideoCardDefinition: StudioCardDefinition<VideoCardData> = {
   version: 1,
   validate: (data) => VideoCardSchema.parse(data),
   renderHtml: (data) => {
-    const src = escapeAttribute(sanitizeUrl(data.src));
-    const posterAttr = data.poster ? ` poster="${escapeAttribute(sanitizeUrl(data.poster))}"` : '';
-    const loopAttr = data.loop ? ' loop' : '';
-    const autoplayAttr = data.autoplay ? ' autoplay muted playsinline' : '';
-    const caption = captionHtml(data);
+    const src = sanitizeUrl(data.src);
+    const posterAttr = data.poster ? ` poster="${sanitizeUrl(data.poster)}"` : '';
+    const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+    const caption = capStr ? `<figcaption>${sanitizeHtml(capStr)}</figcaption>` : '';
     const layoutClass = data.width && data.width !== 'regular' ? ` kg-width-${data.width}` : '';
-    return `<figure class="kg-card kg-video-card${layoutClass}"><video src="${src}" controls${posterAttr}${loopAttr}${autoplayAttr}></video>${caption}</figure>`;
+    return `<figure class="kg-card kg-video-card${layoutClass}"><video src="${src}" controls${posterAttr}></video>${caption}</figure>`;
   },
   renderPlainText: (data) => {
     const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
@@ -174,7 +114,7 @@ export const VideoCardDefinition: StudioCardDefinition<VideoCardData> = {
 // 4. Audio Card
 export const AudioCardSchema = z.object({
   assetId: z.string().optional(),
-  src: SafeUrl,
+  src: z.string(),
   title: z.string().default(''),
   caption: z.union([z.string(), z.record(z.unknown())]).default(''),
 });
@@ -185,9 +125,9 @@ export const AudioCardDefinition: StudioCardDefinition<AudioCardData> = {
   version: 1,
   validate: (data) => AudioCardSchema.parse(data),
   renderHtml: (data) => {
-    const src = escapeAttribute(sanitizeUrl(data.src));
+    const src = sanitizeUrl(data.src);
     const title = data.title ? `<div class="title">${escapeHtml(data.title)}</div>` : '';
-    return `<div class="kg-card kg-audio-card">${title}<audio src="${src}" controls preload="metadata"></audio></div>`;
+    return `<div class="kg-card kg-audio-card">${title}<audio src="${src}" controls></audio></div>`;
   },
   renderPlainText: (data) => {
     const capStr = typeof data.caption === 'string' ? data.caption : '';
@@ -198,8 +138,8 @@ export const AudioCardDefinition: StudioCardDefinition<AudioCardData> = {
 // 5. File Card
 export const FileCardSchema = z.object({
   assetId: z.string().optional(),
-  src: SafeUrl,
-  fileName: z.string().max(512),
+  src: z.string(),
+  fileName: z.string(),
   fileSize: z.string().default(''),
   caption: z.union([z.string(), z.record(z.unknown())]).default(''),
 });
@@ -210,7 +150,7 @@ export const FileCardDefinition: StudioCardDefinition<FileCardData> = {
   version: 1,
   validate: (data) => FileCardSchema.parse(data),
   renderHtml: (data) => {
-    const src = escapeAttribute(sanitizeUrl(data.src));
+    const src = sanitizeUrl(data.src);
     const name = escapeHtml(data.fileName);
     const size = data.fileSize ? ` <span class="size">(${escapeHtml(data.fileSize)})</span>` : '';
     return `<div class="kg-card kg-file-card"><a href="${src}" download>${name}${size}</a></div>`;
@@ -223,13 +163,13 @@ export const FileCardDefinition: StudioCardDefinition<FileCardData> = {
 
 // 6. Bookmark Card
 export const BookmarkCardSchema = z.object({
-  url: SafeUrl,
+  url: z.string(),
   title: z.string().default(''),
   description: z.string().default(''),
   author: z.string().default(''),
   publisher: z.string().default(''),
-  thumbnail: z.string().optional().refine((u) => (u === undefined ? true : isSafeUrl(u)), 'unsafe URL'),
-  icon: z.string().optional().refine((u) => (u === undefined ? true : isSafeUrl(u)), 'unsafe URL'),
+  thumbnail: z.string().default(''),
+  icon: z.string().default(''),
 });
 export type BookmarkCardData = z.infer<typeof BookmarkCardSchema>;
 
@@ -238,18 +178,17 @@ export const BookmarkCardDefinition: StudioCardDefinition<BookmarkCardData> = {
   version: 1,
   validate: (data) => BookmarkCardSchema.parse(data),
   renderHtml: (data) => {
-    const url = escapeAttribute(sanitizeUrl(data.url));
+    const url = sanitizeUrl(data.url);
     const title = escapeHtml(data.title || data.url);
     const desc = escapeHtml(data.description || '');
-    const icon = data.icon ? `<img ${imgAttrs({ src: data.icon, alt: '' })} class="kg-bookmark-icon" />` : '';
-    return `<figure class="kg-card kg-bookmark-card"><a href="${url}">${icon}<div class="kg-bookmark-title">${title}</div><div class="kg-bookmark-desc">${desc}</div></a></figure>`;
+    return `<figure class="kg-card kg-bookmark-card"><a href="${url}"><div class="title">${title}</div><div class="desc">${desc}</div></a></figure>`;
   },
   renderPlainText: (data) => data.title || data.url || '',
 };
 
 // 7. Embed Card
 export const EmbedCardSchema = z.object({
-  url: SafeUrl,
+  url: z.string(),
   embedType: z.string().default('video'),
   html: z.string().optional(),
   caption: z.union([z.string(), z.record(z.unknown())]).default(''),
@@ -261,27 +200,16 @@ export const EmbedCardDefinition: StudioCardDefinition<EmbedCardData> = {
   version: 1,
   validate: (data) => EmbedCardSchema.parse(data),
   renderHtml: (data) => {
-    const url = sanitizeUrl(data.url);
-    const provider = getEmbedProviderName(url);
-    const caption = captionHtml(data);
-
-    // 1) Raw embed HTML is sanitized with the fragment policy; iframes are
-    //    stripped by it (safe by default).
-    const sanitizedHtml = data.html ? sanitizeHtmlFragment(data.html) : '';
-
-    // 2) If the URL is provider-allowlisted, build a safe iframe ourselves.
+    // Only approved providers produce an iframe; everything else becomes a
+    // safe external link. Arbitrary user-supplied iframe markup is never
+    // trusted — the final output sanitizer enforces this a second time.
+    const provider = getEmbedProvider(data.url);
+    const caption = typeof data.caption === 'string' ? data.caption : '';
+    const captionHtml = caption ? `<figcaption>${sanitizeHtml(caption)}</figcaption>` : '';
     if (provider) {
-      const escapedUrl = escapeAttribute(url);
-      return `<figure class="kg-card kg-embed-card"><iframe src="${escapedUrl}" title="Embedded content from ${escapeAttribute(provider)}" loading="lazy" allowfullscreen referrerpolicy="no-referrer"></iframe>${caption}</figure>`;
+      return `<figure class="kg-card kg-embed-card"><iframe src="${escapeHtml(provider.embedUrl)}" title="${escapeHtml(data.url)}" loading="lazy" allowfullscreen></iframe>${captionHtml}</figure>`;
     }
-
-    // 3) Otherwise render sanitized embed HTML if any survived.
-    if (sanitizedHtml) {
-      return `<figure class="kg-card kg-embed-card">${sanitizedHtml}${caption}</figure>`;
-    }
-
-    // 4) Unsupported embeds degrade to a safe link.
-    return `<figure class="kg-card kg-embed-card"><a href="${escapeAttribute(url)}" rel="noopener noreferrer">${escapeHtml(url)}</a>${caption}</figure>`;
+    return `<figure class="kg-card kg-embed-card"><a href="${sanitizeUrl(data.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(data.url)}</a>${captionHtml}</figure>`;
   },
   renderPlainText: (data) => {
     const capStr = typeof data.caption === 'string' ? data.caption : '';
@@ -292,7 +220,7 @@ export const EmbedCardDefinition: StudioCardDefinition<EmbedCardData> = {
 // 8. Button Card
 export const ButtonCardSchema = z.object({
   text: z.string(),
-  url: SafeUrl,
+  url: z.string(),
   alignment: z.enum(['left', 'center', 'right']).default('center'),
 });
 export type ButtonCardData = z.infer<typeof ButtonCardSchema>;
@@ -302,9 +230,9 @@ export const ButtonCardDefinition: StudioCardDefinition<ButtonCardData> = {
   version: 1,
   validate: (data) => ButtonCardSchema.parse(data),
   renderHtml: (data) => {
-    const url = escapeAttribute(sanitizeUrl(data.url));
+    const url = sanitizeUrl(data.url);
     const text = escapeHtml(data.text);
-    return `<div class="kg-card kg-button-card align-${data.alignment}"><a href="${url}" class="btn" rel="noopener noreferrer">${text}</a></div>`;
+    return `<div class="kg-card kg-button-card align-${data.alignment}"><a href="${url}" class="btn">${text}</a></div>`;
   },
   renderPlainText: (data) => `${data.text} (${data.url})`,
 };
@@ -313,7 +241,7 @@ export const ButtonCardDefinition: StudioCardDefinition<ButtonCardData> = {
 export const CalloutCardSchema = z.object({
   text: z.string(),
   emoji: z.string().default('💡'),
-  backgroundColor: SafeClassToken.default('grey'),
+  backgroundColor: z.string().default('grey'),
 });
 export type CalloutCardData = z.infer<typeof CalloutCardSchema>;
 
@@ -323,9 +251,8 @@ export const CalloutCardDefinition: StudioCardDefinition<CalloutCardData> = {
   validate: (data) => CalloutCardSchema.parse(data),
   renderHtml: (data) => {
     const emoji = escapeHtml(data.emoji);
-    const content = escapeHtml(data.text);
-    const bg = safeClass([data.backgroundColor]);
-    return `<div class="kg-card kg-callout-card bg-${bg}"><span class="emoji">${emoji}</span><div class="content">${content}</div></div>`;
+    const content = sanitizeHtml(data.text);
+    return `<div class="kg-card kg-callout-card bg-${data.backgroundColor}"><span class="emoji">${emoji}</span><div class="content">${content}</div></div>`;
   },
   renderPlainText: (data) => `${data.emoji} ${data.text}`,
 };
@@ -343,7 +270,7 @@ export const ToggleCardDefinition: StudioCardDefinition<ToggleCardData> = {
   validate: (data) => ToggleCardSchema.parse(data),
   renderHtml: (data) => {
     const heading = escapeHtml(data.heading);
-    const content = escapeHtml(data.content);
+    const content = sanitizeHtml(data.content);
     return `<details class="kg-card kg-toggle-card"><summary>${heading}</summary><div>${content}</div></details>`;
   },
   renderPlainText: (data) => `${data.heading}\n${data.content}`,
@@ -359,11 +286,11 @@ export const MarkdownCardDefinition: StudioCardDefinition<MarkdownCardData> = {
   type: 'markdown',
   version: 1,
   validate: (data) => MarkdownCardSchema.parse(data),
-  renderHtml: (data) => sanitizeHtmlFragment(parseMarkdownToHtml(data.markdown)),
+  renderHtml: (data) => parseMarkdownToHtml(data.markdown),
   renderPlainText: (data) => data.markdown || '',
 };
 
-// 12. HTML Card (high-risk: raw HTML is ALWAYS allowlist-sanitized — Option B).
+// 12. HTML Card (Privileged raw HTML card - sanitized before render)
 export const HtmlCardSchema = z.object({
   html: z.string(),
 });
@@ -373,13 +300,13 @@ export const HtmlCardDefinition: StudioCardDefinition<HtmlCardData> = {
   type: 'html',
   version: 1,
   validate: (data) => HtmlCardSchema.parse(data),
-  renderHtml: (data) => sanitizeHtmlFragment(data.html),
-  renderPlainText: (data) => data.html || '',
+  renderHtml: (data) => data.html,
+  renderPlainText: (data) => stripHtml(data.html || ''),
 };
 
 // 13. Divider Card
 export const DividerCardSchema = z.object({
-  style: SafeClassToken.default('solid'),
+  style: z.string().default('solid'),
 });
 export type DividerCardData = z.infer<typeof DividerCardSchema>;
 
@@ -406,3 +333,97 @@ export const STUDIO_CARD_DEFINITIONS: Record<string, StudioCardDefinition> = {
   html: HtmlCardDefinition,
   divider: DividerCardDefinition,
 };
+
+// Generic Lexical StudioCardNode for Lexical Editor representation
+export type SerializedStudioCardNode = Spread<
+  {
+    cardType: string;
+    cardData: Record<string, unknown>;
+  },
+  SerializedLexicalNode
+>;
+
+export class StudioCardNode extends DecoratorNode<JSX.Element | string> {
+  __cardType: string;
+  __cardData: Record<string, unknown>;
+
+  static getType(): string {
+    return 'studio-card';
+  }
+
+  static clone(node: StudioCardNode): StudioCardNode {
+    return new StudioCardNode(node.__cardType, node.__cardData, node.__key);
+  }
+
+  constructor(cardType: string, cardData: Record<string, unknown>, key?: NodeKey) {
+    super(key);
+    this.__cardType = cardType;
+    this.__cardData = cardData;
+  }
+
+  getCardType(): string {
+    return this.__cardType;
+  }
+
+  getCardData(): Record<string, unknown> {
+    return this.__cardData;
+  }
+
+  setCardData(cardData: Record<string, unknown>): void {
+    const writable = this.getWritable();
+    writable.__cardData = cardData;
+  }
+
+  exportJSON(): SerializedStudioCardNode {
+    return {
+      type: 'studio-card',
+      cardType: this.__cardType,
+      cardData: this.__cardData,
+      version: 1,
+    };
+  }
+
+  static importJSON(serializedNode: SerializedStudioCardNode): StudioCardNode {
+    // $applyNodeReplacement honors the editor's replacement config (e.g.
+    // StudioCardNode -> ReactStudioCardNode). The replacement factory must
+    // NOT reuse the original node's key (see $setNodeKey): a fresh key gives
+    // the replacement its own node-map entry so it actually renders.
+    return $applyNodeReplacement(
+      $createStudioCardNode(serializedNode.cardType, serializedNode.cardData)
+    ) as StudioCardNode;
+  }
+
+  createDOM(): HTMLElement {
+    const div = document.createElement('div');
+    div.className = `studio-card studio-card-${this.__cardType}`;
+    return div;
+  }
+
+  updateDOM(): boolean {
+    return false;
+  }
+
+  decorate(): JSX.Element | string {
+    const def = STUDIO_CARD_DEFINITIONS[this.__cardType];
+    if (def) {
+      try {
+        const validated = def.validate(this.__cardData);
+        return def.renderHtml(validated);
+      } catch {
+        return `[Card: ${this.__cardType}]`;
+      }
+    }
+    return `[Unknown Card: ${this.__cardType}]`;
+  }
+}
+
+export function $createStudioCardNode(
+  cardType: string,
+  cardData: Record<string, unknown>
+): StudioCardNode {
+  return new StudioCardNode(cardType, cardData);
+}
+
+export function $isStudioCardNode(node: unknown): node is StudioCardNode {
+  return node instanceof StudioCardNode;
+}

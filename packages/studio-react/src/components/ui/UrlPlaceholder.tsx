@@ -1,9 +1,9 @@
-import React, { useId, useState } from 'react';
-import { Bookmark, Link, type LucideIcon } from 'lucide-react';
+import React, { useState } from 'react';
+import { Bookmark, Code2, ArrowRight, Link2, LucideIcon, Globe } from 'lucide-react';
 
 const ICONS: Record<string, LucideIcon> = {
   bookmark: Bookmark,
-  embed: Link,
+  embed: Code2,
 };
 
 interface UrlPlaceholderProps {
@@ -11,26 +11,15 @@ interface UrlPlaceholderProps {
   title: string;
   description: string;
   onUrlSubmit: (url: string) => void;
-  /** Optional validator; when it returns false the error message is shown. */
-  validate?: (url: string) => boolean;
   isSelected?: boolean;
   onClick?: (e: React.MouseEvent) => void;
 }
 
-export function UrlPlaceholder({
-  iconType,
-  title,
-  description,
-  onUrlSubmit,
-  validate,
-  isSelected = false,
-  onClick,
+export function UrlPlaceholder({ 
+  iconType, title, description, onUrlSubmit, isSelected = false, onClick
 }: UrlPlaceholderProps) {
   const Icon = ICONS[iconType] || Bookmark;
   const [url, setUrl] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const inputId = useId();
-  const errorId = useId();
 
   const handleClick = (e: React.MouseEvent) => {
     if (onClick) onClick(e);
@@ -38,69 +27,62 @@ export function UrlPlaceholder({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = url.trim();
-    if (!trimmed) {
-      setError('Please enter a URL.');
-      return;
+    if (url.trim()) {
+      onUrlSubmit(url.trim());
     }
-    if (validate && !validate(trimmed)) {
-      setError('That URL is not valid or is not supported.');
-      return;
-    }
-    setError(null);
-    onUrlSubmit(trimmed);
   };
 
-  return (
-    <div
-      className="relative flex flex-col items-center justify-center p-8 my-4 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors group"
-      onClick={handleClick}
-      style={{ outline: isSelected ? '2px solid #3b82f6' : 'none' }}
-    >
-      <div className="flex flex-col items-center justify-center w-full max-w-lg">
-        <Icon className="w-10 h-10 text-gray-400 group-hover:text-blue-500 transition-colors mb-3" strokeWidth={1.5} />
-        <p className="text-sm font-medium text-gray-700 mb-1">{title}</p>
-        <p className="text-xs text-gray-500 mb-4">{description}</p>
+  const isEmbed = iconType === 'embed';
+  const InputIcon = isEmbed ? Link2 : Globe;
+  const placeholderText = isEmbed 
+    ? 'Paste link to embed (YouTube, Vimeo, Twitter, Figma, Codepen...)' 
+    : 'Paste link URL (e.g. https://example.com)...';
 
-        <form onSubmit={handleSubmit} className="w-full flex flex-col gap-1.5">
-          <div className="flex gap-2">
-            <label htmlFor={inputId} className="sr-only">
-              URL
-            </label>
+  return (
+    <div 
+      className={`group relative my-3 rounded-xl border border-dashed transition-all duration-200 select-none overflow-hidden ${
+        isSelected
+          ? 'border-primary ring-2 ring-primary/30 bg-primary/5'
+          : 'border-border/80 dark:border-white/10 hover:border-primary/60 bg-muted/30 dark:bg-white/[0.02] hover:bg-muted/60 dark:hover:bg-white/[0.04]'
+      }`}
+      onClick={handleClick}
+    >
+      <div className="p-3.5 px-4.5 flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform duration-200 shadow-sm">
+              <Icon className="w-5 h-5" strokeWidth={1.75} />
+            </div>
+            <div className="min-w-0">
+              <span className="text-sm font-semibold text-foreground tracking-tight">{title}</span>
+              <p className="text-xs text-muted-foreground truncate mt-0.5">{description}</p>
+            </div>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex gap-2 w-full">
+          <div className="relative flex-1">
+            <InputIcon className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <input
-              id={inputId}
               type="url"
               value={url}
-              onChange={(e) => {
-                setUrl(e.target.value);
-                if (error) setError(null);
-              }}
-              placeholder="https://..."
-              className={`flex-1 px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-1 ${
-                error
-                  ? 'border-red-400 focus:border-red-500 focus:ring-red-500'
-                  : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
-              }`}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder={placeholderText}
+              className="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-border/80 bg-background dark:bg-white/[0.05] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary/40 transition"
               required
-              aria-invalid={error ? true : undefined}
-              aria-describedby={error ? errorId : undefined}
               onFocus={(e) => e.stopPropagation()}
               onKeyDown={(e) => e.stopPropagation()}
               onKeyUp={(e) => e.stopPropagation()}
               onKeyPress={(e) => e.stopPropagation()}
             />
-            <button
-              type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Save
-            </button>
           </div>
-          {error && (
-            <p id={errorId} role="alert" className="text-xs text-red-600">
-              {error}
-            </p>
-          )}
+          <button
+            type="submit"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium bg-background dark:bg-white/[0.06] border border-border/80 dark:border-white/10 text-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5 transition-all shadow-sm flex-shrink-0 cursor-pointer"
+          >
+            <span>{isEmbed ? 'Embed' : 'Save'}</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </form>
       </div>
     </div>

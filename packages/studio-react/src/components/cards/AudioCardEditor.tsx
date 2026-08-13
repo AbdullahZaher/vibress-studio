@@ -1,16 +1,12 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import { NodeKey, $getNodeByKey } from 'lexical';
-import { AudioCardData } from '@vibress/studio-cards';
-import { NestedCaptionEditor } from './NestedCaptionEditor.js';
-import { CardPlaceholder } from '../ui/CardPlaceholder.js';
-import { UploadStatusOverlay } from '../ui/UploadStatusOverlay.js';
+import { AudioCardData, StudioCardNode } from '@vibress/studio-cards';
 
-import { useStudioUploadAdapter } from '../../media/UploadAdapterContext.js';
-import { assertCardSelection } from '../../utils/cardSelection.js';
-import { createObjectUrl } from '../../media/object-url.js';
-import { useMediaUpload } from '../../media/useMediaUpload.js';
+import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { CardPlaceholder } from '../ui/CardPlaceholder';
+import { useStudioUpload } from '../../upload-context';
 
 interface Props {
   nodeKey: NodeKey;
@@ -20,54 +16,34 @@ interface Props {
 export function AudioCardEditor({ nodeKey, cardData }: Props) {
   const [editor] = useLexicalComposerContext();
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
-  const adapter = useStudioUploadAdapter();
+  const { uploadMedia } = useStudioUpload();
+  const [uploading, setUploading] = useState(false);
 
-  const { status, progress, error, asset, previewUrl, upload, retry, clear } = useMediaUpload({
-    adapter,
-    cardType: 'audio',
-    onSuccess: (uploaded) => {
-      editor.update(() => {
-        const node = $getNodeByKey(nodeKey);
-        if (node && 'setCardData' in node) {
-          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
-            ...cardData,
-            src: uploaded.url,
-            assetId: uploaded.id,
-            title: uploaded.alt || cardData.title || '',
-          });
-        }
-      });
-    },
-  });
-
-  const isPopulated = !!cardData.src || !!previewUrl;
+  const isPopulated = !!cardData.src;
 
   const onFileSelect = (files: File[]) => {
     const file = files[0];
-    if (!file) return;
-    if (!adapter) {
-      const url = createObjectUrl(file);
-      editor.update(() => {
-        const node = $getNodeByKey(nodeKey);
-        if (node && 'setCardData' in node) {
-          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
-            ...cardData,
-            src: url,
-            title: file.name,
-          });
-        }
-      });
-      return;
-    }
-    void upload(file);
+    if (!file || !uploadMedia) return;
+    setUploading(true);
+    uploadMedia(file, 'audio')
+      .then((payload) => {
+        if (!payload) return;
+        editor.update(() => {
+          const node = $getNodeByKey(nodeKey);
+          if (node instanceof StudioCardNode) {
+            node.setCardData({ ...cardData, ...payload, title: file.name });
+          }
+        });
+      })
+      .finally(() => setUploading(false));
   };
 
   const onCaptionChange = useCallback(
     (captionJSON: Record<string, unknown>, captionHtml: string) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node && 'setCardData' in node) {
-          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
+        if (node instanceof StudioCardNode) {
+          node.setCardData({
             ...cardData,
             caption: captionJSON,
             captionHtml,
@@ -83,37 +59,37 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
       <CardPlaceholder
         iconType="audio"
         title="Audio"
-        description="Click to select an audio file"
+        description="Click to select an audio file, or drag and drop"
         onFileSelect={onFileSelect}
+        uploading={uploading}
         isSelected={isSelected}
-        onClick={() => assertCardSelection(clearSelection, setSelected)}
+        onClick={() => {
+          clearSelection();
+          setSelected(true);
+        }}
       />
     );
   }
 
-  const displaySrc = previewUrl || asset?.url || cardData.src;
-
   return (
-    <div
-      className="vb-audio-card relative w-full mb-4"
-      onClick={() => assertCardSelection(clearSelection, setSelected)}
+    <figure
+      className={`vb-audio-card relative flex flex-col gap-2 p-4 my-3.5 border border-border/80 dark:border-white/10 rounded-xl bg-card dark:bg-[#1a1c20]/90 backdrop-blur-md shadow-sm`}
+      onClick={() => {
+        clearSelection();
+        setSelected(true);
+      }}
       style={{
-        outline: isSelected ? '2px solid #3b82f6' : 'none',
-        borderRadius: '4px',
+        outline: isSelected ? '2px solid #6366f1' : 'none',
         transition: 'outline 0.1s ease',
       }}
     >
-      <UploadStatusOverlay
-        state={{ status, progress, error }}
-        onRetry={() => void retry()}
-        onDismiss={clear}
-      />
-      <audio src={displaySrc} controls className="w-full" />
+      {cardData.title && <div className="text-sm font-semibold">{cardData.title}</div>}
+      <audio src={cardData.src} controls className="w-full" />
       <NestedCaptionEditor
         initialCaptionJSON={typeof cardData.caption === 'object' ? cardData.caption : undefined}
         onChange={onCaptionChange}
         placeholder="Type caption for audio (optional)"
       />
-    </div>
+    </figure>
   );
 }

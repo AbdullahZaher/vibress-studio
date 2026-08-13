@@ -1,17 +1,13 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import { NodeKey } from 'lexical';
-import { GalleryCardData } from '@vibress/studio-cards';
-import { NestedCaptionEditor } from './NestedCaptionEditor.js';
-import { $getNodeByKey } from 'lexical';
-import { CardPlaceholder } from '../ui/CardPlaceholder.js';
-import { UploadStatusOverlay } from '../ui/UploadStatusOverlay.js';
+import { GalleryCardData, StudioCardNode } from '@vibress/studio-cards';
 
-import { useStudioUploadAdapter } from '../../media/UploadAdapterContext.js';
-import { assertCardSelection } from '../../utils/cardSelection.js';
-import { createObjectUrl } from '../../media/object-url.js';
-import { useMediaUpload } from '../../media/useMediaUpload.js';
+import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { $getNodeByKey } from 'lexical';
+import { CardPlaceholder } from '../ui/CardPlaceholder';
+import { useStudioUpload } from '../../upload-context';
 
 interface Props {
   nodeKey: NodeKey;
@@ -21,61 +17,42 @@ interface Props {
 export function GalleryCardEditor({ nodeKey, cardData }: Props) {
   const [editor] = useLexicalComposerContext();
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
-  const adapter = useStudioUploadAdapter();
+  const { uploadMedia } = useStudioUpload();
+  const [uploading, setUploading] = useState(false);
 
-  const { status, progress, error, upload, retry, clear } = useMediaUpload({
-    adapter,
-    cardType: 'gallery',
-    onSuccess: (uploaded) => {
-      editor.update(() => {
-        const node = $getNodeByKey(nodeKey);
-        if (node && 'setCardData' in node) {
-          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
-            ...cardData,
-            images: [
-              ...(cardData.images || []),
-              { src: uploaded.url, alt: uploaded.alt || '' },
-            ],
-          });
-        }
-      });
-    },
-  });
-
-  const isPopulated = !!cardData.images && cardData.images.length > 0;
+  const isPopulated = cardData.images && cardData.images.length > 0;
 
   const onFileSelect = (files: File[]) => {
-    if (files.length === 0) return;
-    if (!adapter) {
-      const newImages = files.map((file) => ({
-        src: createObjectUrl(file),
-        alt: file.name,
-      }));
-      editor.update(() => {
-        const node = $getNodeByKey(nodeKey);
-        if (node && 'setCardData' in node) {
-          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
-            ...cardData,
-            images: [...(cardData.images || []), ...newImages],
-          });
-        }
-      });
-      return;
-    }
-    // Upload sequentially so each persisted asset is appended in order.
-    void (async () => {
-      for (const file of files) {
-        await upload(file);
-      }
-    })();
+    if (files.length === 0 || !uploadMedia) return;
+    // Upload every file through the durable media adapter.
+    setUploading(true);
+    Promise.all(
+      files.map((file) => uploadMedia(file, 'gallery').catch(() => null))
+    )
+      .then((payloads) => {
+        const newImages = payloads
+          .filter((p): p is Record<string, unknown> => !!p && typeof p.src === 'string')
+          .map((p) => ({ src: p.src as string, alt: (p.alt as string) || '', assetId: p.assetId as string | undefined }));
+        if (newImages.length === 0) return;
+        editor.update(() => {
+          const node = $getNodeByKey(nodeKey);
+          if (node instanceof StudioCardNode) {
+            node.setCardData({
+              ...cardData,
+              images: [...(cardData.images || []), ...newImages],
+            });
+          }
+        });
+      })
+      .finally(() => setUploading(false));
   };
 
   const onCaptionChange = useCallback(
     (captionJSON: Record<string, unknown>, captionHtml: string) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node && 'setCardData' in node) {
-          (node as { setCardData(data: Record<string, unknown>): void }).setCardData({
+        if (node instanceof StudioCardNode) {
+          node.setCardData({
             ...cardData,
             caption: captionJSON,
             captionHtml,
@@ -96,30 +73,32 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
         description="Click to select images, or drag and drop"
         onFileSelect={onFileSelect}
         multiple={true}
+        uploading={uploading}
         isSelected={isSelected}
-        onClick={() => assertCardSelection(clearSelection, setSelected)}
+        onClick={() => {
+          clearSelection();
+          setSelected(true);
+        }}
       />
     );
   }
 
   return (
     <figure
-      className={`vb-gallery-card${widthClass} relative`}
-      onClick={() => assertCardSelection(clearSelection, setSelected)}
+      className={`vb-gallery-card${widthClass} relative my-3.5`}
+      onClick={() => {
+        clearSelection();
+        setSelected(true);
+      }}
       style={{
-        outline: isSelected ? '2px solid #3b82f6' : 'none',
-        borderRadius: '4px',
+        outline: isSelected ? '2px solid #6366f1' : 'none',
+        borderRadius: '12px',
         transition: 'outline 0.1s ease',
       }}
     >
-      <UploadStatusOverlay
-        state={{ status, progress, error }}
-        onRetry={() => void retry()}
-        onDismiss={clear}
-      />
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2.5">
         {cardData.images.map((img, i) => (
-          <img key={i} src={img.src} alt={img.alt || ''} className="flex-1 object-cover min-w-[200px]" style={{ maxHeight: '300px' }} />
+          <img key={i} src={img.src} alt={img.alt || ''} className="flex-1 object-cover min-w-[200px] rounded-xl shadow-sm" style={{ maxHeight: '300px' }} />
         ))}
       </div>
       <NestedCaptionEditor
