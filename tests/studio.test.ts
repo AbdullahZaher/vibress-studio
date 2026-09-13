@@ -84,7 +84,8 @@ describe('Vibress Studio Renderer & Markdown', () => {
   it('renders StudioDocument to deterministic HTML', () => {
     const doc = createTestStudioDocument();
     const html = renderStudioDocumentToHtml(doc);
-    expect(html).toContain('<h1>Welcome to Vibress Studio</h1>');
+    expect(html).toContain('<h1 id="welcome-to-vibress-studio">Welcome to Vibress Studio');
+    expect(html).toContain('class="heading-anchor"');
     expect(html).toContain('<strong>bold</strong>');
     expect(html).toContain('<img src="https://example.com/test.jpg"');
   });
