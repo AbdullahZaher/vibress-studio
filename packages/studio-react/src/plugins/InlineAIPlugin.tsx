@@ -218,9 +218,17 @@ export function InlineAIPlugin({
 
       {/* Loading state */}
       {loading && (
-        <div style={{ padding: '16px 8px', display: 'flex', alignItems: 'center', gap: '8px', color: '#6366f1', fontSize: '13px' }}>
-          <Wand2 size={16} className="animate-spin" />
+        <div role="status" aria-live="polite" style={{ padding: '16px 8px', display: 'flex', alignItems: 'center', gap: '8px', color: '#6366f1', fontSize: '13px' }}>
+          <Wand2 size={16} className="animate-spin" aria-hidden="true" />
           <span>Waiting for your configured AI provider...</span>
+          <button
+            type="button"
+            aria-label="Dismiss AI response"
+            onClick={handleDiscard}
+            style={{ marginInlineStart: 'auto', cursor: 'pointer', border: 0, background: 'transparent' }}
+          >
+            <X size={16} aria-hidden="true" />
+          </button>
         </div>
       )}
 
