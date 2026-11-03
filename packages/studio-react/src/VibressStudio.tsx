@@ -31,9 +31,6 @@ export interface VibressStudioProps {
   /** Optional host integration for editor-specific commands; null on cleanup. */
   onEditorReady?: (editor: LexicalEditor | null) => void;
   readOnly?: boolean;
-  /** AI UI is opt-in; a real host provider callback is also required. */
-  enableAi?: boolean;
-  onAiGenerate?: (prompt: string) => Promise<string>;
   placeholder?: string;
   onError?: (error: Error) => void;
   requestMedia?: (req: { cardType: string }) => Promise<Record<string, unknown> | null>;
@@ -116,9 +113,7 @@ export function VibressStudio({
   onChange,
   onEditorReady,
   readOnly = false,
-  enableAi = false,
-  onAiGenerate,
-  placeholder = 'Write content with Vibress Studio (type "/" for commands)...',
+  placeholder = 'Write content with Vibress Studio (type "/" for commands, Space for AI)...',
   onError,
   requestMedia,
   uploadMedia,
@@ -227,7 +222,7 @@ export function VibressStudio({
               <FloatingFormatToolbarPlugin />
               <FloatingCardActionToolbarPlugin />
               {!readOnly && <BlockHandleGutterPlugin />}
-              {!readOnly && enableAi && onAiGenerate && <InlineAIPlugin onGenerate={onAiGenerate} />}
+              {!readOnly && <InlineAIPlugin />}
               <InitialStatePlugin document={parsedDoc} />
               {onEditorReady && <EditorReadyPlugin onReady={onEditorReady} />}
               {onChange && (
