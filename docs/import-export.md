@@ -75,3 +75,18 @@ Tested in `packages/studio-testing/security/roundtrip.test.ts`:
 
 `renderStudioDocumentToPlainText(doc)` in `@vibress/studio-renderer`
 extracts a plain-text view for search indexing or previews.
+
+## HTML table and direction compatibility
+
+Sanitized HTML import now creates native Lexical `table`, `tablerow` and
+`tablecell` nodes from `table`, `thead`/`tbody`/`tfoot`, `tr`, `th`
+and `td`. Header cells and bounded positive `rowspan`/`colspan` values
+are preserved; empty cells receive an empty paragraph, as Lexical requires.
+Arabic and mixed-direction block content retain supported `dir="rtl"` or
+`dir="ltr"` metadata. Public HTML rendering uses sanitized directional
+attributes, falling back to retained child direction for built-in table nodes
+that lose their own direction during editor import.
+
+These changes do **not** change the persisted `StudioDocument.version` or
+rewrite existing documents. Complex unsupported HTML features may be flattened
+to safe content; callers should not assume arbitrary HTML-to-Lexical fidelity.

@@ -42,14 +42,14 @@ pnpm dev        # run the playground (vite)
 
 ```tsx
 import { VibressStudio } from '@vibress/studio-react';
-import { VibressMediaUploadAdapter } from '@vibress/studio-react';
 
-const adapter = new VibressMediaUploadAdapter({
-  endpoint: 'https://api.yourhost.com/uploads',
-  authorization: 'Bearer <token>',
-});
-
-<VibressStudio value={doc} onChange={setDoc} uploadAdapter={adapter} />
+// Implement uploadMediaToCurrentPublication in your authenticated host.
+// It must return a durable { assetId, src } object or null.
+<VibressStudio
+  value={doc}
+  onChange={setDoc}
+  uploadMedia={uploadMediaToCurrentPublication}
+/>
 ```
 
 ## Optional AI completion provider
@@ -73,6 +73,9 @@ completions. To expose the inline AI action, a host must explicitly enable it
 The configured UI can be invoked with Space on an empty paragraph. The host
 remains responsible for provider availability, publication/user permissions,
 rate limits, timeouts, abuse controls, content filtering and cost accounting.
+The optional second argument of onAiGenerate includes the current full Studio
+document. Do not send this document to a third party without explicit user
+consent and the host's publication-scoped authorization checks.
 Provider errors are shown rather than substituted with fake text. Discarding
 or closing the panel ignores late provider results; it does not guarantee
 cancellation of the underlying request. Do not expose provider API keys
