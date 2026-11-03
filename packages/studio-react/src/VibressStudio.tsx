@@ -82,6 +82,16 @@ function EditorReadyPlugin({ onReady }: { onReady: (editor: LexicalEditor | null
   return null;
 }
 
+/** Lexical 0.13 does not forward aria-label to its editable root reliably.
+ * Label the actual root element, including after root replacements. */
+function EditorAccessibleNamePlugin() {
+  const [editor] = useLexicalComposerContext();
+  useEffect(() => editor.registerRootListener((root) => {
+    root?.setAttribute('aria-label', 'Editor content');
+  }), [editor]);
+  return null;
+}
+
 function InitialStatePlugin({ document }: { document: StudioDocument }) {
   const [editor] = useLexicalComposerContext();
   const initialized = useRef(false);
@@ -207,7 +217,7 @@ export function VibressStudio({
                       position: 'absolute',
                       top: '0',
                       left: '32px',
-                      color: '#94a3b8',
+                      color: '#475569',
                       pointerEvents: 'none',
                       fontSize: '1.0625rem',
                     }}
@@ -228,6 +238,7 @@ export function VibressStudio({
               <FloatingCardActionToolbarPlugin />
               {!readOnly && <BlockHandleGutterPlugin />}
               {!readOnly && enableAi && onAiGenerate && <InlineAIPlugin onGenerate={onAiGenerate} />}
+              <EditorAccessibleNamePlugin />
               <InitialStatePlugin document={parsedDoc} />
               {onEditorReady && <EditorReadyPlugin onReady={onEditorReady} />}
               {onChange && (
