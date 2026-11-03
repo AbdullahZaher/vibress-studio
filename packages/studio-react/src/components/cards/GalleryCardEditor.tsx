@@ -19,31 +19,48 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
   const { uploadMedia } = useStudioUpload();
   const [uploading, setUploading] = useState(false);
+  const [failedFiles, setFailedFiles] = useState<File[]>([]);
 
   const isPopulated = cardData.images && cardData.images.length > 0;
 
   const onFileSelect = (files: File[]) => {
-    if (files.length === 0 || !uploadMedia) return;
-    // Upload every file through the durable media adapter.
+    if (files.length === 0 || !uploadMedia || uploading) return;
+    setFailedFiles([]);
     setUploading(true);
-    Promise.all(
-      files.map((file) => uploadMedia(file, 'gallery').catch(() => null))
-    )
-      .then((payloads) => {
-        const newImages = payloads
-          .filter((p): p is Record<string, unknown> => !!p && typeof p.src === 'string')
-          .map((p) => ({ src: p.src as string, alt: (p.alt as string) || '', assetId: p.assetId as string | undefined }));
+    Promise.all(files.map(async selectedFile => {
+      try {
+        return { selectedFile, payload: await uploadMedia(selectedFile, 'gallery') };
+      } catch {
+        return { selectedFile, payload: null };
+      }
+    }))
+      .then(results => {
+        const newImages = results
+          .map(result => result.payload)
+          .filter((payload): payload is Record<string, unknown> =>
+            payload != null && typeof payload.src === 'string')
+          .map(payload => ({
+            src: payload.src as string,
+            alt: typeof payload.alt === 'string' ? payload.alt : '',
+            assetId: typeof payload.assetId === 'string' ? payload.assetId : undefined,
+          }));
+        setFailedFiles(results.filter(result =>
+          !result.payload || typeof result.payload.src !== 'string')
+          .map(result => result.selectedFile));
         if (newImages.length === 0) return;
         editor.update(() => {
           const node = $getNodeByKey(nodeKey);
           if (node instanceof StudioCardNode) {
+            const currentData = node.getCardData();
+            const currentImages = Array.isArray(currentData.images) ? currentData.images : [];
             node.setCardData({
-              ...cardData,
-              images: [...(cardData.images || []), ...newImages],
+              ...currentData,
+              images: [...currentImages, ...newImages],
             });
           }
         });
       })
+      .catch(() => setFailedFiles(files))
       .finally(() => setUploading(false));
   };
 
@@ -53,20 +70,29 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
         const node = $getNodeByKey(nodeKey);
         if (node instanceof StudioCardNode) {
           node.setCardData({
-            ...cardData,
+            ...node.getCardData(),
             caption: captionJSON,
             captionHtml,
           });
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   const widthClass = cardData.width && cardData.width !== 'regular' ? ` vb-width-${cardData.width}` : '';
 
+  const uploadFailure = failedFiles.length > 0 ? (
+    <div role="alert" className="my-2 text-sm text-red-700">
+      Upload failed for {failedFiles.length} image(s).
+      <button type="button" className="mx-2 underline" disabled={uploading} onClick={() => onFileSelect(failedFiles)}>Retry</button>
+      <button type="button" className="underline" onClick={() => setFailedFiles([])}>Dismiss</button>
+    </div>
+  ) : null;
+
   if (!isPopulated) {
     return (
+      <div>
       <CardPlaceholder
         iconType="gallery"
         title="Gallery"
@@ -80,10 +106,13 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
           setSelected(true);
         }}
       />
+      {uploadFailure}
+      </div>
     );
   }
 
   return (
+    <>
     <figure
       className={`vb-gallery-card${widthClass} relative my-3.5`}
       onClick={() => {
@@ -107,5 +136,7 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
         placeholder="Type caption for gallery (optional)"
       />
     </figure>
+    {uploadFailure}
+    </>
   );
 }

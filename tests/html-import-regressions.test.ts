@@ -52,3 +52,45 @@ describe('nested HTML content compatibility', () => {
     expect(html).toContain('alt="وصف"');
   });
 });
+
+describe('HTML table import and RTL round-trip', () => {
+  it('retains rows, table headers, colspans, and mixed Arabic content', () => {
+    const doc = htmlToStudioDocument(
+      '<table dir="rtl"><thead><tr><th colspan="2">الاسم</th></tr></thead>' +
+      '<tbody><tr><td>مقال</td><td><strong>10</strong></td></tr></tbody></table>'
+    );
+    const table = doc.root.children[0] as { type: string; children: Array<{type:string;children:Array<{headerState:number;colSpan:number}>}> };
+    expect(table.type).toBe('table');
+    expect(table.children).toHaveLength(2);
+    expect(table.children[0].type).toBe('tablerow');
+    expect(table.children[0].children[0]).toMatchObject({ type: 'tablecell', headerState: 1, colSpan: 2 });
+    const html = renderStudioDocumentToHtml(doc);
+    expect(html).toContain('dir="rtl"');
+    expect(html).toContain('<th colspan="2">');
+    expect(html).toContain('<strong>10</strong>');
+    expect(html).toContain('مقال');
+  });
+
+  it('uses a paragraph inside empty cells and preserves safe row spans', () => {
+    const doc = htmlToStudioDocument('<table><tr><td rowspan="2"></td><td>one</td></tr><tr><td>two</td></tr></table>');
+    const table = doc.root.children[0] as { children: Array<{children: Array<{rowSpan:number;children: Array<{type:string}>}>}> };
+    expect(table.children[0].children[0].rowSpan).toBe(2);
+    expect(table.children[0].children[0].children[0].type).toBe('paragraph');
+    expect(renderStudioDocumentToHtml(doc)).toContain('rowspan="2"');
+  });
+
+  it('retains block direction inherited from a div and Arabic text', () => {
+    const doc = htmlToStudioDocument('<section dir="rtl"><p>مرحبا English</p><h2>العنوان</h2></section>');
+    expect(doc.root.children).toEqual(expect.arrayContaining([expect.objectContaining({direction:'rtl'})]));
+    const html = renderStudioDocumentToHtml(doc);
+    expect(html).toContain('<p dir="rtl">مرحبا English</p>');
+    expect(html).toContain('العنوان');
+  });
+
+  it('does not restore executable content in imported table cells', () => {
+    const doc = htmlToStudioDocument('<table><tr><td><img src="javascript:alert(1)" onerror="alert(2)">Safe</td></tr></table>');
+    const html = renderStudioDocumentToHtml(doc);
+    expect(html).not.toMatch(/javascript:|onerror=/i);
+    expect(html).toContain('Safe');
+  });
+});

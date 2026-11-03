@@ -10,7 +10,11 @@ import {
   $getSelection,
   $isRangeSelection,
   $createParagraphNode,
+  $getRoot,
+  $isElementNode,
+  type LexicalNode,
 } from 'lexical';
+import { StudioCardNode } from '@vibress/studio-cards';
 import { $setBlocksType } from '@lexical/selection';
 import { $createHeadingNode } from '@lexical/rich-text';
 import { $createListNode } from '@lexical/list';
@@ -43,6 +47,10 @@ interface StudioTestApi {
   uploads: () => StudioUploadedAsset[];
   setAdapterFailNext: (v: boolean) => void;
   setAdapterFailForever: (v: boolean) => void;
+  setAdapterLatency: (ms: number) => void;
+  setCardField: (cardType: string, field: string, value: string) => void;
+  setPickerEnabled: (value: boolean) => void;
+  setPickerFailNext: (value: boolean) => void;
   adapterName: () => string;
   formatBlock: (type: 'h1' | 'h2' | 'paragraph' | 'bullet' | 'number') => void;
   importHTML: (html: string) => void;
@@ -50,6 +58,7 @@ interface StudioTestApi {
   /** Update value without remounting Lexical, to exercise controlled props. */
   syncHTML: (html: string) => void;
   setReadOnly: (value: boolean) => void;
+  setAiEnabled: (value: boolean) => void;
   exportMarkdown: () => string;
 }
 
@@ -93,12 +102,23 @@ export function E2EHarness() {
   const [doc, setDoc] = useState<StudioDocument>(createEmptyStudioDocument());
   const [editorEpoch, setEditorEpoch] = useState(0);
   const [readOnly, setReadOnly] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [pickerEnabled, setPickerEnabled] = useState(false);
+  const pickerFailNextRef = useRef(false);
   const replaceDoc = useCallback((next: StudioDocument) => {
     setDoc(next);
     setEditorEpoch((value) => value + 1);
   }, []);
   const uploadMedia = useCallback((file: File, cardType: string) =>
     adapterRef.current?.upload(file, cardType) ?? Promise.resolve(null), []);
+  const requestMedia = useCallback(async (_request: { cardType: string }) => {
+    await new Promise(resolve => setTimeout(resolve, 180));
+    if (pickerFailNextRef.current) {
+      pickerFailNextRef.current = false;
+      throw new Error('MOCK_PICKER_FAILED');
+    }
+    return { assetId: 'picker-mock', src: '/mock/assets/from-picker' };
+  }, []);
   const [editor, setEditor] = useState<LexicalEditor | null>(null);
   const [htmlInput, setHtmlInput] = useState('');
   const [mdInput, setMdInput] = useState('');
@@ -129,6 +149,25 @@ export function E2EHarness() {
     [editor]
   );
 
+  const setCardField = useCallback((cardType: string, field: string, value: string) => {
+    if (!editor) return;
+    editor.update(() => {
+      const visit = (node: LexicalNode): boolean => {
+        if (node instanceof StudioCardNode && node.getCardType() === cardType) {
+          node.setCardData({ ...node.getCardData(), [field]: value });
+          return true;
+        }
+        if ($isElementNode(node)) {
+          for (const child of node.getChildren()) {
+            if (visit(child)) return true;
+          }
+        }
+        return false;
+      };
+      visit($getRoot());
+    });
+  }, [editor]);
+
   const api = useMemo<StudioTestApi>(
     () => ({
       getDoc: () => doc,
@@ -139,19 +178,26 @@ export function E2EHarness() {
       setAdapterFailForever: (v) => {
         if (adapterRef.current) adapterRef.current.failForever = v;
       },
+      setAdapterLatency: (ms) => {
+        if (adapterRef.current) adapterRef.current.latency = ms;
+      },
+      setCardField,
+      setPickerEnabled,
+      setPickerFailNext: (value) => { pickerFailNextRef.current = value; },
       adapterName: () => adapterRef.current?.name ?? 'none',
       formatBlock,
       importHTML: (html) => replaceDoc(htmlToStudioDocument(html)),
       importMarkdown: (md) => replaceDoc(htmlToStudioDocument(parseMarkdownToHtml(md))),
       syncHTML: (html) => setDoc(htmlToStudioDocument(html)),
       setReadOnly,
+      setAiEnabled,
       exportMarkdown: () => {
         const out = studioDocumentToMarkdown(doc);
         setMdOutput(out);
         return out;
       },
     }),
-    [doc, formatBlock, replaceDoc]
+    [doc, formatBlock, replaceDoc, setCardField]
   );
 
   useEffect(() => {
@@ -197,14 +243,17 @@ export function E2EHarness() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
         <section>
           <h2 style={{ fontSize: '16px', margin: '0 0 8px', color: '#1f2937' }}>Editor</h2>
-          <div data-testid="studio-editor">
+          <div data-testid="studio-editor" data-ai-enabled={aiEnabled}>
             <VibressStudio
               key={editorEpoch}
               value={doc}
               onChange={(d) => setDoc(d)}
               readOnly={readOnly}
+              enableAi={aiEnabled}
+              onAiGenerate={async (prompt) => `Mock AI response: ${prompt}`}
               placeholder="Type here..."
               uploadMedia={uploadMedia}
+              requestMedia={pickerEnabled ? requestMedia : undefined}
               onEditorReady={setEditor}
             />
           </div>
