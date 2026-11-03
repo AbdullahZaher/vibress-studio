@@ -17,7 +17,7 @@ import { SlashMenuPlugin } from './plugins/SlashMenuPlugin';
 import { FloatingFormatToolbarPlugin } from './plugins/FloatingFormatToolbarPlugin';
 import { FloatingCardActionToolbarPlugin } from './plugins/FloatingCardActionToolbarPlugin';
 import { BlockHandleGutterPlugin } from './plugins/BlockHandleGutterPlugin';
-import { InlineAIPlugin } from './plugins/InlineAIPlugin';
+import { InlineAIPlugin, type StudioAiContext } from './plugins/InlineAIPlugin';
 import { STUDIO_CORE_NODES } from '@vibress/studio-nodes';
 import { StudioCardNode } from '@vibress/studio-cards';
 import { ReactStudioCardNode } from './nodes/ReactStudioCardNode';
@@ -31,6 +31,9 @@ export interface VibressStudioProps {
   /** Optional host integration for editor-specific commands; null on cleanup. */
   onEditorReady?: (editor: LexicalEditor | null) => void;
   readOnly?: boolean;
+  /** AI UI is opt-in and requires a real host provider. */
+  enableAi?: boolean;
+  onAiGenerate?: (prompt: string, context?: StudioAiContext) => Promise<string>;
   placeholder?: string;
   onError?: (error: Error) => void;
   requestMedia?: (req: { cardType: string }) => Promise<Record<string, unknown> | null>;
@@ -134,6 +137,8 @@ export function VibressStudio({
   onChange,
   onEditorReady,
   readOnly = false,
+  enableAi = false,
+  onAiGenerate,
   placeholder = 'Write content with Vibress Studio (type "/" for commands)...',
   onError,
   requestMedia,
@@ -244,7 +249,7 @@ export function VibressStudio({
               {!readOnly && <FloatingFormatToolbarPlugin />}
               {!readOnly && <FloatingCardActionToolbarPlugin />}
               {!readOnly && <BlockHandleGutterPlugin />}
-              {!readOnly && <InlineAIPlugin />}
+              {!readOnly && enableAi && onAiGenerate && <InlineAIPlugin onGenerate={onAiGenerate} />}
               <EditorAccessibleNamePlugin />
               <EditorEditablePlugin readOnly={readOnly} />
               <DocumentSyncPlugin document={parsedDoc} onError={onError} />

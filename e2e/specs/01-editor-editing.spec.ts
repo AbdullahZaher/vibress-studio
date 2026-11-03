@@ -2,6 +2,16 @@ import { test, expect } from '@playwright/test';
 import { openHarness, focusEditor, editorContenteditable, studio, docChildTypes } from './helpers';
 
 test.describe('Editor loads and edits (E2E 1)', () => {
+
+  test('without an AI provider, typing Space never opens a simulated AI tool', async ({ page }) => {
+    await openHarness(page);
+    await focusEditor(page);
+    await page.keyboard.type(' ');
+    await expect(page.locator('.notion-ai-popup, .vibress-ai-popup')).toHaveCount(0);
+    await page.keyboard.type('Writing without an AI provider');
+    await expect(editorContenteditable(page)).toContainText('Writing without an AI provider');
+  });
+
   test('editor loads with a focused contenteditable', async ({ page }) => {
     await openHarness(page);
     const editable = editorContenteditable(page);
@@ -96,5 +106,22 @@ test.describe('controlled editor integration', () => {
     await expect(editable).toHaveAttribute('contenteditable', 'false');
     await page.evaluate(() => window.__studio.setReadOnly(false));
     await expect(editable).toHaveAttribute('contenteditable', 'true');
+  });
+});
+
+test.describe('explicit AI provider integration', () => {
+  test('inserts host-provided text after the source block when the prompt steals focus', async ({ page }) => {
+    await openHarness(page);
+    await page.evaluate(() => window.__studio.setAiEnabled(true));
+    await expect(page.getByTestId('studio-editor')).toHaveAttribute('data-ai-enabled', 'true');
+    await focusEditor(page);
+    await page.keyboard.press('Space');
+    const dialog = page.getByRole('dialog', { name: 'AI writing assistant' });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('textbox', { name: 'AI prompt' }).fill('Draft intro');
+    await dialog.getByRole('textbox', { name: 'AI prompt' }).press('Enter');
+    await expect(dialog).toContainText('Mock AI response: Draft intro');
+    await dialog.getByRole('button', { name: /Insert Below/i }).click();
+    await expect(editorContenteditable(page)).toContainText('Mock AI response: Draft intro');
   });
 });
