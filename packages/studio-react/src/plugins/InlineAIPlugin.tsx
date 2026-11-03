@@ -11,11 +11,20 @@ import {
 import { createPortal } from 'react-dom';
 import { Sparkles, Send, Check, RefreshCw, X, Wand2, Globe, FileText, CheckCheck } from 'lucide-react';
 
-export function InlineAIPlugin({ anchorElem = document.body }: { anchorElem?: HTMLElement }) {
+export function InlineAIPlugin({
+  anchorElem = document.body,
+  onGenerate,
+}: {
+  anchorElem?: HTMLElement;
+  onGenerate: (prompt: string) => Promise<string>;
+}) {
   const [editor] = useLexicalComposerContext();
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Ignore late completions once an author closes the UI or retries.
+  const generationIdRef = useRef(0);
   const [generatedText, setGeneratedText] = useState<string | null>(null);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -64,8 +73,10 @@ export function InlineAIPlugin({ anchorElem = document.body }: { anchorElem?: HT
     const handleClickOutside = (e: MouseEvent) => {
       if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
         if (!loading) {
+          generationIdRef.current += 1;
           setIsOpen(false);
           setGeneratedText(null);
+          setErrorMessage(null);
           setPrompt('');
         }
       }
@@ -77,34 +88,30 @@ export function InlineAIPlugin({ anchorElem = document.body }: { anchorElem?: HT
   }, [isOpen, loading]);
 
   const handleGenerate = async (customPrompt?: string) => {
-    const promptToUse = customPrompt || prompt;
-    if (!promptToUse.trim()) return;
+    const promptToUse = (customPrompt ?? prompt).trim();
+    if (!promptToUse) return;
 
+    const generationId = ++generationIdRef.current;
     setLoading(true);
     setGeneratedText(null);
+    setErrorMessage(null);
 
-    // AI Generation simulation/engine
-    setTimeout(() => {
-      let result = '';
-      const p = promptToUse.toLowerCase();
-
-      if (p.includes('continue') || p.includes('أكمل')) {
-        result = 'Here is the continuation of your thoughts with deeper insights, supporting arguments, and practical action items.';
-      } else if (p.includes('summarize') || p.includes('لخص')) {
-        result = 'Summary: The core concept revolves around high-efficiency modern publishing, structured content architecture, and seamless user interaction.';
-      } else if (p.includes('improve') || p.includes('حسّن')) {
-        result = 'Refined version: Empowering creators with high-fidelity, distraction-free editing tools engineered for ultimate performance and clarity.';
-      } else if (p.includes('arabic') || p.includes('عربي')) {
-        result = 'تمكين صناع المحتوى بأدوات تحرير متقدمة وسلسة مصممة لأعلى مستويات الأداء والإنتاجية.';
-      } else if (p.includes('english') || p.includes('إنجليزي')) {
-        result = 'Empowering modern publishers with clean, modular editing workflows.';
-      } else {
-        result = `Insights on "${promptToUse}":\n• Structured content improves readability\n• Modular components ensure high scalability\n• Rich interactions keep readers engaged`;
+    try {
+      const result = await onGenerate(promptToUse);
+      if (generationId !== generationIdRef.current) return;
+      if (!result.trim()) {
+        setErrorMessage('The configured AI provider returned no content.');
+        return;
       }
-
       setGeneratedText(result);
-      setLoading(false);
-    }, 600);
+    } catch (error: unknown) {
+      if (generationId !== generationIdRef.current) return;
+      setErrorMessage(error instanceof Error ? error.message : 'AI generation failed. Try again.');
+    } finally {
+      if (generationId === generationIdRef.current) {
+        setLoading(false);
+      }
+    }
   };
 
   const handleAccept = () => {
@@ -126,8 +133,11 @@ export function InlineAIPlugin({ anchorElem = document.body }: { anchorElem?: HT
   };
 
   const handleDiscard = () => {
+    generationIdRef.current += 1;
+    setLoading(false);
     setIsOpen(false);
     setGeneratedText(null);
+    setErrorMessage(null);
     setPrompt('');
   };
 
@@ -176,7 +186,7 @@ export function InlineAIPlugin({ anchorElem = document.body }: { anchorElem?: HT
               handleGenerate();
             }
           }}
-          placeholder="Ask Notion AI to write, summarize, or edit..."
+          placeholder="Ask Vibress AI to write, summarize, or edit..."
           style={{
             flex: 1,
             border: 'none',
@@ -210,7 +220,13 @@ export function InlineAIPlugin({ anchorElem = document.body }: { anchorElem?: HT
       {loading && (
         <div style={{ padding: '16px 8px', display: 'flex', alignItems: 'center', gap: '8px', color: '#6366f1', fontSize: '13px' }}>
           <Wand2 size={16} className="animate-spin" />
-          <span>Generating content with Notion AI...</span>
+          <span>Waiting for your configured AI provider...</span>
+        </div>
+      )}
+
+      {errorMessage && !loading && (
+        <div role="alert" style={{ padding: '8px', marginBottom: '8px', color: '#b91c1c', fontSize: '13px' }}>
+          {errorMessage}
         </div>
       )}
 
@@ -295,7 +311,7 @@ export function InlineAIPlugin({ anchorElem = document.body }: { anchorElem?: HT
       )}
 
       {/* Suggestions Chips */}
-      {!generatedText && !loading && (
+      {!generatedText && !loading && !errorMessage && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
           <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', paddingLeft: '4px' }}>
             Quick Prompts
