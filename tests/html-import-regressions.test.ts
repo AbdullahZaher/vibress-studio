@@ -27,3 +27,28 @@ describe('sanitized HTML import compatibility', () => {
     expect(html).toContain('safe');
   });
 });
+
+describe('nested HTML content compatibility', () => {
+  it('retains adjacent Arabic/LTR text and inline emphasis inside a div', () => {
+    const doc = htmlToStudioDocument('<div dir="rtl">مرحبًا <strong>بالعالم</strong> English <em>text</em></div>');
+    expect(doc.root.children).toHaveLength(1);
+    const html = renderStudioDocumentToHtml(doc);
+    expect(html).toContain('مرحبًا <strong>بالعالم</strong> English <em>text</em>');
+    expect(studioDocumentToMarkdown(doc)).toContain('**بالعالم**');
+  });
+
+  it('flushes inline runs around nested block elements without dropping text', () => {
+    const doc = htmlToStudioDocument('<section>before <b>bold</b><h2>Heading</h2>after <i>italic</i></section>');
+    expect(doc.root.children.map(node => (node as {type?: string}).type)).toEqual(['paragraph', 'heading', 'paragraph']);
+    const html = renderStudioDocumentToHtml(doc);
+    expect(html).toContain('<strong>bold</strong>');
+    expect(html).toContain('<em>italic</em>');
+  });
+
+  it('preserves an inline link and media alt text in a generic wrapper', () => {
+    const doc = htmlToStudioDocument('<div>See <a href="https://example.com">the link</a> <img src="/media/p.png" alt="وصف"></div>');
+    const html = renderStudioDocumentToHtml(doc);
+    expect(html).toContain('href="https://example.com"');
+    expect(html).toContain('alt="وصف"');
+  });
+});
