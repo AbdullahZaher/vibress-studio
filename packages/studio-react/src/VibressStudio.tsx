@@ -29,6 +29,9 @@ export interface VibressStudioProps {
   value?: unknown;
   onChange?: (doc: StudioDocument) => void;
   readOnly?: boolean;
+  /** AI UI is opt-in; a real host provider callback is also required. */
+  enableAi?: boolean;
+  onAiGenerate?: (prompt: string) => Promise<string>;
   placeholder?: string;
   onError?: (error: Error) => void;
   requestMedia?: (req: { cardType: string }) => Promise<Record<string, unknown> | null>;
@@ -101,7 +104,9 @@ export function VibressStudio({
   value,
   onChange,
   readOnly = false,
-  placeholder = 'Write content with Vibress Studio (type "/" for commands, Space for AI)...',
+  enableAi = false,
+  onAiGenerate,
+  placeholder = 'Write content with Vibress Studio (type "/" for commands)...',
   onError,
   requestMedia,
   uploadMedia,
@@ -209,7 +214,7 @@ export function VibressStudio({
               <FloatingFormatToolbarPlugin />
               <FloatingCardActionToolbarPlugin />
               {!readOnly && <BlockHandleGutterPlugin />}
-              {!readOnly && <InlineAIPlugin />}
+              {!readOnly && enableAi && onAiGenerate && <InlineAIPlugin onGenerate={onAiGenerate} />}
               <InitialStatePlugin document={parsedDoc} />
               {onChange && (
                 <OnChangePlugin
