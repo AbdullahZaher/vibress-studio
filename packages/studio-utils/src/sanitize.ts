@@ -21,7 +21,7 @@ export const STUDIO_ALLOWED_TAGS = new Set([
   'a', 'img', 'figure', 'figcaption',
   'video', 'audio', 'source',
   'details', 'summary',
-  'div', 'span', 'hr',
+  'div', 'span', 'hr', 'section', 'article', 'main', 'header', 'footer', 'aside',
   'table', 'thead', 'tbody', 'tr', 'th', 'td',
   'iframe',
   'input',
