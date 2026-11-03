@@ -224,6 +224,8 @@ export function SlashMenuPlugin({
 
         return createPortal(
           <div
+            role="listbox"
+            aria-label="Insert card"
             className="notion-slash-menu studio-glassy-menu"
             style={{
               position: 'absolute',
@@ -234,7 +236,7 @@ export function SlashMenuPlugin({
               padding: '6px',
             }}
           >
-            <div className="studio-slash-header">
+            <div role="presentation" className="studio-slash-header">
               Blocks & Cards
             </div>
             {options.map((option, index) => {
@@ -242,6 +244,10 @@ export function SlashMenuPlugin({
               return (
                 <div
                   key={option.title}
+                  role="option"
+                  aria-label={option.title}
+                  aria-selected={isSelected}
+                  tabIndex={-1}
                   onClick={() => selectOptionAndCleanUp(option)}
                   onMouseEnter={() => setHighlightedIndex(index)}
                   className={`studio-slash-item ${isSelected ? 'is-selected' : ''}`}

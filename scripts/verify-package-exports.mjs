@@ -23,7 +23,7 @@ const packagesDir = join(root, 'packages');
  */
 const SERVER_PACKAGES = new Set([
   '@vibress/studio-core',
-  '@vibress/studio-cards',
+  '@vibress/studio-card-definitions',
   '@vibress/studio-utils',
   '@vibress/studio-html',
   '@vibress/studio-markdown',
@@ -31,6 +31,12 @@ const SERVER_PACKAGES = new Set([
   '@vibress/studio-serializer',
   '@vibress/studio-plugin-sdk',
 ]);
+
+function importsEditorRuntime(content) {
+  // Scan both TypeScript ESM source and emitted NodeNext CommonJS. Do not
+  // accept a server bundle that loads Lexical indirectly through editor packages.
+  return /(?:\bfrom\s*['"]|\brequire\(\s*['"])(?:react(?:-dom)?(?:\/[^'"]*)?|lexical(?:\/[^'"]*)?|@lexical\/[^'"]+|@vibress\/studio-(?:cards|nodes|react|transforms)(?:\/[^'"]*)?)['"]/.test(content);
+}
 
 const errors = [];
 
@@ -90,7 +96,7 @@ for (const dir of pkgDirs) {
     );
     for (const f of srcFiles) {
       const content = readFileSync(join(packagesDir, dir, 'src', f), 'utf8');
-      if (/from\s+['"](react|react-dom|lexical|@lexical\/)['"]/.test(content)) {
+      if (importsEditorRuntime(content)) {
         errors.push(`${name}: src/${f} imports React/Lexical — server packages must not`);
       }
     }
@@ -99,7 +105,7 @@ for (const dir of pkgDirs) {
     );
     for (const f of distFiles) {
       const content = readFileSync(join(packagesDir, dir, 'dist', f), 'utf8');
-      if (/from\s*['"](react|react-dom|lexical|@lexical\/)['"]/.test(content)) {
+      if (importsEditorRuntime(content)) {
         errors.push(`${name}: dist/${f} imports React/Lexical — server packages must not`);
       }
     }

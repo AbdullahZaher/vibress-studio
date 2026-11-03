@@ -36,6 +36,7 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
           }
         });
       })
+      .catch(() => { /* Preserve the placeholder if upload fails. */ })
       .finally(() => setUploading(false));
   };
 
