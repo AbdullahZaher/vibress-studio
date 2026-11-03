@@ -17,7 +17,7 @@ import { SlashMenuPlugin } from './plugins/SlashMenuPlugin';
 import { FloatingFormatToolbarPlugin } from './plugins/FloatingFormatToolbarPlugin';
 import { FloatingCardActionToolbarPlugin } from './plugins/FloatingCardActionToolbarPlugin';
 import { BlockHandleGutterPlugin } from './plugins/BlockHandleGutterPlugin';
-import { InlineAIPlugin } from './plugins/InlineAIPlugin';
+import { InlineAIPlugin, type StudioAiContext } from './plugins/InlineAIPlugin';
 import { STUDIO_CORE_NODES } from '@vibress/studio-nodes';
 import { StudioCardNode } from '@vibress/studio-cards';
 import { ReactStudioCardNode } from './nodes/ReactStudioCardNode';
@@ -33,7 +33,7 @@ export interface VibressStudioProps {
   readOnly?: boolean;
   /** AI UI is opt-in; a real host provider callback is also required. */
   enableAi?: boolean;
-  onAiGenerate?: (prompt: string) => Promise<string>;
+  onAiGenerate?: (prompt: string, context?: StudioAiContext) => Promise<string>;
   placeholder?: string;
   onError?: (error: Error) => void;
   requestMedia?: (req: { cardType: string }) => Promise<Record<string, unknown> | null>;

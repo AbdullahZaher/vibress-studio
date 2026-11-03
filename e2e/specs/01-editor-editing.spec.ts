@@ -108,3 +108,19 @@ test.describe('controlled editor integration', () => {
     await expect(editorContenteditable(page)).toHaveAttribute('contenteditable', 'true');
   });
 });
+
+test.describe('explicit AI provider integration', () => {
+  test('inserts host-provided text after the source block when the prompt steals focus', async ({ page }) => {
+    await openHarness(page);
+    await page.evaluate(() => window.__studio.setAiEnabled(true));
+    await focusEditor(page);
+    await page.keyboard.press('Space');
+    const dialog = page.getByRole('dialog', { name: 'AI writing assistant' });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('textbox', { name: 'AI prompt' }).fill('Draft intro');
+    await dialog.getByRole('textbox', { name: 'AI prompt' }).press('Enter');
+    await expect(dialog).toContainText('Mock AI response: Draft intro');
+    await dialog.getByRole('button', { name: /Insert Below/i }).click();
+    await expect(editorContenteditable(page)).toContainText('Mock AI response: Draft intro');
+  });
+});

@@ -14,7 +14,7 @@ import { parseFragment, serialize } from 'parse5';
  */
 
 export const STUDIO_ALLOWED_TAGS = new Set([
-  'p', 'br', 'strong', 'em', 'u', 's', 'del', 'sub', 'sup', 'mark', 'small',
+  'p', 'br', 'strong', 'em', 'b', 'i', 'u', 's', 'del', 'strike', 'sub', 'sup', 'mark', 'small',
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
   'ul', 'ol', 'li',
   'blockquote', 'pre', 'code',

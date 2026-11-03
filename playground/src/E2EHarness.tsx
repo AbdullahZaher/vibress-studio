@@ -50,6 +50,7 @@ interface StudioTestApi {
   /** Update value without remounting Lexical, to exercise controlled props. */
   syncHTML: (html: string) => void;
   setReadOnly: (value: boolean) => void;
+  setAiEnabled: (value: boolean) => void;
   exportMarkdown: () => string;
 }
 
@@ -93,6 +94,7 @@ export function E2EHarness() {
   const [doc, setDoc] = useState<StudioDocument>(createEmptyStudioDocument());
   const [editorEpoch, setEditorEpoch] = useState(0);
   const [readOnly, setReadOnly] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(false);
   const replaceDoc = useCallback((next: StudioDocument) => {
     setDoc(next);
     setEditorEpoch((value) => value + 1);
@@ -145,6 +147,7 @@ export function E2EHarness() {
       importMarkdown: (md) => replaceDoc(htmlToStudioDocument(parseMarkdownToHtml(md))),
       syncHTML: (html) => setDoc(htmlToStudioDocument(html)),
       setReadOnly,
+      setAiEnabled,
       exportMarkdown: () => {
         const out = studioDocumentToMarkdown(doc);
         setMdOutput(out);
@@ -203,6 +206,8 @@ export function E2EHarness() {
               value={doc}
               onChange={(d) => setDoc(d)}
               readOnly={readOnly}
+              enableAi={aiEnabled}
+              onAiGenerate={async (prompt) => `Mock AI response: ${prompt}`}
               placeholder="Type here..."
               uploadMedia={uploadMedia}
               onEditorReady={setEditor}
