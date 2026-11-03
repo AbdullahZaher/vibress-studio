@@ -47,6 +47,9 @@ interface StudioTestApi {
   formatBlock: (type: 'h1' | 'h2' | 'paragraph' | 'bullet' | 'number') => void;
   importHTML: (html: string) => void;
   importMarkdown: (md: string) => void;
+  /** Update value without remounting Lexical, to exercise controlled props. */
+  syncHTML: (html: string) => void;
+  setReadOnly: (value: boolean) => void;
   exportMarkdown: () => string;
 }
 
@@ -89,6 +92,7 @@ class MockUploadAdapter {
 export function E2EHarness() {
   const [doc, setDoc] = useState<StudioDocument>(createEmptyStudioDocument());
   const [editorEpoch, setEditorEpoch] = useState(0);
+  const [readOnly, setReadOnly] = useState(false);
   const replaceDoc = useCallback((next: StudioDocument) => {
     setDoc(next);
     setEditorEpoch((value) => value + 1);
@@ -139,6 +143,8 @@ export function E2EHarness() {
       formatBlock,
       importHTML: (html) => replaceDoc(htmlToStudioDocument(html)),
       importMarkdown: (md) => replaceDoc(htmlToStudioDocument(parseMarkdownToHtml(md))),
+      syncHTML: (html) => setDoc(htmlToStudioDocument(html)),
+      setReadOnly,
       exportMarkdown: () => {
         const out = studioDocumentToMarkdown(doc);
         setMdOutput(out);
@@ -196,6 +202,7 @@ export function E2EHarness() {
               key={editorEpoch}
               value={doc}
               onChange={(d) => setDoc(d)}
+              readOnly={readOnly}
               placeholder="Type here..."
               uploadMedia={uploadMedia}
               onEditorReady={setEditor}

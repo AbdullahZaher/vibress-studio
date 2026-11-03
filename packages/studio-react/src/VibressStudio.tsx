@@ -12,7 +12,7 @@ import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import LexicalErrorBoundary from '@lexical/react/LexicalErrorBoundary';
-import { $getRoot, $createParagraphNode, type LexicalEditor } from 'lexical';
+import { type LexicalEditor } from 'lexical';
 import { SlashMenuPlugin } from './plugins/SlashMenuPlugin';
 import { FloatingFormatToolbarPlugin } from './plugins/FloatingFormatToolbarPlugin';
 import { FloatingCardActionToolbarPlugin } from './plugins/FloatingCardActionToolbarPlugin';
@@ -79,41 +79,53 @@ function EditorReadyPlugin({ onReady }: { onReady: (editor: LexicalEditor | null
   return null;
 }
 
-/** Label the actual Lexical contenteditable root, including replacements. */
+/** Lexical 0.13 does not forward aria-label to its editable root reliably.
+ * Label the actual root element, including after root replacements. */
 function EditorAccessibleNamePlugin() {
   const [editor] = useLexicalComposerContext();
-  useEffect(() => editor.registerRootListener(root => {
+  useEffect(() => editor.registerRootListener((root) => {
     root?.setAttribute('aria-label', 'Editor content');
   }), [editor]);
   return null;
 }
 
-function InitialStatePlugin({ document }: { document: StudioDocument }) {
+/**
+ * Apply external document updates, but do not reset the editor (and its
+ * selection/undo stack) when the parent merely echoes an onChange snapshot.
+ * The current document is preserved if incoming content cannot be parsed.
+ */
+function DocumentSyncPlugin({ document, onError }: {
+  document: StudioDocument;
+  onError?: (error: Error) => void;
+}) {
   const [editor] = useLexicalComposerContext();
-  const initialized = useRef(false);
+  const lastApplied = useRef<string | null>(null);
 
   useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
-
-    editor.update(() => {
-      const root = $getRoot();
-      if (document && document.root) {
-        try {
-          const editorState = editor.parseEditorState({ root: { ...document.root, version: 1 } } as never);
-          editor.setEditorState(editorState);
-        } catch (err) {
-          console.error("Failed to parse editor state", err);
-          root.clear();
-          root.append($createParagraphNode());
-        }
-      } else {
-        root.clear();
-        root.append($createParagraphNode());
+    const incoming = JSON.stringify(document.root);
+    if (incoming === lastApplied.current) return;
+    try {
+      const current = serializeStudioDocument(editor.getEditorState().toJSON().root);
+      if (JSON.stringify(current.root) !== incoming) {
+        const next = editor.parseEditorState(JSON.stringify({
+          root: { ...document.root, version: 1 },
+        }));
+        editor.setEditorState(next);
       }
-    });
-  }, [document, editor]);
+      lastApplied.current = incoming;
+    } catch (error) {
+      onError?.(error instanceof Error ? error : new Error('Unable to load Studio document'));
+    }
+  }, [editor, document, onError]);
+  return null;
+}
 
+/** LexicalComposer.initialConfig is only read on mount. */
+function EditorEditablePlugin({ readOnly }: { readOnly: boolean }) {
+  const [editor] = useLexicalComposerContext();
+  useEffect(() => {
+    editor.setEditable(!readOnly);
+  }, [editor, readOnly]);
   return null;
 }
 
@@ -122,7 +134,7 @@ export function VibressStudio({
   onChange,
   onEditorReady,
   readOnly = false,
-  placeholder = 'Write content with Vibress Studio (type "/" for commands, Space for AI)...',
+  placeholder = 'Write content with Vibress Studio (type "/" for commands)...',
   onError,
   requestMedia,
   uploadMedia,
@@ -190,8 +202,9 @@ export function VibressStudio({
     <StudioErrorBoundary onError={onError}>
       <StudioUploadContext.Provider value={{ uploadMedia }}>
         <div className={`vibress-studio-editor ${className}`}>
+          <fieldset disabled={readOnly} style={{ minWidth: 0, margin: 0, padding: 0, border: 0 }}>
           <LexicalComposer initialConfig={initialConfig}>
-            <div style={{ position: 'relative', minHeight: '30vh', paddingLeft: '32px' }}>
+            <div style={{ position: 'relative', minHeight: '30vh', paddingInlineStart: '32px' }}>
               <RichTextPlugin
                 contentEditable={
                   <ContentEditable
@@ -210,7 +223,7 @@ export function VibressStudio({
                     style={{
                       position: 'absolute',
                       top: '0',
-                      left: '32px',
+                      insetInlineStart: '32px',
                       color: '#475569',
                       pointerEvents: 'none',
                       fontSize: '1.0625rem',
@@ -225,15 +238,16 @@ export function VibressStudio({
               <ListPlugin />
               <CheckListPlugin />
               <TablePlugin hasCellMerge hasCellBackgroundColor hasTabHandler />
-              <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
+              {!readOnly && <MarkdownShortcutPlugin transformers={TRANSFORMERS} />}
               <LinkPlugin />
-              <SlashMenuPlugin requestMedia={requestMedia} />
-              <FloatingFormatToolbarPlugin />
-              <FloatingCardActionToolbarPlugin />
+              {!readOnly && <SlashMenuPlugin requestMedia={requestMedia} />}
+              {!readOnly && <FloatingFormatToolbarPlugin />}
+              {!readOnly && <FloatingCardActionToolbarPlugin />}
               {!readOnly && <BlockHandleGutterPlugin />}
               {!readOnly && <InlineAIPlugin />}
               <EditorAccessibleNamePlugin />
-              <InitialStatePlugin document={parsedDoc} />
+              <EditorEditablePlugin readOnly={readOnly} />
+              <DocumentSyncPlugin document={parsedDoc} onError={onError} />
               {onEditorReady && <EditorReadyPlugin onReady={onEditorReady} />}
               {onChange && (
                 <OnChangePlugin
@@ -246,6 +260,7 @@ export function VibressStudio({
               )}
             </div>
           </LexicalComposer>
+          </fieldset>
         </div>
       </StudioUploadContext.Provider>
     </StudioErrorBoundary>

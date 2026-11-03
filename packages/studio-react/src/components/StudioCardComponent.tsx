@@ -48,6 +48,7 @@ export function StudioCardComponent({
 
   const onDelete = useCallback(
     (payload: KeyboardEvent) => {
+      if (!editor.isEditable()) return false;
       if (isSelected && $isNodeSelection($getSelection())) {
         payload.preventDefault();
         const node = $getNodeByKey(nodeKey);
@@ -176,6 +177,7 @@ export function StudioCardComponent({
       onMouseDown={handleMouseDown}
       onFocusCapture={handleFocusCapture}
       onKeyDown={(event) => {
+        if (!editor.isEditable()) return;
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           selectCard();

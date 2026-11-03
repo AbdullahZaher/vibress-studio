@@ -43,12 +43,42 @@ function element(type: string, contents: StudioNode[], extra: StudioNode = {}): 
   return { type, children: contents, direction: null, format: '', indent: 0, version: 1, ...extra };
 }
 
+const BLOCK_TAGS = new Set([
+  'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote',
+  'ul', 'ol', 'pre', 'hr', 'div', 'section', 'article', 'main',
+  'header', 'footer', 'aside', 'figure', 'table',
+]);
+
+/** Keep adjacent inline nodes in the same paragraph, including formatting
+ * inherited through span/strong/em wrappers. Flush before block children.
+ */
+function blocksFromChildren(nodes: HtmlChild[]): StudioNode[] {
+  const blocks: StudioNode[] = [];
+  let inline: StudioNode[] = [];
+  const flush = () => {
+    if (inline.some(part => part.type !== 'text' || (typeof part.text === 'string' && part.text.trim()))) {
+      blocks.push(element('paragraph', inline));
+    }
+    inline = [];
+  };
+  for (const child of nodes) {
+    if ('tagName' in child && BLOCK_TAGS.has(child.tagName)) {
+      flush();
+      blocks.push(...blockNodes(child));
+    } else {
+      inline.push(...inlineNodes(child));
+    }
+  }
+  flush();
+  return blocks;
+}
+
 function blockNodes(node: HtmlChild): StudioNode[] {
   if (!('tagName' in node)) {
     if ('value' in node && typeof node.value === 'string' && node.value.trim()) {
       return [element('paragraph', inlineNodes(node))];
     }
-    return childrenOf(node).flatMap(blockNodes);
+    return blocksFromChildren(childrenOf(node));
   }
   const tag = node.tagName;
   if (/^h[1-6]$/.test(tag)) {
@@ -78,7 +108,7 @@ function blockNodes(node: HtmlChild): StudioNode[] {
   }
   if (tag === 'hr') return [{ type: 'studio-card', cardType: 'divider', cardData: {}, version: 1 }];
   // A sanitized wrapper is flattened, without interpreting raw HTML as a node.
-  return childrenOf(node).flatMap(blockNodes);
+  return blocksFromChildren(childrenOf(node));
 }
 
 /** Parse sanitized HTML into durable Lexical-compatible document nodes. */
@@ -86,7 +116,7 @@ export function htmlToStudioDocument(htmlInput: string): StudioDocument {
   if (!htmlInput || typeof htmlInput !== 'string') return createEmptyStudioDocument();
   const cleanHtml = sanitizeHtml(htmlInput.trim());
   if (!cleanHtml) return createEmptyStudioDocument();
-  const children = parseFragment(cleanHtml).childNodes.flatMap(blockNodes);
+  const children = blocksFromChildren(parseFragment(cleanHtml).childNodes);
   if (!children.length) {
     return createDefaultStudioDocument(cleanHtml.replace(/<[^>]+>/g, '').trim());
   }

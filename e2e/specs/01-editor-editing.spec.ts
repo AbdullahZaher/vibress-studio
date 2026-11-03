@@ -79,3 +79,22 @@ test.describe('Editor loads and edits (E2E 1)', () => {
     expect(numList?.listType).toBe('number');
   });
 });
+
+test.describe('controlled editor integration', () => {
+  test('updates mounted Lexical state when the host replaces value', async ({ page }) => {
+    await openHarness(page);
+    await page.evaluate(() => window.__studio.syncHTML('<h2>محتوى جديد</h2><p>External <strong>update</strong></p>'));
+    await expect(editorContenteditable(page)).toContainText('محتوى جديد');
+    await expect(editorContenteditable(page)).toContainText('External update');
+    await expect(page.locator('[data-testid="studio-editor"] h2')).toContainText('محتوى جديد');
+  });
+
+  test('honors readOnly changes after editor is mounted', async ({ page }) => {
+    await openHarness(page);
+    const editable = page.locator('[data-testid="studio-editor"] [contenteditable]').first();
+    await page.evaluate(() => window.__studio.setReadOnly(true));
+    await expect(editable).toHaveAttribute('contenteditable', 'false');
+    await page.evaluate(() => window.__studio.setReadOnly(false));
+    await expect(editable).toHaveAttribute('contenteditable', 'true');
+  });
+});

@@ -78,3 +78,12 @@ remains supported alongside the ESM build; a future removal requires a versioned
 `pnpm build` emits both `dist/index.js`/`.d.ts` (NodeNext/CommonJS) and
 `dist/index.mjs` (bundled ESM). The latter is required for Vite/Rollup named
 exports; it must not point to a CommonJS `.js` artifact.
+
+## Plugin card rendering boundary
+
+`StudioCardDefinition.renderHtml()` is a **raw producer**, not a trusted HTML
+sink. The platform renderer sanitizes its output. Plugin SDK consumers must use
+`StudioPluginRegistry.renderCardHtml(type, data)` or
+`renderStudioCardSafeHtml(definition, data)` from
+`@vibress/studio-card-definitions`, which validate and sanitize before display.
+Do not insert `renderHtml()` directly into the DOM.
