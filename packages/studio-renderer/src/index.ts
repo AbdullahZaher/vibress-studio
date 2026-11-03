@@ -27,6 +27,13 @@ export function renderStudioDocumentToHtml(docInput: unknown, options: RenderOpt
  * when the table node itself has no explicit value.
  */
 function firstChildDirection(node: unknown): 'ltr' | 'rtl' | null {
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const direction = firstChildDirection(child);
+      if (direction) return direction;
+    }
+    return null;
+  }
   if (!node || typeof node !== 'object') return null;
   const current = node as { direction?: unknown; children?: unknown[] };
   if (current.direction === 'rtl' || current.direction === 'ltr') return current.direction;
