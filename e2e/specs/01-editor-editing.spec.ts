@@ -101,11 +101,11 @@ test.describe('controlled editor integration', () => {
 
   test('honors readOnly changes after editor is mounted', async ({ page }) => {
     await openHarness(page);
+    const editable = page.locator('[data-testid="studio-editor"] [contenteditable]').first();
     await page.evaluate(() => window.__studio.setReadOnly(true));
-    await expect(editorContenteditable(page)).toHaveAttribute('contenteditable', 'false');
-    await expect(editorContenteditable(page)).not.toHaveAttribute('contenteditable', 'true');
+    await expect(editable).toHaveAttribute('contenteditable', 'false');
     await page.evaluate(() => window.__studio.setReadOnly(false));
-    await expect(editorContenteditable(page)).toHaveAttribute('contenteditable', 'true');
+    await expect(editable).toHaveAttribute('contenteditable', 'true');
   });
 });
 
