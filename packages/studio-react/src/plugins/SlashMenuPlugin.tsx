@@ -197,14 +197,16 @@ export function SlashMenuPlugin({
       setMediaError(false);
 
       const MEDIA_CARD_TYPES = new Set(['image', 'gallery', 'video', 'audio', 'file']);
-      if (cardType && MEDIA_CARD_TYPES.has(cardType) && requestMedia && insertedKey !== null) {
-        const nodeKey = insertedKey;
+      if (cardType && MEDIA_CARD_TYPES.has(cardType) && requestMedia) {
         // Normalize synchronous throws and rejected promises without leaking
         // provider errors or replacing author edits made while it was pending.
         Promise.resolve()
           .then(() => requestMedia({ cardType }))
           .then((payload) => {
-            if (!payload) return; // The user cancelled the media picker.
+            if (!payload || insertedKey === null) return;
+            // Lexical editor.update is scheduled: capture the key only after
+            // its insert callback has executed, never immediately after update().
+            const nodeKey = insertedKey;
             editor.update(() => {
               const node = $getNodeByKey(nodeKey);
               if (!$isReactStudioCardNode(node)) return; // Card was removed.
