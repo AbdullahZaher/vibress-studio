@@ -137,6 +137,10 @@ audit on every push to `main` and on pull requests (`.github/workflows/ci.yml`).
 | [docs/vibress-integration.md](docs/vibress-integration.md) | Vibress core integration guide |
 | [docs/production-readiness.md](docs/production-readiness.md) | Readiness criteria and evidence |
 
+## UX and Design Quality Roadmap
+
+- [Global-quality UX & Design Execution Roadmap](docs/roadmaps/global-ux-quality-roadmap.md) — reviewed phased delivery plan, cross-repository source-of-truth decision, acceptance gates, accessibility/RTL requirements, and release-quality scorecard.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
