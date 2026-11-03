@@ -39,7 +39,7 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
           const node = $getNodeByKey(nodeKey);
           if (node instanceof StudioCardNode) {
             // Use current node state, not closure data captured before upload.
-            node.setCardData({ ...node.getCardData(), ...payload, title: file.name });
+            node.setCardData({ ...node.getCardData(), ...payload, title: selectedFile.name });
           }
         });
       })
