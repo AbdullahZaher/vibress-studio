@@ -126,7 +126,33 @@ export async function focusEditor(page: Page): Promise<void> {
 export async function insertCardViaSlash(page: Page, cardName: string): Promise<void> {
   await focusEditor(page);
   await page.keyboard.type(`/${cardName}`);
-  const option = , 'i') }).first();
+  const option = page.getByRole('option', { name: new RegExp('^' + cardName + '
+  await expect(option).toBeVisible({ timeout: 10_000 });
+  await page.keyboard.press('Enter');
+}
+
+export function docChildTypes(doc: ReturnType<StudioTestApi['getDoc']>): string[] {
+  return doc.root.children.map((c) => String(c.type));
+}
+
+export function docCards(doc: ReturnType<StudioTestApi['getDoc']>): Array<{ cardType: string; cardData: Record<string, unknown> }> {
+  return doc.root.children
+    .filter((c) => c.type === 'studio-card')
+    .map((c) => ({
+      cardType: String(c.cardType),
+      cardData: (c.cardData ?? {}) as Record<string, unknown>,
+    }));
+}
+
+export const TEST_IMAGE = {
+  name: 'pixel.png',
+  mimeType: 'image/png',
+  buffer: Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64'
+  ),
+};
+, 'i') }).first();
   await expect(option).toBeVisible({ timeout: 10_000 });
   await page.keyboard.press('Enter');
 }
