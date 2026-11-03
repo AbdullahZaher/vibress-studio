@@ -1,8 +1,8 @@
 import { StudioDocument, createDefaultStudioDocument, createEmptyStudioDocument } from '@vibress/studio-core';
 import { sanitizeHtml } from '@vibress/studio-utils';
-import { parseFragment } from 'parse5';
+import { parseFragment, type DefaultTreeAdapterMap } from 'parse5';
 
-type HtmlChild = ReturnType<typeof parseFragment>['childNodes'][number];
+type HtmlChild = DefaultTreeAdapterMap['childNode'];
 type StudioNode = Record<string, unknown>;
 
 function childrenOf(node: HtmlChild): HtmlChild[] {
