@@ -52,6 +52,32 @@ const adapter = new VibressMediaUploadAdapter({
 <VibressStudio value={doc} onChange={setDoc} uploadAdapter={adapter} />
 ```
 
+## Optional AI completion provider
+
+AI is **disabled by default**. The standalone editor never fabricates AI
+completions. To expose the inline AI action, a host must explicitly enable it
+**and** supply an authenticated, permission-checked provider callback:
+
+```tsx
+<VibressStudio
+  value={doc}
+  onChange={setDoc}
+  enableAi={aiGatewayReady}
+  onAiGenerate={async (prompt) => {
+    // Call your host's authorized AI Gateway API, not a browser-side secret.
+    return aiGateway.generate(prompt);
+  }}
+/>
+```
+
+The configured UI can be invoked with Space on an empty paragraph. The host
+remains responsible for provider availability, publication/user permissions,
+rate limits, timeouts, abuse controls, content filtering and cost accounting.
+Provider errors are shown rather than substituted with fake text. Discarding
+or closing the panel ignores late provider results; it does not guarantee
+cancellation of the underlying request. Do not expose provider API keys
+directly in the browser.
+
 ## Rendering public HTML safely (server-side)
 
 ```ts
