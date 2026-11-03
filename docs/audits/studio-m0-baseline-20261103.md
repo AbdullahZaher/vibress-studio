@@ -46,7 +46,9 @@
 | host | [41653585041](https://github.com/AbdullahZaher/vibress/actions/runs/41653585041) / `0fcd4cf` | FAIL | build/container scan succeeded; E2E failed in multiple scenarios incl. media picker, setup and public cards |
 | host | [41649334420](https://github.com/AbdullahZaher/vibress/actions/runs/41649334420) / `348160a` | PASS | different SHA, **not** valid certification of current main |
 
-The standalone CI reports **five vulnerabilities total** (three high, one moderate, one low). Do not bypass audit or weaken the threshold. The host failure list is from the workflow logs and must be diagnosed individually rather than assumed to be Studio-caused.
+The standalone CI reports **five vulnerabilities total** (three high, one moderate, one low). Do not bypass audit or weaken the threshold.
+
+**Advisory compatibility note (confirmed against [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5)):** The Zod vulnerability affects *all* versions earlier than 4.6.6. The standalone lockfile resolves `zod@3.25.76`, so there is **no patched Zod 3.x update**. Remediation requires a separately reviewed Zod 4.x compatibility migration (possibly `zod/v3` bridge where supported), re-generation of the full frozen lockfile, and validation of every Studio document/card schema and error shape. Do not force a major upgrade or suppress the audit without test evidence. Markdown-it is locked at 14.3.0 and requires at least 14.3.3 for the currently reported high advisories. The host failure list is from the workflow logs and must be diagnosed individually rather than assumed to be Studio-caused.
 
 ## Required independently collected evidence (currently missing)
 
