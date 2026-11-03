@@ -1,4 +1,8 @@
-import type { StudioCardDefinition } from '@vibress/studio-card-definitions';
+import {
+  STUDIO_CARD_DEFINITIONS,
+  renderStudioCardSafeHtml,
+  type StudioCardDefinition,
+} from '@vibress/studio-card-definitions';
 
 export interface StudioPlugin {
   name: string;
@@ -22,17 +26,33 @@ export class StudioPluginRegistry {
     if (this.plugins.has(plugin.name)) {
       return;
     }
-    this.plugins.set(plugin.name, plugin);
-
-    if (plugin.cards) {
-      for (const card of plugin.cards) {
-        this.cards.set(card.type, card);
+    // Preflight before mutating either registry: a rejected plugin must not
+    // leave partial card registrations behind.
+    const cardTypes = new Set<string>();
+    for (const card of plugin.cards ?? []) {
+      if (!card.type || cardTypes.has(card.type) ||
+          this.cards.has(card.type) ||
+          Object.prototype.hasOwnProperty.call(STUDIO_CARD_DEFINITIONS, card.type)) {
+        throw new Error(`STUDIO_CARD_TYPE_CONFLICT: ${card.type}`);
       }
+      cardTypes.add(card.type);
+    }
+    this.plugins.set(plugin.name, plugin);
+    for (const card of plugin.cards ?? []) {
+      this.cards.set(card.type, card);
     }
   }
 
   getCard(type: string): StudioCardDefinition | undefined {
     return this.cards.get(type);
+  }
+
+  /** Render registered plugin HTML through schema validation and sanitization.
+   * Prefer this to directly calling a card's untrusted renderHtml output.
+   */
+  renderCardHtml(type: string, data: unknown): string | null {
+    const definition = this.getCard(type);
+    return definition ? renderStudioCardSafeHtml(definition, data) : null;
   }
 
   getPlugins(): StudioPlugin[] {

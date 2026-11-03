@@ -38,7 +38,7 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
         editor.update(() => {
           const node = $getNodeByKey(nodeKey);
           if (node instanceof StudioCardNode) {
-            node.setCardData({ ...cardData, ...payload });
+            node.setCardData({ ...node.getCardData(), ...payload });
           }
         });
       })
@@ -57,14 +57,14 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
         const node = $getNodeByKey(nodeKey);
         if (node instanceof StudioCardNode) {
           node.setCardData({
-            ...cardData,
+            ...node.getCardData(),
             caption: captionJSON,
             captionHtml,
           });
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   const widthClass = cardData.width && cardData.width !== 'regular' ? ` vb-width-${cardData.width}` : '';
