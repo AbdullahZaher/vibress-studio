@@ -342,6 +342,15 @@ The phase-0 capability matrix, issue registry, per-repository CI evidence and mi
 - Add to G4/G5: mobile VoiceOver/TalkBack checks with the soft keyboard open, `dir=auto` mixed-script text and no hover/drag-only block action. WCAG 2.2 SC 2.5.7 and SC 2.5.8 are minimum compliance criteria, not design targets.
 - **Scoring cannot start yet.** Until reviewers can independently reproduce the full journey matrix and view evidence, use "not measured," not a provisional 9.7/10 or an invented score.
 
+### Implemented corrective work awaiting validation
+
+- [Vibress Studio PR #3](https://github.com/AbdullahZaher/vibress-studio/pull/3): literal slash-menu matching and unit regression cases; **Draft / test gates pending**.
+- [Vibress host PR #119](https://github.com/AbdullahZaher/vibress/pull/119): same scoped slash-query fix for the production compatibility source; **Draft / test gates pending**.
+- [Vibress host PR #120](https://github.com/AbdullahZaher/vibress/pull/120): stable page editor instance across autosave/version changes, latest-document ref and new page Playwright regression; **Draft / test gates pending**.
+- [Vibress Studio PR #2](https://github.com/AbdullahZaher/vibress-studio/pull/2): ADR and M0 source baseline; **Draft / G0 still open**.
+
+These PRs are independent and **unmerged**. They do not imply Phase 2 or Phase 6 is finished; full CI, visual inspection, cross-repository sync, and manual accessibility evidence remain mandatory.
+
 ### Phase status as of this amendment
 
 | Phase | Status | Evidence |
