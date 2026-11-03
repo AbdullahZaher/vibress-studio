@@ -22,6 +22,23 @@ export function renderStudioDocumentToHtml(docInput: unknown, options: RenderOpt
   return sanitizeStudioHtml(raw);
 }
 
+/** Lexical's built-in TableNode can discard its own direction on import.
+ * Direction retained by descendant elements is authoritative for rendering
+ * when the table node itself has no explicit value.
+ */
+function firstChildDirection(node: unknown): 'ltr' | 'rtl' | null {
+  if (!node || typeof node !== 'object') return null;
+  const current = node as { direction?: unknown; children?: unknown[] };
+  if (current.direction === 'rtl' || current.direction === 'ltr') return current.direction;
+  if (Array.isArray(current.children)) {
+    for (const child of current.children) {
+      const direction = firstChildDirection(child);
+      if (direction) return direction;
+    }
+  }
+  return null;
+}
+
 function renderNodeToHtml(node: unknown, options: RenderOptions): string {
   if (!node || typeof node !== 'object') return '';
   const n = node as { type?: string; text?: string; format?: number; children?: unknown[]; tag?: string; listType?: string; url?: string; src?: string; alt?: string; cardType?: string; caption?: string; rel?: string; target?: string; cardData?: Record<string, unknown>; } & Record<string, unknown>;
@@ -110,8 +127,11 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
       return `<li${directionAttr}>${renderChildren()}</li>`;
     }
 
-    case 'table':
-      return `<div class="studio-table-container"><table class="studio-table"${directionAttr}><tbody>${renderChildren()}</tbody></table></div>`;
+    case 'table': {
+      const inferred = directionAttr ? '' : firstChildDirection(n.children);
+      const tableDirection = directionAttr || (inferred ? ` dir="${inferred}"` : '');
+      return `<div class="studio-table-container"><table class="studio-table"${tableDirection}><tbody>${renderChildren()}</tbody></table></div>`;
+    }
 
     case 'tablerow':
       return `<tr>${renderChildren()}</tr>`;

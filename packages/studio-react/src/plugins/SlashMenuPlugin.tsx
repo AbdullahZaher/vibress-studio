@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { filterSlashMenuOptions } from './slash-menu-filter';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   LexicalTypeaheadMenuPlugin,
@@ -115,15 +116,10 @@ export function SlashMenuPlugin({
     return list;
   }, []);
 
-  const options = useMemo(() => {
-    if (!queryString) return baseOptions;
-    const needle = queryString.toLocaleLowerCase();
-    return baseOptions.filter(option =>
-      option.title.toLocaleLowerCase().includes(needle) ||
-      (option.cardType?.toLocaleLowerCase().includes(needle) ?? false) ||
-      (option.actionType?.toLocaleLowerCase().includes(needle) ?? false)
-    );
-  }, [baseOptions, queryString]);
+  const options = useMemo(
+    () => filterSlashMenuOptions(baseOptions, queryString),
+    [baseOptions, queryString]
+  );
 
   const onSelectOption = useCallback(
     (selectedOption: StudioMenuOption, nodeToRemove: TextNode | null, closeMenu: () => void) => {
