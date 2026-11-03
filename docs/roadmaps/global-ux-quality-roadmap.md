@@ -1,6 +1,6 @@
 # Vibress Studio — Global-Quality UX & Design Execution Roadmap
 
-**Status:** Reviewed proposal — documentation only; implementation has not started  
+**Status:** Independent source audit appended; implementation phases 0–8 are not certified complete  
 **Prepared:** 2026-11-03  
 **Target repository:** AbdullahZaher/vibress-studio (standalone)  
 **Integration repository:** AbdullahZaher/vibress (active CMS host)  
@@ -16,7 +16,7 @@ The right objective is not to imitate Notion, Ghost or Gutenberg visually. Vibre
 
 **Critical sequencing decision:** before any visual redesign, reconcile the standalone repository with the more capable Studio implementation used by the Vibress monorepo. The active host includes components and behaviors that do not appear in the standalone snapshot (including a unified media toolbar, media metadata popovers, collaboration-related code, host-mediated AI, additional data-loss regression tests and editor styling in the admin app). A cosmetic rewrite of the older package would be a regression.
 
-The source-of-truth architecture is **not yet decided**. Phase 0 must record an architecture decision after comparing both repositories, with the monorepo's in-use behavior as the temporary compatibility reference. No independent second autosave mechanism, content schema fork, or conflicting theme system may be introduced.
+The in-use Vibress host remains the production compatibility reference. ADR-0001 is now **proposed** (Option B: monorepo runtime canonical, standalone downstream compatibility target), but requires G0 review and an explicit sync/release contract before approval. No independent second autosave mechanism, content schema fork, or conflicting theme system may be introduced.
 
 ### Desired experience
 
@@ -42,7 +42,7 @@ The findings below are *code-grounded observations and audit candidates*, not as
 | B07 | Floating components use fixed widths and positional left/window offsets. Playground's side-by-side columns are fixed. | Viewport clipping, zoom overflow and RTL inconsistencies. | P1 |
 | B08 | Small block handle buttons are styled as 20x20 CSS pixels. | Audit WCAG 2.2 target size and spacing exceptions; prefer larger touch targets. | P1 |
 | B09 | The standalone README and production-readiness reports describe a prior release snapshot and do not themselves prove current HEAD readiness. | Keep historical evidence separate from freshly executed checks. | P0 |
-| B10 | CI run 39647673777 (2026-10-21) failed in the production dependency audit; the logs report two high-severity markdown-it advisories among four findings. The build job stopped before later checks, while the E2E job was cancelled. | Resolve/re-evaluate the advisory and rerun complete quality gates before claiming current readiness. | P0 |
+| B10 | Current CI run 41657137549 (2026-11-03) failed the production dependency audit with three high advisories (markdown-it and Zod) among five findings, before later quality checks. The earlier run 39647673777 also failed. | Resolve/re-evaluate the advisory and rerun complete quality gates before claiming current readiness. | P0 |
 | B11 | The Vibress host's PostEditor and PageEditor own autosave, save conflicts, publication and recovery. | Studio must expose document changes without acquiring independent host persistence responsibilities. | P0 |
 | B12 | The host already ships a unified media floating toolbar and shared featured-image/media controls. | Preserve behavior and visual parity instead of introducing competing toolbars. | P1 |
 
@@ -316,3 +316,44 @@ These references inform interaction principles, not visual copying or evidence o
 
 **Approval status:** Awaiting Phase 0 canonical-source ADR and implementation baseline.  
 **This file is a living roadmap:** each completed milestone must link to its PR, test evidence, updated risk register and gate decision.
+
+
+## 13. Independent audit amendment — 2026-11-03 (not certified)
+
+This amendment incorporates a fresh inspection of the two main branches and current GitHub Actions workflow logs. The review is **source-based**, not a claim of live visual testing, completed development or production acceptance.
+
+### Decisions and blockers identified
+
+1. **Canonical runtime: provisional Option B.** The live host has `@vibress/studio-react@1.2.0`, Yjs collaboration, six media metadata popovers, enhanced state safeguards and host-owned AI. The standalone package is `0.1.0` with none of those public exports. Treat the host as canonical for shipped behavior and port changes only through reviewed, fixture-backed sync. Draft decision: [ADR-0001](https://github.com/AbdullahZaher/vibress-studio/blob/audit/studio-canonical-baseline-20261103/docs/adr/0001-studio-canonical-runtime.md).
+2. **Content-loss hazard beyond the initial roadmap.** The host `PageEditor` keys the editor by both page ID and persisted `version`. A save increments `version` and remounts Lexical, invalidating undo and selection continuity. Additionally, an autosave timer may capture stale render-state. Prioritize host-targeted integration regression tests and non-destructive lifecycle fixes before stylistic changes.
+3. **Dependency compatibility hazard.** Host `@lexical/history` and `@lexical/utils` declare `0.52.0` while the core `lexical` and most packages declare `0.13.1`. Audit the exact lockfile, Yjs adapter and interoperability before editing node APIs or bumping packages.
+4. **Literal slash-menu filtering.** Both repos use `new RegExp(queryString)`, allowing malformed author queries and expensive regex patterns. Replace with case-folded literal matching and unit tests (including Arabic). Do not remove typeahead trigger parsing required by existing content.
+5. **Block actions & formatting.** Current Duplicate creates an empty paragraph; colors are written to DOM rather than durable Lexical state. Block reorder must have a single-pointer and keyboard alternative, and hidden hover-only actions must not be the sole discovery path.
+6. **CI is not green at baseline.** Standalone [run 41657137549](https://github.com/AbdullahZaher/vibress-studio/actions/runs/41657137549) failed audit (3 high: markdown-it and Zod). Host [run 41653585041](https://github.com/AbdullahZaher/vibress/actions/runs/41653585041) passed build and container-scan but failed E2E, including relevant media/card journeys. Do not bypass audit or conflate a different SHA's success with current readiness.
+
+The phase-0 capability matrix, issue registry, per-repository CI evidence and missing QA artifacts are recorded in the [M0 audit baseline](https://github.com/AbdullahZaher/vibress-studio/blob/audit/studio-canonical-baseline-20261103/docs/audits/studio-m0-baseline-20261103.md). This baseline is in a distinct implementation PR as required, not a declaration that G0 has passed.
+
+### Changed priority and gate interpretation
+
+- **Gate G0 remains open.** Source-level ADR draft and GitHub CI logs are available; clean runtime checks, editor fixtures, before screenshots, manual RTL/mobile/SR evaluation and named review signoff are still missing.
+- **Allow isolated P0 safety defects to be fixed on dedicated PRs while G0 is open** only if the diff is reversible and has targeted regression coverage. Broad token/visual redesign, state format changes, dependency upgrades and package synchronization remain gated.
+- Add a hard requirement to G2 and G6: `PageEditor` autosave and published revision changes must not change the editor instance identity. Selection/undo continuity and late asynchronous save responses must be tested explicitly.
+- Add a hard requirement to G3: incomplete historic card metadata must round-trip across both schema variants without rejecting, silently defaulting away or rewriting content.
+- Add to G4/G5: mobile VoiceOver/TalkBack checks with the soft keyboard open, `dir=auto` mixed-script text and no hover/drag-only block action. WCAG 2.2 SC 2.5.7 and SC 2.5.8 are minimum compliance criteria, not design targets.
+- **Scoring cannot start yet.** Until reviewers can independently reproduce the full journey matrix and view evidence, use "not measured," not a provisional 9.7/10 or an invented score.
+
+### Phase status as of this amendment
+
+| Phase | Status | Evidence |
+| --- | --- | --- |
+| 0 — canonical baseline | **Partial, G0 blocked** | Source comparison, ADR proposal and CI triage; live screenshots/tests absent |
+| 1 — design system | Not started | No isolated CSS/portal proof |
+| 2 — interactions | Not complete | Confirmed slash, duplicate and color defects |
+| 3 — media and preview | Not complete | Host features absent standalone; failing host E2E |
+| 4 — RTL/touch | Not certified | No documented viewport/IME evidence |
+| 5 — accessibility | Not certified | 20px controls and no manual screen-reader signoff |
+| 6 — reliability | Not certified | Editor remount/autosave issues and baseline CI blockers |
+| 7 — AI | Not certified | Standalone mock/providing behavior differs from host |
+| 8 — final certification | Not started | Independent evidence and weighted evaluation unavailable |
+
+**Production readiness verdict:** BLOCKED. The 9.7/10 target remains an acceptance criterion rather than an achieved or defensible score.
