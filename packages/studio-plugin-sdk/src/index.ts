@@ -1,4 +1,8 @@
-import { STUDIO_CARD_DEFINITIONS, type StudioCardDefinition } from '@vibress/studio-card-definitions';
+import {
+  STUDIO_CARD_DEFINITIONS,
+  renderStudioCardSafeHtml,
+  type StudioCardDefinition,
+} from '@vibress/studio-card-definitions';
 
 export interface StudioPlugin {
   name: string;
@@ -41,6 +45,14 @@ export class StudioPluginRegistry {
 
   getCard(type: string): StudioCardDefinition | undefined {
     return this.cards.get(type);
+  }
+
+  /** Render registered plugin HTML through schema validation and sanitization.
+   * Prefer this to directly calling a card's untrusted renderHtml output.
+   */
+  renderCardHtml(type: string, data: unknown): string | null {
+    const definition = this.getCard(type);
+    return definition ? renderStudioCardSafeHtml(definition, data) : null;
   }
 
   getPlugins(): StudioPlugin[] {

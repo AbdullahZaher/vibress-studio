@@ -209,7 +209,7 @@ export function VibressStudio({
         <div className={`vibress-studio-editor ${className}`}>
           <fieldset disabled={readOnly} style={{ minWidth: 0, margin: 0, padding: 0, border: 0 }}>
           <LexicalComposer initialConfig={initialConfig}>
-            <div style={{ position: 'relative', minHeight: '30vh', paddingLeft: '32px' }}>
+            <div style={{ position: 'relative', minHeight: '30vh', paddingInlineStart: '32px' }}>
               <RichTextPlugin
                 contentEditable={
                   <ContentEditable
@@ -228,7 +228,7 @@ export function VibressStudio({
                     style={{
                       position: 'absolute',
                       top: '0',
-                      left: '32px',
+                      insetInlineStart: '32px',
                       color: '#475569',
                       pointerEvents: 'none',
                       fontSize: '1.0625rem',

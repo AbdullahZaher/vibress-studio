@@ -38,3 +38,17 @@ describe('StudioPluginRegistry card ownership', () => {
     expect(registry.getPlugins()).toHaveLength(1);
   });
 });
+
+describe('plugin HTML rendering security', () => {
+  it('sanitizes plugin HTML and preserves visible text', () => {
+    const registry = new StudioPluginRegistry();
+    const pluginCard = makeCard('acme-markup');
+    pluginCard.renderHtml = () => '<p onclick="evil()">safe</p><script>alert(1)</script>';
+    registry.registerPlugin({ name: 'safe-render', version: '1', cards: [pluginCard] });
+    const html = registry.renderCardHtml('acme-markup', {});
+    expect(html).toContain('<p>safe</p>');
+    expect(html).not.toContain('<script');
+    expect(html).not.toContain('onclick');
+    expect(registry.renderCardHtml('missing-card', {})).toBeNull();
+  });
+});
