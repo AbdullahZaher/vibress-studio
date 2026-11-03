@@ -62,7 +62,7 @@ export async function focusEditor(page: Page): Promise<void> {
 export async function insertCardViaSlash(page: Page, cardName: string): Promise<void> {
   await focusEditor(page);
   await page.keyboard.type(`/${cardName}`);
-  const option = page.getByRole('option', { name: new RegExp('^' + cardName, 'i') }).first();
+  const option = page.getByRole('option', { name: cardName }).first();
 
 /**
  * Shared helpers: the harness page and its window.__studio API.
