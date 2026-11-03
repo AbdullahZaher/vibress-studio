@@ -67,8 +67,13 @@ for (const dir of pkgDirs) {
     `${name}: exports["."].types must point to dist`
   );
   check(
-    exportsDot?.import === './dist/index.js',
+    exportsDot?.import === './dist/index.mjs',
     `${name}: exports["."].import must point to dist`
+  );
+
+  check(
+    exportsDot?.require === './dist/index.js',
+    `${name}: exports["."].require must point to CommonJS dist`
   );
 
   // No src references anywhere in publishable entry points.
@@ -87,6 +92,10 @@ for (const dir of pkgDirs) {
   check(
     existsSync(join(packagesDir, dir, 'dist', 'index.d.ts')),
     `${name}: dist/index.d.ts missing — run pnpm build first`
+  );
+  check(
+    existsSync(join(packagesDir, dir, 'dist', 'index.mjs')),
+    `${name}: dist/index.mjs missing — run pnpm build first`
   );
 
   // Server packages must not import React or Lexical (in source AND dist).
