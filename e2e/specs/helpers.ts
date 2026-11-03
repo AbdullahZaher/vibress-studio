@@ -71,13 +71,29 @@ export function docChildTypes(doc: ReturnType<StudioTestApi['getDoc']>): string[
   return doc.root.children.map((c) => String(c.type));
 }
 
+/** Collect canonical cards at any depth of a Lexical document.
+ * Decorator nodes may be persisted inside paragraphs, not just at root.
+ */
 export function docCards(doc: ReturnType<StudioTestApi['getDoc']>): Array<{ cardType: string; cardData: Record<string, unknown> }> {
-  return doc.root.children
-    .filter((c) => c.type === 'studio-card')
-    .map((c) => ({
-      cardType: String(c.cardType),
-      cardData: (c.cardData ?? {}) as Record<string, unknown>,
-    }));
+  const cards: Array<{ cardType: string; cardData: Record<string, unknown> }> = [];
+  const visit = (node: unknown): void => {
+    if (!node || typeof node !== 'object') return;
+    const current = node as Record<string, unknown>;
+    if ((current.type === 'studio-card' || current.type === 'react-studio-card') && typeof current.cardType === 'string') {
+      const data = current.cardData;
+      cards.push({
+        cardType: current.cardType,
+        cardData: data && typeof data === 'object' && !Array.isArray(data)
+          ? data as Record<string, unknown>
+          : {},
+      });
+    }
+    if (Array.isArray(current.children)) {
+      for (const child of current.children) visit(child);
+    }
+  };
+  for (const child of doc.root.children) visit(child);
+  return cards;
 }
 
 export const TEST_IMAGE = {
