@@ -56,7 +56,7 @@ export function BookmarkCardEditor({ nodeKey, cardData }: Props) {
         setSelected(true);
       }}
       style={{
-        outline: isSelected ? '2px solid #6366f1' : 'none',
+        outline: isSelected ? '2px solid #3b82f6' : 'none',
         transition: 'outline 0.1s ease',
       }}
     >

@@ -1,0 +1,31 @@
+{
+  "name": "@vibress/studio-card-definitions",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vibress/studio-utils": "workspace:*",
+    "zod": "4.6.6"
+  },
+  "nx": {
+    "tags": [
+      "type:platform"
+    ]
+  }
+}

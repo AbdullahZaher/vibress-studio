@@ -1,4 +1,4 @@
-import { StudioCardDefinition } from '@vibress/studio-cards';
+import type { StudioCardDefinition } from '@vibress/studio-card-definitions';
 
 export interface StudioPlugin {
   name: string;

@@ -19,17 +19,22 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
   const { uploadMedia } = useStudioUpload();
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(false);
+  const [lastFile, setLastFile] = useState<File | null>(null);
 
   const isPopulated = !!cardData.src;
 
-  const onFileSelect = (files: File[]) => {
-    const file = files[0];
-    if (!file || !uploadMedia) return;
-    // Upload through the durable media adapter — never persist blob: URLs.
+  const attemptUpload = (file: File) => {
+    if (!uploadMedia || uploading) return;
+    setLastFile(file);
+    setUploadError(false);
     setUploading(true);
     uploadMedia(file, 'image')
       .then((payload) => {
-        if (!payload) return;
+        if (!payload) {
+          setUploadError(true);
+          return;
+        }
         editor.update(() => {
           const node = $getNodeByKey(nodeKey);
           if (node instanceof StudioCardNode) {
@@ -37,7 +42,13 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
           }
         });
       })
+      .catch(() => setUploadError(true))
       .finally(() => setUploading(false));
+  };
+
+  const onFileSelect = (files: File[]) => {
+    const file = files[0];
+    if (file) attemptUpload(file);
   };
 
   const onCaptionChange = useCallback(
@@ -60,7 +71,8 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
 
   if (!isPopulated) {
     return (
-      <CardPlaceholder
+      <div>
+        <CardPlaceholder
         iconType="image"
         title="Image"
         description="Click to select an image, or drag and drop"
@@ -71,7 +83,15 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
           clearSelection();
           setSelected(true);
         }}
-      />
+        />
+        {uploadError && (
+          <div role="alert" aria-live="polite" className="my-2 text-sm text-red-700">
+            Upload failed.
+            <button type="button" className="mx-2 underline" onClick={() => { if (lastFile) attemptUpload(lastFile); }} disabled={uploading}>Retry</button>
+            <button type="button" className="underline" onClick={() => setUploadError(false)}>Dismiss</button>
+          </div>
+        )}
+      </div>
     );
   }
 

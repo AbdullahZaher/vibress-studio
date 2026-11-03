@@ -34,7 +34,7 @@ test.describe('Keyboard navigation and focus (E2E 7)', () => {
     await openHarness(page);
     await focusEditor(page);
     await page.keyboard.type('/callout');
-    await expect(page.getByRole('option').filter({ hasText: /^Callout$/i })).toBeVisible();
+    await expect(page.getByRole('option', { name: /^Callout$/i })).toBeVisible();
     await page.keyboard.press('Enter');
 
     const doc = await studio(page).getDoc();
@@ -70,12 +70,12 @@ test.describe('Keyboard navigation and focus (E2E 7)', () => {
     // Arrow navigation moves past the card into a fresh paragraph.
     await page.keyboard.press('ArrowDown');
     await page.keyboard.type('/toggle');
-    await page.getByRole('option').filter({ hasText: /^toggle$/i }).click();
+    await page.getByRole('option', { name: /^toggle$/i }).click();
     await expect(page.locator('.vb-toggle-card')).toBeVisible();
 
     await page.keyboard.press('ArrowDown');
     await page.keyboard.type('/button');
-    await page.getByRole('option').filter({ hasText: /^button$/i }).click();
+    await page.getByRole('option', { name: /^button$/i }).click();
     await page.locator('.vb-button-card').first().click();
     await expect(page.getByPlaceholder('Add button text')).toBeVisible();
     await expect(page.locator('.vb-button-card input[type="url"]')).toBeVisible();

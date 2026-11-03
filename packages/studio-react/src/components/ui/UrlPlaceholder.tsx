@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { Bookmark, Code2, ArrowRight, Link2, LucideIcon, Globe } from 'lucide-react';
 
 const ICONS: Record<string, LucideIcon> = {
@@ -20,6 +20,8 @@ export function UrlPlaceholder({
 }: UrlPlaceholderProps) {
   const Icon = ICONS[iconType] || Bookmark;
   const [url, setUrl] = useState('');
+  const [error, setError] = useState('');
+  const inputId = useId();
 
   const handleClick = (e: React.MouseEvent) => {
     if (onClick) onClick(e);
@@ -27,8 +29,16 @@ export function UrlPlaceholder({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (url.trim()) {
-      onUrlSubmit(url.trim());
+    try {
+      const parsed = new URL(url.trim());
+      if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) {
+        setError('The URL is not valid. Use an HTTP or HTTPS address.');
+        return;
+      }
+      setError('');
+      onUrlSubmit(parsed.href);
+    } catch {
+      setError('The URL is not valid. Use an HTTP or HTTPS address.');
     }
   };
 
@@ -62,11 +72,14 @@ export function UrlPlaceholder({
 
         <form onSubmit={handleSubmit} className="flex gap-2 w-full">
           <div className="relative flex-1">
+            <label htmlFor={inputId} className="sr-only">URL</label>
             <InputIcon className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <input
+              id={inputId}
               type="url"
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              aria-invalid={Boolean(error)}
+              onChange={(e) => { setUrl(e.target.value); setError(''); }}
               placeholder={placeholderText}
               className="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-border/80 bg-background dark:bg-white/[0.05] text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary/40 transition"
               required
@@ -84,6 +97,7 @@ export function UrlPlaceholder({
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </form>
+        {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
       </div>
     </div>
   );
