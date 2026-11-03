@@ -4,6 +4,7 @@ import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection'
 import { mergeRegister } from '@lexical/utils';
 import { $getNodeByKey, $getSelection, $isNodeSelection, $createNodeSelection, $setSelection, COMMAND_PRIORITY_LOW, KEY_BACKSPACE_COMMAND, KEY_DELETE_COMMAND, NodeKey } from 'lexical';
 import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-cards';
+import { sanitizeStudioHtml } from '@vibress/studio-utils';
 import { ImageCardEditor } from './cards/ImageCardEditor';
 import { VideoCardEditor } from './cards/VideoCardEditor';
 import { GalleryCardEditor } from './cards/GalleryCardEditor';
@@ -154,7 +155,8 @@ export function StudioCardComponent({
     );
   }
 
-  // Otherwise, fallback to static HTML rendering
+  // Static cards expose their selection and removal to keyboard users.
+  // The same interaction is available without a pointer device.
   const def = STUDIO_CARD_DEFINITIONS[cardType];
   let html = `[Unknown Card: ${cardType}]`;
   if (def) {
@@ -168,6 +170,22 @@ export function StudioCardComponent({
 
   return (
     <div
+      role="group"
+      aria-label={cardType + ' card'}
+      tabIndex={0}
+      onMouseDown={handleMouseDown}
+      onFocusCapture={handleFocusCapture}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          selectCard();
+        } else if (event.key === 'Delete' || event.key === 'Backspace') {
+          event.preventDefault();
+          editor.update(() => {
+            $getNodeByKey(nodeKey)?.remove();
+          });
+        }
+      }}
       onClick={() => {
         clearSelection();
         setSelected(true);
@@ -180,7 +198,7 @@ export function StudioCardComponent({
         borderRadius: '8px',
         transition: 'outline 0.1s ease',
       }}
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: sanitizeStudioHtml(html) }}
     />
   );
 }
