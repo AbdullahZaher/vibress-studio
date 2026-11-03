@@ -10,12 +10,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@lexical/html": "0.13.1",
-    "@vibress/studio-cards": "workspace:*",
     "@vibress/studio-core": "workspace:*",
-    "@vibress/studio-nodes": "workspace:*",
     "@vibress/studio-utils": "workspace:*",
-    "lexical": "0.13.1"
+    "parse5": "7.3.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.31",
