@@ -99,14 +99,15 @@ export function InlineAIPlugin({
     try {
       const result = await onGenerate(promptToUse);
       if (generationId !== generationIdRef.current) return;
-      if (!result.trim()) {
+      if (typeof result !== 'string' || !result.trim()) {
         setErrorMessage('The configured AI provider returned no content.');
         return;
       }
       setGeneratedText(result);
-    } catch (error: unknown) {
+    } catch {
       if (generationId !== generationIdRef.current) return;
-      setErrorMessage(error instanceof Error ? error.message : 'AI generation failed. Try again.');
+      // Do not surface provider internals, backend stack traces or secrets.
+      setErrorMessage('AI generation failed. Please try again.');
     } finally {
       if (generationId === generationIdRef.current) {
         setLoading(false);
