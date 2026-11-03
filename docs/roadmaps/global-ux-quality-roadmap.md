@@ -348,6 +348,10 @@ The phase-0 capability matrix, issue registry, per-repository CI evidence and mi
 - [Vibress host PR #119](https://github.com/AbdullahZaher/vibress/pull/119): same scoped slash-query fix for the production compatibility source; **Draft / test gates pending**.
 - [Vibress host PR #120](https://github.com/AbdullahZaher/vibress/pull/120): stable page editor instance across autosave/version changes, latest-document ref and new page Playwright regression; **Draft / test gates pending**.
 - [Vibress Studio PR #2](https://github.com/AbdullahZaher/vibress-studio/pull/2): ADR and M0 source baseline; **Draft / G0 still open**.
+- [Vibress host PR #121](https://github.com/AbdullahZaher/vibress/pull/121): update five stale E2E navigation specs for current Admin `New Post`/`New Page` labels; **Draft / CI pending**. Two other affected spec files remain blocked by repository editing tool safety checks.
+- [Vibress Studio PR #4](https://github.com/AbdullahZaher/vibress-studio/pull/4): remove simulated AI completions, opt into a real provider and hide nonfunctional AI actions; **Draft / independent real-provider QA still required**.
+
+
 
 These PRs are independent and **unmerged**. They do not imply Phase 2 or Phase 6 is finished; full CI, visual inspection, cross-repository sync, and manual accessibility evidence remain mandatory.
 
