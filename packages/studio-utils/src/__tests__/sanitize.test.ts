@@ -124,3 +124,12 @@ describe('isSafeProtocolUrl', () => {
     expect(isSafeProtocolUrl('data:image/svg+xml;base64,PHN2Zz4=')).toBe(false);
   });
 });
+
+// Link text must survive when unsafe href attributes are removed.
+describe('unsafe link text preservation', () => {
+  it('keeps harmless text when dropping a javascript link', () => {
+    const cleaned = sanitizeStudioHtml('<a href="javascript:alert(1)">read this</a>');
+    expect(cleaned).toContain('read this');
+    expect(cleaned).not.toContain('javascript:');
+  });
+});

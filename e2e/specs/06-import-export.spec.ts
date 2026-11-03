@@ -16,7 +16,7 @@ test.describe('Import / export through the UI (E2E 6)', () => {
     const preview = page.getByTestId('preview-html');
     await expect(preview.locator('h1')).toContainText('Imported Title');
     await expect(preview.locator('strong')).toContainText('bold');
-    await expect(preview.locator('a')).toHaveAttribute('href', 'https://example.com');
+    await expect(preview.locator('a[href="https://example.com"]')).toHaveAttribute('href', 'https://example.com');
   });
 
   test('imports markdown with lists and headings', async ({ page }) => {

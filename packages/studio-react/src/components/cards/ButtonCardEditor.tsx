@@ -24,7 +24,7 @@ export function ButtonCardEditor({ nodeKey, cardData }: Props) {
       const node = $getNodeByKey(nodeKey);
       if (node instanceof StudioCardNode) {
         node.setCardData({
-          ...cardData,
+          ...node.getCardData(),
           ...updates,
         });
       }
@@ -67,6 +67,10 @@ export function ButtonCardEditor({ nodeKey, cardData }: Props) {
     <div
       ref={containerRef}
       className={`vb-button-card relative w-full my-3`}
+      onClick={() => {
+        setSelected(true);
+        setIsOpen(true);
+      }}
     >
       <div className={`flex w-full my-2 ${alignClass} ${isOpen || isSelected || url ? 'opacity-100' : 'opacity-50'} transition-opacity`}>
         <div className="relative inline-flex flex-col items-center">
