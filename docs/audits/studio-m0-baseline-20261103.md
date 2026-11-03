@@ -27,7 +27,7 @@
 | STU-001 | P0 | `SlashMenuPlugin` in both repos builds `new RegExp(queryString)` from author input | Literal search tests for `[`, `(`, `.*`, Arabic, case-folding; host/standalone CI |
 | STU-002 | P0 | Both block-handle `handleDuplicate` functions insert an **empty paragraph** | Lexical duplicate of complete text/card, undo, selection and serialize/reload tests |
 | STU-003 | P0 | Both toolbar color actions write DOM inline styles, not serialized Lexical state | Format survives undo, save/reload, public render and collaboration |
-| STU-004 | P0 | Host `PageEditor` uses `key={`\${pageId || "new"}-\${version}`}` for `VibressStudio` | Autosave/version update does not remount, erase selection or discard typing |
+| STU-004 | P0 | Host `PageEditor` keys `VibressStudio` by page ID **and mutable saved revision number** (`version`) | Autosave/version update does not remount, erase selection or discard typing |
 | STU-005 | P0 | Standalone lacks host media, collaboration and state-sync capabilities | File-level export/API parity and runtime scenario matrix |
 | STU-006 | P0 | `@lexical/history` and `@lexical/utils` host dependencies differ from core `lexical` version | Lockfile audit, Yjs compatibility and complete editor E2E |
 | STU-007 | P1 | Standalone has no standalone CSS contract; host globals supply typography/popup/card classes | Isolated package visual tests and CSS export/import documentation |
