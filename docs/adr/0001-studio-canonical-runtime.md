@@ -63,4 +63,4 @@ No runtime behavior is changed by this decision. To reverse it, draft a new ADR,
 - [Host editor](https://github.com/AbdullahZaher/vibress/blob/main/packages/studio-react/src/VibressStudio.tsx)
 - [Host post persistence](https://github.com/AbdullahZaher/vibress/blob/main/apps/admin/src/components/PostEditor.tsx)
 - [Host page persistence](https://github.com/AbdullahZaher/vibress/blob/main/apps/admin/src/components/PageEditor.tsx)
-- [UX roadmap](../roadmaps/global-ux-quality-roadmap.md)
+- [UX roadmap (documentation PR #1)](https://github.com/AbdullahZaher/vibress-studio/blob/docs/studio-global-quality-roadmap-20261103/docs/roadmaps/global-ux-quality-roadmap.md)
