@@ -12,7 +12,7 @@ import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import LexicalErrorBoundary from '@lexical/react/LexicalErrorBoundary';
-import { $getRoot, $createParagraphNode } from 'lexical';
+import { $getRoot, $createParagraphNode, type LexicalEditor } from 'lexical';
 import { SlashMenuPlugin } from './plugins/SlashMenuPlugin';
 import { FloatingFormatToolbarPlugin } from './plugins/FloatingFormatToolbarPlugin';
 import { FloatingCardActionToolbarPlugin } from './plugins/FloatingCardActionToolbarPlugin';
@@ -28,7 +28,12 @@ import { StudioUploadContext, StudioUploadApi } from './upload-context';
 export interface VibressStudioProps {
   value?: unknown;
   onChange?: (doc: StudioDocument) => void;
+  /** Optional host integration for editor-specific commands; null on cleanup. */
+  onEditorReady?: (editor: LexicalEditor | null) => void;
   readOnly?: boolean;
+  /** AI UI is opt-in; a real host provider callback is also required. */
+  enableAi?: boolean;
+  onAiGenerate?: (prompt: string) => Promise<string>;
   placeholder?: string;
   onError?: (error: Error) => void;
   requestMedia?: (req: { cardType: string }) => Promise<Record<string, unknown> | null>;
@@ -68,6 +73,15 @@ class StudioErrorBoundary extends Component<StudioErrorBoundaryProps, { hasError
   }
 }
 
+function EditorReadyPlugin({ onReady }: { onReady: (editor: LexicalEditor | null) => void }) {
+  const [editor] = useLexicalComposerContext();
+  useEffect(() => {
+    onReady(editor);
+    return () => onReady(null);
+  }, [editor, onReady]);
+  return null;
+}
+
 function InitialStatePlugin({ document }: { document: StudioDocument }) {
   const [editor] = useLexicalComposerContext();
   const initialized = useRef(false);
@@ -100,8 +114,11 @@ function InitialStatePlugin({ document }: { document: StudioDocument }) {
 export function VibressStudio({
   value,
   onChange,
+  onEditorReady,
   readOnly = false,
-  placeholder = 'Write content with Vibress Studio (type "/" for commands, Space for AI)...',
+  enableAi = false,
+  onAiGenerate,
+  placeholder = 'Write content with Vibress Studio (type "/" for commands)...',
   onError,
   requestMedia,
   uploadMedia,
@@ -174,6 +191,7 @@ export function VibressStudio({
               <RichTextPlugin
                 contentEditable={
                   <ContentEditable
+                    aria-label="Editor content"
                     style={{
                       outline: 'none',
                       minHeight: '30vh',
@@ -209,8 +227,9 @@ export function VibressStudio({
               <FloatingFormatToolbarPlugin />
               <FloatingCardActionToolbarPlugin />
               {!readOnly && <BlockHandleGutterPlugin />}
-              {!readOnly && <InlineAIPlugin />}
+              {!readOnly && enableAi && onAiGenerate && <InlineAIPlugin onGenerate={onAiGenerate} />}
               <InitialStatePlugin document={parsedDoc} />
+              {onEditorReady && <EditorReadyPlugin onReady={onEditorReady} />}
               {onChange && (
                 <OnChangePlugin
                   onChange={(editorState) => {

@@ -1,17 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { VibressStudio } from '@vibress/studio-react';
-import { SafeHtml, sanitizeToSafeHtml } from '@vibress/studio-react';
-import {
-  StudioDocument,
-  createEmptyStudioDocument,
-  StudioUploadAdapter,
-  StudioUploadContext,
-  StudioUploadedAsset,
-  StudioUploadHandlers,
-} from '@vibress/studio-core';
+import { sanitizeStudioHtml } from '@vibress/studio-utils';
+import { StudioDocument, createEmptyStudioDocument } from '@vibress/studio-core';
 import { renderStudioDocumentToHtml } from '@vibress/studio-renderer';
 import { htmlToStudioDocument } from '@vibress/studio-html';
-import { markdownToStudioDocument, studioDocumentToMarkdown } from '@vibress/studio-markdown';
+import { parseMarkdownToHtml, studioDocumentToMarkdown } from '@vibress/studio-markdown';
 import { LexicalEditor } from 'lexical';
 import {
   $getSelection,
@@ -37,6 +30,14 @@ declare global {
   }
 }
 
+interface StudioUploadedAsset {
+  id: string;
+  url: string;
+  mimeType: string;
+  size: number;
+  alt?: string;
+}
+
 interface StudioTestApi {
   getDoc: () => StudioDocument;
   uploads: () => StudioUploadedAsset[];
@@ -49,7 +50,7 @@ interface StudioTestApi {
   exportMarkdown: () => string;
 }
 
-class MockUploadAdapter implements StudioUploadAdapter {
+class MockUploadAdapter {
   readonly name = 'mock';
   failNext = false;
   failForever = false;
@@ -61,11 +62,7 @@ class MockUploadAdapter implements StudioUploadAdapter {
     return [...this.recorded];
   }
 
-  async upload(
-    file: File,
-    context: StudioUploadContext,
-    handlers?: StudioUploadHandlers
-  ): Promise<StudioUploadedAsset> {
+  async upload(file: File, _cardType: string): Promise<Record<string, unknown> | null> {
     if (this.failNext) {
       this.failNext = false;
       throw new Error('MOCK_UPLOAD_FAILED');
@@ -74,22 +71,30 @@ class MockUploadAdapter implements StudioUploadAdapter {
       throw new Error('MOCK_UPLOAD_FAILED');
     }
     await new Promise((resolve) => setTimeout(resolve, this.latency));
-    handlers?.onProgress?.({ loaded: file.size, total: file.size, percent: 100 });
     this.counter += 1;
+    const id = `mock-${this.counter}`;
+    const url = `/mock/assets/${this.counter}`;
     const asset: StudioUploadedAsset = {
-      id: `mock-${this.counter}`,
-      url: `mock://asset/${this.counter}`,
-      mimeType: file.type || context.mimeType,
+      id,
+      url,
+      mimeType: file.type,
       size: file.size,
       alt: file.name,
     };
     this.recorded.push(asset);
-    return asset;
+    return { assetId: id, src: url, alt: file.name };
   }
 }
 
 export function E2EHarness() {
   const [doc, setDoc] = useState<StudioDocument>(createEmptyStudioDocument());
+  const [editorEpoch, setEditorEpoch] = useState(0);
+  const replaceDoc = useCallback((next: StudioDocument) => {
+    setDoc(next);
+    setEditorEpoch((value) => value + 1);
+  }, []);
+  const uploadMedia = useCallback((file: File, cardType: string) =>
+    adapterRef.current?.upload(file, cardType) ?? Promise.resolve(null), []);
   const [editor, setEditor] = useState<LexicalEditor | null>(null);
   const [htmlInput, setHtmlInput] = useState('');
   const [mdInput, setMdInput] = useState('');
@@ -132,15 +137,15 @@ export function E2EHarness() {
       },
       adapterName: () => adapterRef.current?.name ?? 'none',
       formatBlock,
-      importHTML: (html) => setDoc(htmlToStudioDocument(html)),
-      importMarkdown: (md) => setDoc(markdownToStudioDocument(md)),
+      importHTML: (html) => replaceDoc(htmlToStudioDocument(html)),
+      importMarkdown: (md) => replaceDoc(htmlToStudioDocument(parseMarkdownToHtml(md))),
       exportMarkdown: () => {
         const out = studioDocumentToMarkdown(doc);
         setMdOutput(out);
         return out;
       },
     }),
-    [doc, formatBlock]
+    [doc, formatBlock, replaceDoc]
   );
 
   useEffect(() => {
@@ -177,7 +182,7 @@ export function E2EHarness() {
           type="button"
           data-testid="btn-reset"
           style={{ ...btn, background: '#6b7280' }}
-          onClick={() => setDoc(createEmptyStudioDocument())}
+          onClick={() => replaceDoc(createEmptyStudioDocument())}
         >
           Reset
         </button>
@@ -188,10 +193,11 @@ export function E2EHarness() {
           <h2 style={{ fontSize: '16px', margin: '0 0 8px', color: '#1f2937' }}>Editor</h2>
           <div data-testid="studio-editor">
             <VibressStudio
+              key={editorEpoch}
               value={doc}
               onChange={(d) => setDoc(d)}
               placeholder="Type here..."
-              uploadAdapter={adapterRef.current}
+              uploadMedia={uploadMedia}
               onEditorReady={setEditor}
             />
           </div>
@@ -237,7 +243,7 @@ export function E2EHarness() {
             }}
           >
             {previewTab === 'html' ? (
-              <SafeHtml html={sanitizeToSafeHtml(htmlOutput)} data-testid="preview-html" />
+              <div data-testid="preview-html" dangerouslySetInnerHTML={{ __html: sanitizeStudioHtml(htmlOutput) }} />
             ) : (
               <pre data-testid="preview-json" style={{ margin: 0, fontSize: '11px', whiteSpace: 'pre-wrap' }}>
                 {JSON.stringify(doc, null, 1)}
@@ -264,7 +270,7 @@ export function E2EHarness() {
               type="button"
               data-testid="import-html-btn"
               style={{ ...btn, marginTop: '8px' }}
-              onClick={() => setDoc(htmlToStudioDocument(htmlInput))}
+              onClick={() => replaceDoc(htmlToStudioDocument(htmlInput))}
             >
               Import HTML
             </button>
@@ -283,7 +289,7 @@ export function E2EHarness() {
               type="button"
               data-testid="import-md-btn"
               style={{ ...btn, marginTop: '8px' }}
-              onClick={() => setDoc(markdownToStudioDocument(mdInput))}
+              onClick={() => replaceDoc(htmlToStudioDocument(parseMarkdownToHtml(mdInput)))}
             >
               Import Markdown
             </button>
