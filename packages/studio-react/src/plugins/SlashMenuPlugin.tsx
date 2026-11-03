@@ -39,7 +39,6 @@ import {
   List,
   ListOrdered,
   Quote,
-  Sparkles,
   Bookmark,
   ChevronRight,
   Code2,
@@ -85,9 +84,6 @@ export function SlashMenuPlugin({
 
   const baseOptions: StudioMenuOption[] = useMemo(() => {
     const list: StudioMenuOption[] = [
-      // AI
-      new StudioMenuOption('Ask AI', 'ai', <Sparkles size={16} color="#a855f7" />, 'Write, summarize, or brainstorm with AI', { actionType: 'ai' }),
-
       // Basic Blocks
       new StudioMenuOption('Text', 'basic', <Box size={16} />, 'Just start writing with plain text', { actionType: 'paragraph' }),
       new StudioMenuOption('Heading 1', 'basic', <Heading1 size={16} />, 'Large section heading', { actionType: 'h1' }),
