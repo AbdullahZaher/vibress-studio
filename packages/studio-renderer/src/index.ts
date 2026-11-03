@@ -1,5 +1,5 @@
 import { StudioDocument, validateStudioDocument, migrateDocument } from '@vibress/studio-core';
-import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-cards';
+import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-card-definitions';
 import { escapeHtml, sanitizeUrl, sanitizeStudioHtml } from '@vibress/studio-utils';
 
 export interface RenderOptions {
@@ -53,6 +53,9 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
 
   // Handle Element Nodes
   switch (type) {
+    case 'linebreak':
+      return '<br />';
+
     case 'paragraph': {
       const content = renderChildren();
       // Block-level cards must never be wrapped in <p> (invalid HTML that

@@ -84,7 +84,7 @@ export function CardPlaceholder({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-background dark:bg-white/[0.06] border border-border/80 dark:border-white/10 text-foreground group-hover:border-primary/40 group-hover:text-primary transition-all shadow-sm"
           >
             <Upload className="w-3.5 h-3.5" />
-            <span>Upload {title}</span>
+            <span>Add {title}</span>
           </button>
         </div>
       </div>
