@@ -15,7 +15,7 @@ function getDirection(node: HtmlChild, inherited: Direction): Direction {
 function positiveSpan(node: HtmlChild, name: 'colspan' | 'rowspan'): number {
   if (!('attrs' in node)) return 1;
   const raw = node.attrs.find(attr => attr.name === name)?.value;
-  if (!raw || !/^\\d+$/.test(raw)) return 1;
+  if (!raw || !/^[0-9]+$/.test(raw)) return 1;
   const value = Number(raw);
   return Number.isSafeInteger(value) && value >= 1 && value <= 1000 ? value : 1;
 }
