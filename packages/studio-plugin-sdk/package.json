@@ -10,8 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@vibress/studio-cards": "workspace:*",
-    "@vibress/studio-core": "workspace:*"
+    "@vibress/studio-core": "workspace:*",
+    "@vibress/studio-card-definitions": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^18.3.31",

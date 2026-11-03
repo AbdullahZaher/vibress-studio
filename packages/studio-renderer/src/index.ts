@@ -1,5 +1,5 @@
 import { StudioDocument, validateStudioDocument, migrateDocument } from '@vibress/studio-core';
-import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-cards';
+import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-card-definitions';
 import { escapeHtml, sanitizeUrl, sanitizeStudioHtml } from '@vibress/studio-utils';
 
 export interface RenderOptions {
