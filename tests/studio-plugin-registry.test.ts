@@ -3,7 +3,18 @@ import { StudioPluginRegistry } from '@vibress/studio-plugin-sdk';
 import type { StudioCardDefinition } from '@vibress/studio-card-definitions';
 
 function makeCard(type: string): StudioCardDefinition {
-  return { type, validate: (value: unknown) => value, renderHtml: () => '' } as StudioCardDefinition;
+  return {
+    type,
+    version: 1,
+    validate: (value: unknown) => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return {};
+      }
+      return Object.fromEntries(Object.entries(value));
+    },
+    renderHtml: () => '',
+    renderPlainText: () => '',
+  };
 }
 
 describe('StudioPluginRegistry card ownership', () => {
