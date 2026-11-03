@@ -332,3 +332,13 @@ export const STUDIO_CARD_DEFINITIONS: Record<string, StudioCardDefinition> = {
   html: HtmlCardDefinition,
   divider: DividerCardDefinition,
 };
+
+/** Security boundary for plugin SDK and other direct definition consumers.
+ * Card renderHtml() returns untrusted HTML by contract; never mount it directly.
+ */
+export function renderStudioCardSafeHtml(
+  definition: StudioCardDefinition,
+  input: unknown
+): string {
+  return sanitizeHtml(definition.renderHtml(definition.validate(input)));
+}
