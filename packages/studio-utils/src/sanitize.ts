@@ -14,14 +14,14 @@ import { parseFragment, serialize } from 'parse5';
  */
 
 export const STUDIO_ALLOWED_TAGS = new Set([
-  'p', 'br', 'strong', 'em', 'u', 's', 'del', 'sub', 'sup', 'mark', 'small',
+  'p', 'br', 'strong', 'em', 'b', 'i', 'u', 's', 'del', 'strike', 'sub', 'sup', 'mark', 'small',
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
   'ul', 'ol', 'li',
   'blockquote', 'pre', 'code',
   'a', 'img', 'figure', 'figcaption',
   'video', 'audio', 'source',
   'details', 'summary',
-  'div', 'span', 'hr',
+  'div', 'span', 'hr', 'section', 'article', 'main', 'header', 'footer', 'aside',
   'table', 'thead', 'tbody', 'tr', 'th', 'td',
   'iframe',
   'input',
@@ -218,7 +218,10 @@ function sanitizeNode(node: P5Node): P5Node[] {
 
   if (tag === 'a') {
     const href = attrs.find((a) => a.name.toLowerCase() === 'href');
-    if (!href || href.value.trim() === '') return [];
+    if (!href || href.value.trim() === '') {
+      // Strip an unsafe anchor but retain its readable, inert children.
+      return (node.childNodes || []).flatMap(sanitizeNode);
+    }
     // Enforce safe external-link conventions.
     const target = attrs.find((a) => a.name.toLowerCase() === 'target');
     if (target && target.value === '_blank' && !attrs.some((a) => a.name.toLowerCase() === 'rel')) {

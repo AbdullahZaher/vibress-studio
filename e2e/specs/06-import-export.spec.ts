@@ -16,7 +16,7 @@ test.describe('Import / export through the UI (E2E 6)', () => {
     const preview = page.getByTestId('preview-html');
     await expect(preview.locator('h1')).toContainText('Imported Title');
     await expect(preview.locator('strong')).toContainText('bold');
-    await expect(preview.locator('a')).toHaveAttribute('href', 'https://example.com');
+    await expect(preview.locator('a[href="https://example.com"]')).toHaveAttribute('href', 'https://example.com');
   });
 
   test('imports markdown with lists and headings', async ({ page }) => {
@@ -82,5 +82,38 @@ test.describe('Import / export through the UI (E2E 6)', () => {
 
     await expect(page.getByTestId('export-md-output')).toHaveValue(/## Roundtrip/);
     await expect(page.getByTestId('export-md-output')).toHaveValue(/Stable \*content\*/);
+  });
+});
+
+test.describe('table and RTL import compatibility', () => {
+  test('opens an imported HTML table in Lexical and preserves header, spans and Arabic text', async ({ page }) => {
+    await openHarness(page);
+    await page.getByTestId('import-html-input').fill(
+      '<table dir="rtl"><thead><tr><th colspan="2">الاسم</th></tr></thead>' +
+      '<tbody><tr><td>مقال</td><td>10</td></tr></tbody></table>'
+    );
+    await page.getByTestId('import-html-btn').click();
+    await expect(page.locator('[data-testid="studio-editor"] table').first()).toBeVisible();
+    const doc = await studio(page).getDoc();
+    const table = doc.root.children.find(node => node.type === 'table');
+    expect(table).toBeDefined();
+    expect((table?.children as unknown[]).length).toBe(2);
+    await page.getByTestId('tab-html').click();
+    const preview = page.getByTestId('preview-html');
+    await expect(preview.locator('table')).toHaveAttribute('dir', 'rtl');
+    await expect(preview.locator('th')).toHaveAttribute('colspan', '2');
+    await expect(preview.locator('td')).toHaveCount(2);
+    await expect(preview).toContainText('مقال');
+  });
+
+  test('inherits RTL from a safe HTML container without dropping mixed-direction text', async ({ page }) => {
+    await openHarness(page);
+    await page.getByTestId('import-html-input').fill('<section dir="rtl"><p>مرحبا English</p></section>');
+    await page.getByTestId('import-html-btn').click();
+    const doc = await studio(page).getDoc();
+    expect(doc.root.children[0]?.direction).toBe('rtl');
+    await page.getByTestId('tab-html').click();
+    await expect(page.getByTestId('preview-html').locator('p')).toHaveAttribute('dir', 'rtl');
+    await expect(page.getByTestId('preview-html')).toContainText('مرحبا English');
   });
 });

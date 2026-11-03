@@ -1,5 +1,5 @@
 import { StudioDocument, validateStudioDocument, migrateDocument } from '@vibress/studio-core';
-import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-cards';
+import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-card-definitions';
 import { escapeHtml, sanitizeUrl, sanitizeStudioHtml } from '@vibress/studio-utils';
 
 export interface RenderOptions {
@@ -22,11 +22,38 @@ export function renderStudioDocumentToHtml(docInput: unknown, options: RenderOpt
   return sanitizeStudioHtml(raw);
 }
 
+/** Lexical's built-in TableNode can discard its own direction on import.
+ * Direction retained by descendant elements is authoritative for rendering
+ * when the table node itself has no explicit value.
+ */
+function firstChildDirection(node: unknown): 'ltr' | 'rtl' | null {
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const direction = firstChildDirection(child);
+      if (direction) return direction;
+    }
+    return null;
+  }
+  if (!node || typeof node !== 'object') return null;
+  const current = node as { direction?: unknown; children?: unknown[] };
+  if (current.direction === 'rtl' || current.direction === 'ltr') return current.direction;
+  if (Array.isArray(current.children)) {
+    for (const child of current.children) {
+      const direction = firstChildDirection(child);
+      if (direction) return direction;
+    }
+  }
+  return null;
+}
+
 function renderNodeToHtml(node: unknown, options: RenderOptions): string {
   if (!node || typeof node !== 'object') return '';
   const n = node as { type?: string; text?: string; format?: number; children?: unknown[]; tag?: string; listType?: string; url?: string; src?: string; alt?: string; cardType?: string; caption?: string; rel?: string; target?: string; cardData?: Record<string, unknown>; } & Record<string, unknown>;
 
   const type = n.type;
+  const directionAttr = n.direction === 'rtl' || n.direction === 'ltr'
+    ? ` dir="${n.direction}"`
+    : '';
 
   // Handle TextNode
   if (type === 'text') {
@@ -53,6 +80,9 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
 
   // Handle Element Nodes
   switch (type) {
+    case 'linebreak':
+      return '<br />';
+
     case 'paragraph': {
       const content = renderChildren();
       // Block-level cards must never be wrapped in <p> (invalid HTML that
@@ -64,7 +94,7 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
       );
       if (hasBlockCard) return content;
       const styleAttr = n.style ? ` style="${escapeHtml(String(n.style))}"` : '';
-      return content ? `<p${styleAttr}>${content}</p>` : '<p></p>';
+      return content ? `<p${directionAttr}${styleAttr}>${content}</p>` : `<p${directionAttr}></p>`;
     }
 
     case 'heading': {
@@ -80,18 +110,18 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
       const anchor = slug
         ? `<a href="#${escapeHtml(slug)}" class="heading-anchor" aria-label="Link to section" aria-hidden="true">#</a>`
         : '';
-      return `<${level}${idAttr}${styleAttr}>${childrenHtml}${anchor}</${level}>`;
+      return `<${level}${idAttr}${directionAttr}${styleAttr}>${childrenHtml}${anchor}</${level}>`;
     }
 
     case 'quote':
-      return `<blockquote>${renderChildren()}</blockquote>`;
+      return `<blockquote${directionAttr}>${renderChildren()}</blockquote>`;
 
     case 'list': {
       if (n.listType === 'check') {
-        return `<ul class="studio-checklist">${renderChildren()}</ul>`;
+        return `<ul class="studio-checklist"${directionAttr}>${renderChildren()}</ul>`;
       }
       const listType = n.listType === 'number' ? 'ol' : 'ul';
-      return `<${listType}>${renderChildren()}</${listType}>`;
+      return `<${listType}${directionAttr}>${renderChildren()}</${listType}>`;
     }
 
     case 'listitem': {
@@ -101,11 +131,14 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
         const checkedClass = isChecked ? ' is-checked' : '';
         return `<li class="studio-checklist-item${checkedClass}"><input type="checkbox"${checkedAttr} disabled /><span>${renderChildren()}</span></li>`;
       }
-      return `<li>${renderChildren()}</li>`;
+      return `<li${directionAttr}>${renderChildren()}</li>`;
     }
 
-    case 'table':
-      return `<div class="studio-table-container"><table class="studio-table"><tbody>${renderChildren()}</tbody></table></div>`;
+    case 'table': {
+      const inferred = directionAttr ? '' : firstChildDirection(n.children);
+      const tableDirection = directionAttr || (inferred ? ` dir="${inferred}"` : '');
+      return `<div class="studio-table-container"><table class="studio-table"${tableDirection}><tbody>${renderChildren()}</tbody></table></div>`;
+    }
 
     case 'tablerow':
       return `<tr>${renderChildren()}</tr>`;

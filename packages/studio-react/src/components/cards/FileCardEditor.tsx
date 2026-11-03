@@ -19,24 +19,37 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
   const { uploadMedia } = useStudioUpload();
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(false);
+  const [retryFile, setRetryFile] = useState<File | null>(null);
 
   const isPopulated = !!cardData.src;
 
-  const onFileSelect = (files: File[]) => {
-    const file = files[0];
-    if (!file || !uploadMedia) return;
+  const attemptUpload = (selectedFile: File) => {
+    if (!uploadMedia || uploading) return;
+    setRetryFile(selectedFile);
+    setUploadError(false);
     setUploading(true);
-    uploadMedia(file, 'file')
-      .then((payload) => {
-        if (!payload) return;
+    Promise.resolve()
+      .then(() => uploadMedia(selectedFile, 'file'))
+      .then(payload => {
+        if (!payload || typeof payload.src !== 'string') {
+          setUploadError(true);
+          return;
+        }
         editor.update(() => {
           const node = $getNodeByKey(nodeKey);
           if (node instanceof StudioCardNode) {
-            node.setCardData({ ...cardData, ...payload });
+            // Use current node state, not closure data captured before upload.
+            node.setCardData({ ...node.getCardData(), ...payload });
           }
         });
       })
+      .catch(() => setUploadError(true))
       .finally(() => setUploading(false));
+  };
+
+  const onFileSelect = (files: File[]) => {
+    if (files[0]) attemptUpload(files[0]);
   };
 
   const onCaptionChange = useCallback(
@@ -45,18 +58,19 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
         const node = $getNodeByKey(nodeKey);
         if (node instanceof StudioCardNode) {
           node.setCardData({
-            ...cardData,
+            ...node.getCardData(),
             caption: captionJSON,
             captionHtml,
           });
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   if (!isPopulated) {
     return (
+      <div>
       <CardPlaceholder
         iconType="file"
         title="File"
@@ -69,6 +83,14 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
           setSelected(true);
         }}
       />
+      {uploadError && (
+        <div role="alert" className="my-2 text-sm text-red-700">
+          Upload failed.
+          <button type="button" className="mx-2 underline" disabled={uploading || !retryFile} onClick={() => { if (retryFile) attemptUpload(retryFile); }}>Retry</button>
+          <button type="button" className="underline" onClick={() => setUploadError(false)}>Dismiss</button>
+        </div>
+      )}
+      </div>
     );
   }
 

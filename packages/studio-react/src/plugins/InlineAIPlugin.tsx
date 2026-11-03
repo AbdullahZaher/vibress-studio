@@ -5,17 +5,38 @@ import {
   $isRangeSelection,
   $createParagraphNode,
   $createTextNode,
+  $getNodeByKey,
+  $getRoot,
   COMMAND_PRIORITY_LOW,
   KEY_DOWN_COMMAND,
 } from 'lexical';
 import { createPortal } from 'react-dom';
+import type { StudioDocument } from '@vibress/studio-core';
+import { serializeStudioDocument } from '@vibress/studio-serializer';
+
+export interface StudioAiContext {
+  /** Current canonical document; only supplied to the explicitly opted-in host. */
+  document: StudioDocument;
+  selectedText: string;
+}
 import { Sparkles, Send, Check, RefreshCw, X, Wand2, Globe, FileText, CheckCheck } from 'lucide-react';
 
-export function InlineAIPlugin({ anchorElem = document.body }: { anchorElem?: HTMLElement }) {
+export function InlineAIPlugin({
+  anchorElem,
+  onGenerate,
+}: {
+  anchorElem?: HTMLElement;
+  onGenerate: (prompt: string, context?: StudioAiContext) => Promise<string>;
+}) {
   const [editor] = useLexicalComposerContext();
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Ignore late completions once an author closes the UI or retries.
+  const generationIdRef = useRef(0);
+  const insertionAnchorKeyRef = useRef<string | null>(null);
+  const selectedTextRef = useRef('');
   const [generatedText, setGeneratedText] = useState<string | null>(null);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -34,6 +55,8 @@ export function InlineAIPlugin({ anchorElem = document.body }: { anchorElem?: HT
               const node = selection.anchor.getNode();
               const textContent = node.getTextContent();
               if (!textContent || textContent.trim() === '') {
+                insertionAnchorKeyRef.current = node.getTopLevelElement()?.getKey() ?? null;
+                selectedTextRef.current = selection.getTextContent();
                 shouldOpen = true;
               }
             }
@@ -59,13 +82,20 @@ export function InlineAIPlugin({ anchorElem = document.body }: { anchorElem?: HT
     );
   }, [editor, isOpen]);
 
+  // Do not update React or Lexical after this plugin is unmounted.
+  useEffect(() => () => {
+    generationIdRef.current += 1;
+  }, []);
+
   // Click outside to close
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
         if (!loading) {
+          generationIdRef.current += 1;
           setIsOpen(false);
           setGeneratedText(null);
+          setErrorMessage(null);
           setPrompt('');
         }
       }
@@ -77,67 +107,93 @@ export function InlineAIPlugin({ anchorElem = document.body }: { anchorElem?: HT
   }, [isOpen, loading]);
 
   const handleGenerate = async (customPrompt?: string) => {
-    const promptToUse = customPrompt || prompt;
-    if (!promptToUse.trim()) return;
+    const promptToUse = (customPrompt ?? prompt).trim();
+    if (!promptToUse) return;
 
+    const generationId = ++generationIdRef.current;
     setLoading(true);
     setGeneratedText(null);
+    setErrorMessage(null);
 
-    // AI Generation simulation/engine
-    setTimeout(() => {
-      let result = '';
-      const p = promptToUse.toLowerCase();
-
-      if (p.includes('continue') || p.includes('أكمل')) {
-        result = 'Here is the continuation of your thoughts with deeper insights, supporting arguments, and practical action items.';
-      } else if (p.includes('summarize') || p.includes('لخص')) {
-        result = 'Summary: The core concept revolves around high-efficiency modern publishing, structured content architecture, and seamless user interaction.';
-      } else if (p.includes('improve') || p.includes('حسّن')) {
-        result = 'Refined version: Empowering creators with high-fidelity, distraction-free editing tools engineered for ultimate performance and clarity.';
-      } else if (p.includes('arabic') || p.includes('عربي')) {
-        result = 'تمكين صناع المحتوى بأدوات تحرير متقدمة وسلسة مصممة لأعلى مستويات الأداء والإنتاجية.';
-      } else if (p.includes('english') || p.includes('إنجليزي')) {
-        result = 'Empowering modern publishers with clean, modular editing workflows.';
-      } else {
-        result = `Insights on "${promptToUse}":\n• Structured content improves readability\n• Modular components ensure high scalability\n• Rich interactions keep readers engaged`;
+    try {
+      const context: StudioAiContext = {
+        document: serializeStudioDocument(editor.getEditorState().toJSON().root),
+        selectedText: selectedTextRef.current,
+      };
+      const result = await onGenerate(promptToUse, context);
+      if (generationId !== generationIdRef.current) return;
+      if (typeof result !== 'string' || !result.trim()) {
+        setErrorMessage('The configured AI provider returned no content.');
+        return;
       }
-
       setGeneratedText(result);
-      setLoading(false);
-    }, 600);
+    } catch {
+      if (generationId !== generationIdRef.current) return;
+      // Do not surface provider internals, backend stack traces or secrets.
+      setErrorMessage('AI generation failed. Please try again.');
+    } finally {
+      if (generationId === generationIdRef.current) {
+        setLoading(false);
+      }
+    }
   };
 
   const handleAccept = () => {
     if (!generatedText) return;
     editor.update(() => {
-      const selection = $getSelection();
-      if ($isRangeSelection(selection)) {
-        const lines = generatedText.split('\n');
-        for (let i = 0; i < lines.length; i++) {
-          const p = $createParagraphNode();
-          p.append($createTextNode(lines[i]));
-          selection.insertNodes([p]);
+      const paragraphs = generatedText.split('\n').map(line => {
+        const paragraph = $createParagraphNode();
+        paragraph.append($createTextNode(line));
+        return paragraph;
+      });
+      // The prompt steals DOM focus from the editor. Use the saved block
+      // anchor instead of trusting the current (often null) selection.
+      const anchor = insertionAnchorKeyRef.current
+        ? $getNodeByKey(insertionAnchorKeyRef.current)
+        : null;
+      if (anchor?.getParent()?.getType() === 'root') {
+        let sibling = anchor;
+        for (const paragraph of paragraphs) {
+          sibling.insertAfter(paragraph);
+          sibling = paragraph;
         }
+      } else {
+        // Source block may have been deleted while the provider was working.
+        $getRoot().append(...paragraphs);
       }
     });
+    insertionAnchorKeyRef.current = null;
     setIsOpen(false);
     setGeneratedText(null);
     setPrompt('');
   };
 
   const handleDiscard = () => {
+    generationIdRef.current += 1;
+    setLoading(false);
     setIsOpen(false);
+    insertionAnchorKeyRef.current = null;
     setGeneratedText(null);
+    setErrorMessage(null);
     setPrompt('');
   };
 
-  if (!isOpen || !position) {
+  if (!isOpen || !position || typeof document === 'undefined') {
     return null;
   }
 
   return createPortal(
     <div
       ref={popupRef}
+      role="dialog"
+      aria-label="AI writing assistant"
+      aria-modal={false}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          event.stopPropagation();
+          handleDiscard();
+        }
+      }}
       className="notion-ai-popup studio-glassy-menu studio-ai-popup"
       style={{
         position: 'absolute',
@@ -168,6 +224,7 @@ export function InlineAIPlugin({ anchorElem = document.body }: { anchorElem?: HT
         <input
           ref={inputRef}
           type="text"
+          aria-label="AI prompt"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => {
@@ -176,7 +233,7 @@ export function InlineAIPlugin({ anchorElem = document.body }: { anchorElem?: HT
               handleGenerate();
             }
           }}
-          placeholder="Ask Notion AI to write, summarize, or edit..."
+          placeholder="Ask Vibress AI to write, summarize, or edit..."
           style={{
             flex: 1,
             border: 'none',
@@ -208,9 +265,23 @@ export function InlineAIPlugin({ anchorElem = document.body }: { anchorElem?: HT
 
       {/* Loading state */}
       {loading && (
-        <div style={{ padding: '16px 8px', display: 'flex', alignItems: 'center', gap: '8px', color: '#6366f1', fontSize: '13px' }}>
-          <Wand2 size={16} className="animate-spin" />
-          <span>Generating content with Notion AI...</span>
+        <div role="status" aria-live="polite" style={{ padding: '16px 8px', display: 'flex', alignItems: 'center', gap: '8px', color: '#6366f1', fontSize: '13px' }}>
+          <Wand2 size={16} className="animate-spin" aria-hidden="true" />
+          <span>Waiting for your configured AI provider...</span>
+          <button
+            type="button"
+            aria-label="Dismiss AI response"
+            onClick={handleDiscard}
+            style={{ marginInlineStart: 'auto', cursor: 'pointer', border: 0, background: 'transparent' }}
+          >
+            <X size={16} aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
+      {errorMessage && !loading && (
+        <div role="alert" style={{ padding: '8px', marginBottom: '8px', color: '#b91c1c', fontSize: '13px' }}>
+          {errorMessage}
         </div>
       )}
 
@@ -295,7 +366,7 @@ export function InlineAIPlugin({ anchorElem = document.body }: { anchorElem?: HT
       )}
 
       {/* Suggestions Chips */}
-      {!generatedText && !loading && (
+      {!generatedText && !loading && !errorMessage && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
           <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', paddingLeft: '4px' }}>
             Quick Prompts
@@ -323,7 +394,7 @@ export function InlineAIPlugin({ anchorElem = document.body }: { anchorElem?: HT
         </div>
       )}
     </div>,
-    anchorElem
+    anchorElem ?? document.body
   );
 }
 

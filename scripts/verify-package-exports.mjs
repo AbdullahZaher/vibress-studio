@@ -23,7 +23,7 @@ const packagesDir = join(root, 'packages');
  */
 const SERVER_PACKAGES = new Set([
   '@vibress/studio-core',
-  '@vibress/studio-cards',
+  '@vibress/studio-card-definitions',
   '@vibress/studio-utils',
   '@vibress/studio-html',
   '@vibress/studio-markdown',
@@ -31,6 +31,12 @@ const SERVER_PACKAGES = new Set([
   '@vibress/studio-serializer',
   '@vibress/studio-plugin-sdk',
 ]);
+
+function importsEditorRuntime(content) {
+  // Scan both TypeScript ESM source and emitted NodeNext CommonJS. Do not
+  // accept a server bundle that loads Lexical indirectly through editor packages.
+  return /(?:\bfrom\s*['"]|\brequire\(\s*['"])(?:react(?:-dom)?(?:\/[^'"]*)?|lexical(?:\/[^'"]*)?|@lexical\/[^'"]+|@vibress\/studio-(?:cards|nodes|react|transforms)(?:\/[^'"]*)?)['"]/.test(content);
+}
 
 const errors = [];
 
@@ -61,8 +67,13 @@ for (const dir of pkgDirs) {
     `${name}: exports["."].types must point to dist`
   );
   check(
-    exportsDot?.import === './dist/index.js',
+    exportsDot?.import === './dist/index.mjs',
     `${name}: exports["."].import must point to dist`
+  );
+
+  check(
+    exportsDot?.require === './dist/index.js',
+    `${name}: exports["."].require must point to CommonJS dist`
   );
 
   // No src references anywhere in publishable entry points.
@@ -82,6 +93,10 @@ for (const dir of pkgDirs) {
     existsSync(join(packagesDir, dir, 'dist', 'index.d.ts')),
     `${name}: dist/index.d.ts missing — run pnpm build first`
   );
+  check(
+    existsSync(join(packagesDir, dir, 'dist', 'index.mjs')),
+    `${name}: dist/index.mjs missing — run pnpm build first`
+  );
 
   // Server packages must not import React or Lexical (in source AND dist).
   if (SERVER_PACKAGES.has(name)) {
@@ -90,7 +105,7 @@ for (const dir of pkgDirs) {
     );
     for (const f of srcFiles) {
       const content = readFileSync(join(packagesDir, dir, 'src', f), 'utf8');
-      if (/from\s+['"](react|react-dom|lexical|@lexical\/)['"]/.test(content)) {
+      if (importsEditorRuntime(content)) {
         errors.push(`${name}: src/${f} imports React/Lexical — server packages must not`);
       }
     }
@@ -99,7 +114,7 @@ for (const dir of pkgDirs) {
     );
     for (const f of distFiles) {
       const content = readFileSync(join(packagesDir, dir, 'dist', f), 'utf8');
-      if (/from\s*['"](react|react-dom|lexical|@lexical\/)['"]/.test(content)) {
+      if (importsEditorRuntime(content)) {
         errors.push(`${name}: dist/${f} imports React/Lexical — server packages must not`);
       }
     }

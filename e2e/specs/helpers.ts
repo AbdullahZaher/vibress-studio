@@ -13,6 +13,10 @@ export interface StudioTestApi {
   uploads: () => Array<{ id: string; url: string; mimeType: string; size: number; alt?: string }>;
   setAdapterFailNext: (v: boolean) => void;
   setAdapterFailForever: (v: boolean) => void;
+  setAdapterLatency: (ms: number) => void;
+  setCardField: (cardType: string, field: string, value: string) => void;
+  setPickerEnabled: (value: boolean) => void;
+  setPickerFailNext: (value: boolean) => void;
   adapterName: () => string;
   formatBlock: (type: 'h1' | 'h2' | 'paragraph' | 'bullet' | 'number') => void;
   importHTML: (html: string) => void;
@@ -36,6 +40,12 @@ export function studio(page: Page): StudioTestApi {
     uploads: () => page.evaluate(() => (window as unknown as { __studio: StudioTestApi }).__studio.uploads()),
     setAdapterFailNext: (v) => page.evaluate((val) => (window as unknown as { __studio: StudioTestApi }).__studio.setAdapterFailNext(val), v),
     setAdapterFailForever: (v) => page.evaluate((val) => (window as unknown as { __studio: StudioTestApi }).__studio.setAdapterFailForever(val), v),
+    setAdapterLatency: (ms) => page.evaluate((val) => (window as unknown as { __studio: StudioTestApi }).__studio.setAdapterLatency(val), ms),
+    setCardField: (cardType, field, value) => page.evaluate(([type, fieldName, text]) =>
+      (window as unknown as { __studio: StudioTestApi }).__studio.setCardField(type, fieldName, text),
+      [cardType, field, value] as const),
+    setPickerEnabled: (v) => page.evaluate((val) => (window as unknown as { __studio: StudioTestApi }).__studio.setPickerEnabled(val), v),
+    setPickerFailNext: (v) => page.evaluate((val) => (window as unknown as { __studio: StudioTestApi }).__studio.setPickerFailNext(val), v),
     adapterName: () => page.evaluate(() => (window as unknown as { __studio: StudioTestApi }).__studio.adapterName()),
     formatBlock: (type) => page.evaluate((t) => (window as unknown as { __studio: StudioTestApi }).__studio.formatBlock(t), type),
     importHTML: (html) => page.evaluate((h) => (window as unknown as { __studio: StudioTestApi }).__studio.importHTML(h), html),
@@ -62,7 +72,7 @@ export async function focusEditor(page: Page): Promise<void> {
 export async function insertCardViaSlash(page: Page, cardName: string): Promise<void> {
   await focusEditor(page);
   await page.keyboard.type(`/${cardName}`);
-  const option = page.getByRole('option').filter({ hasText: new RegExp(`^${cardName}$`, 'i') }).first();
+  const option = page.getByRole('option', { name: cardName }).first();
   await expect(option).toBeVisible({ timeout: 10_000 });
   await page.keyboard.press('Enter');
 }
@@ -71,13 +81,29 @@ export function docChildTypes(doc: ReturnType<StudioTestApi['getDoc']>): string[
   return doc.root.children.map((c) => String(c.type));
 }
 
+/** Collect canonical cards at any depth of a Lexical document.
+ * Decorator nodes may be persisted inside paragraphs, not just at root.
+ */
 export function docCards(doc: ReturnType<StudioTestApi['getDoc']>): Array<{ cardType: string; cardData: Record<string, unknown> }> {
-  return doc.root.children
-    .filter((c) => c.type === 'studio-card')
-    .map((c) => ({
-      cardType: String(c.cardType),
-      cardData: (c.cardData ?? {}) as Record<string, unknown>,
-    }));
+  const cards: Array<{ cardType: string; cardData: Record<string, unknown> }> = [];
+  const visit = (node: unknown): void => {
+    if (!node || typeof node !== 'object') return;
+    const current = node as Record<string, unknown>;
+    if ((current.type === 'studio-card' || current.type === 'react-studio-card') && typeof current.cardType === 'string') {
+      const data = current.cardData;
+      cards.push({
+        cardType: current.cardType,
+        cardData: data && typeof data === 'object' && !Array.isArray(data)
+          ? data as Record<string, unknown>
+          : {},
+      });
+    }
+    if (Array.isArray(current.children)) {
+      for (const child of current.children) visit(child);
+    }
+  };
+  for (const child of doc.root.children) visit(child);
+  return cards;
 }
 
 export const TEST_IMAGE = {

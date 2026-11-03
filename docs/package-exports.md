@@ -4,11 +4,12 @@
 
 ```
 studio-core          schema, document model, validation, migration, upload contracts
-studio-cards         serializable card definitions + Zod schemas + safe renderers
+studio-card-definitions  server-safe card schemas and rendering definitions
+studio-cards         compatibility exports and Lexical card node
 studio-renderer      safe server HTML / plain-text rendering
 studio-html          sanitizer layer, HTML import (parse5)
 studio-markdown      markdown import/export
-studio-nodes         Lexical node set (incl. StudioCardNode) — editor-side only
+studio-nodes         Lexical node set — editor-side only
 studio-transforms    Lexical node transforms — editor-side only
 studio-react         React editor, card editors, SafeHtml boundary, upload adapters
 studio-plugin-sdk    plugin/card registration boundary with capability model
@@ -17,7 +18,7 @@ studio-serializer    document serialization helpers
 studio-utils         shared utilities (sanitizer implementation, URL safety)
 ```
 
-**Boundary rule:** server renderer packages (`studio-core`, `studio-cards`,
+**Boundary rule:** server renderer packages (`studio-core`, `studio-card-definitions`,
 `studio-utils`, `studio-html`, `studio-markdown`, `studio-renderer`,
 `studio-serializer`, `studio-plugin-sdk`) never import React or Lexical.
 Lexical lives only in `studio-nodes`, `studio-transforms`, and
@@ -26,17 +27,17 @@ Lexical lives only in `studio-nodes`, `studio-transforms`, and
 
 ## Publishable packages
 
-Every package is ESM (`"type": "module"`) and exports built output only:
+Every package publishes dual-module output: ESM for browsers and Node import; CommonJS for existing require consumers:
 
 ```json
 {
-  "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
     }
   },
   "files": ["dist"]
@@ -68,3 +69,21 @@ published: breaking changes (schema, public API, security policy defaults)
 bump major; features bump minor; fixes bump patch. The document schema has
 its own version (`StudioDocument.version`) with `migrateDocument` handling
 legacy formats (strings, Batch 2 objects, root-only objects).
+
+**Compatibility:** `@vibress/studio-cards` retains its public Lexical node and
+re-exports all card schemas. Server code imports definitions through
+`@vibress/studio-card-definitions`, avoiding Lexical at runtime. CJS output
+remains supported alongside the ESM build; a future removal requires a versioned contract.
+
+`pnpm build` emits both `dist/index.js`/`.d.ts` (NodeNext/CommonJS) and
+`dist/index.mjs` (bundled ESM). The latter is required for Vite/Rollup named
+exports; it must not point to a CommonJS `.js` artifact.
+
+## Plugin card rendering boundary
+
+`StudioCardDefinition.renderHtml()` is a **raw producer**, not a trusted HTML
+sink. The platform renderer sanitizes its output. Plugin SDK consumers must use
+`StudioPluginRegistry.renderCardHtml(type, data)` or
+`renderStudioCardSafeHtml(definition, data)` from
+`@vibress/studio-card-definitions`, which validate and sanitize before display.
+Do not insert `renderHtml()` directly into the DOM.

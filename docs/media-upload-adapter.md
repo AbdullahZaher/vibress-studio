@@ -1,84 +1,51 @@
-# Vibress Studio — Media Upload Adapter
+# Vibress Studio — Host Media Integration
 
-The upload adapter decouples the editor from any specific media API. Core
-packages never call a Vibress API directly — hosts provide an adapter.
+Studio's React editor does not upload files on its own. The hosting CMS
+supplies a durable, authenticated upload callback; the editor never receives
+storage credentials or accesses another publication directly.
 
-## Contract
-
-`@vibress/studio-core` (see `packages/studio-core/src/media/upload-adapter.ts`)
-
-```ts
-interface StudioUploadAdapter {
-  readonly name: string;
-  readonly limits?: { maxSizeBytes?: number; allowedMimeTypes?: string[] };
-  upload(
-    file: File,
-    context: StudioUploadContext,
-    handlers?: { onProgress?(p: StudioUploadProgress): void }
-  ): Promise<StudioUploadedAsset>;
-  abort?(uploadId: string): Promise<void>;
-}
-
-interface StudioUploadedAsset {
-  id: string;
-  url: string;        // persisted URL (CDN/API)
-  mimeType: string;
-  size: number;
-  width?: number;     // images
-  height?: number;    // images
-  duration?: number;  // video/audio where available
-  alt?: string;
-  caption?: string;
-}
-```
-
-`StudioUploadContext` carries `{ cardType, fileName, mimeType, size }`.
-
-## Built-in adapters
-
-- `MemoryUploadAdapter` — in-memory adapter for tests and local previews.
-  Returns `memory://asset/<id>` URLs (not persisted).
-- `VibressMediaUploadAdapter` (in `@vibress/studio-react`) — fetch-backed
-  adapter for the Vibress media API or any compatible multipart endpoint:
-
-```ts
-import { VibressMediaUploadAdapter } from '@vibress/studio-react';
-
-const adapter = new VibressMediaUploadAdapter({
-  endpoint: 'https://api.yourhost.com/uploads', // never hardcoded
-  authorization: 'Bearer <token>',
-  limits: { maxSizeBytes: 25 * 1024 * 1024, allowedMimeTypes: ['image/*', 'video/*'] },
-});
-```
-
-## Using the adapter in the editor
+## Current public React contract
 
 ```tsx
-<VibressStudio value={doc} onChange={setDoc} uploadAdapter={adapter} />
+import type { VibressStudioProps } from '@vibress/studio-react';
+
+const uploadMedia: NonNullable<VibressStudioProps['uploadMedia']> =
+  async (file: File, cardType: string) => {
+    // Supply this through your host app, using a checked user session and
+    // authoritative publication context; do not trust a caller-supplied ID.
+    const asset = await uploadToAuthorizedPublication(file, cardType);
+    return { assetId: asset.id, src: asset.url };
+  };
+
+<VibressStudio value={doc} onChange={setDoc} uploadMedia={uploadMedia} />
 ```
 
-Behavior with an adapter:
+Here `uploadToAuthorizedPublication` is an application-provided function,
+**not** a library export. Never embed media API tokens or storage secrets
+in client-side JavaScript. The callback must validate file size and MIME,
+authorization and ownership, malware policy and storage quotas server-side.
+Successful uploads return a durable `src` and ideally an `assetId`.
+Returning `null` cancels the operation; rejection marks an upload as failed.
 
-1. A temporary `blob:` preview is created for the selected file.
-2. `upload(file, context)` runs with progress callbacks.
-3. On success the persisted `asset.url` + `asset.id` replace the preview,
-   and the temporary object URL is revoked (`URL.revokeObjectURL`).
-4. On failure an error overlay offers Retry or Dismiss; the preview remains
-   so the author can see what failed.
+## Author experience and asynchronous safety
 
-Without an adapter, media cards fall back to temporary local previews
-(object URLs) — never persisted.
+- Image, video, audio, and file cards preserve the current node metadata when
+  their upload finishes, instead of overwriting captions with stale props.
+- A failed upload leaves the empty card editable and offers Retry and Dismiss.
+  Retries do not rely on temporary `blob:` URLs.
+- Gallery partial success appends completed files once. Only failed files are
+  offered for retry, preventing duplicates of successfully uploaded media.
+- `requestMedia({ cardType })` is an optional host asset-picker API. A
+  rejected picker shows an accessible error while keeping the inserted card.
+  Results of a picker for a removed card are ignored; nonempty author edits
+  made while it was pending are preserved.
+- Never persist transient `blob:`, `memory:`, or local object URLs as CMS
+  content. Existing documents should continue to use their durable assets.
 
-## Validation
+## Backward compatibility
 
-- Size: default 25 MB cap; adapters can lower it.
-- MIME allowlist: optional.
-- Errors carry machine-readable codes: `FILE_TOO_LARGE`,
-  `FILE_TYPE_NOT_ALLOWED` (see `validateFileForUpload`).
-
-## Preview URL lifecycle
-
-Temporary object URLs are created and revoked through
-`createObjectUrl` / `revokeObjectUrl` (in `@vibress/studio-react`), which
-guard against environments without `URL.createObjectURL` (jsdom, SSR) and
-always clean up on success, reset, and unmount.
+The persisted Studio card schema is unchanged. Integrations must use the
+current `uploadMedia` property, not the deprecated documentation example
+`uploadAdapter` (which is not a `VibressStudioProps` property). The host
+remains responsible for retries, duplicate upload requests, timeouts and
+storage-level idempotency.

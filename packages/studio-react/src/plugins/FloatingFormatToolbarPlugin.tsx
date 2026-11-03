@@ -14,7 +14,6 @@ import {
   Strikethrough,
   Code,
   Link,
-  Sparkles,
   ChevronDown,
   Palette,
   Heading1,
@@ -197,33 +196,6 @@ export function FloatingFormatToolbarPlugin({ anchorElem = document.body }: { an
         fontSize: '13px',
       }}
     >
-      {/* Ask AI button */}
-      <button
-        type="button"
-        title="Ask AI"
-        onClick={() => {
-          alert('Select "Ask AI" from slash command or press Space on a new line.');
-        }}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          background: 'linear-gradient(135deg, #9333ea 0%, #4f46e5 100%)',
-          color: '#fff',
-          border: 'none',
-          padding: '4px 8px',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontSize: '12px',
-          fontWeight: 600,
-        }}
-      >
-        <Sparkles size={13} />
-        <span>Ask AI</span>
-      </button>
-
-      <div style={{ width: '1px', height: '18px', backgroundColor: '#334155', margin: '0 2px' }} />
-
       {/* Turn into selector */}
       <div style={{ position: 'relative' }}>
         <button

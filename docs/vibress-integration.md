@@ -15,27 +15,37 @@ Peer dependencies: `react@18.3.x`, `react-dom@18.3.x`, `lexical@0.13.1`.
 ## Editor embedding
 
 ```tsx
-import { VibressStudio } from '@vibress/studio-react';
-import { VibressMediaUploadAdapter } from '@vibress/studio-react';
+import { VibressStudio, type VibressStudioProps } from '@vibress/studio-react';
 import type { StudioDocument } from '@vibress/studio-core';
 
-const adapter = new VibressMediaUploadAdapter({
-  endpoint: process.env.VIBRESS_MEDIA_UPLOAD_ENDPOINT!, // injected, never hardcoded
-  authorization: `Bearer ${sessionToken}`,
-  limits: { maxSizeBytes: 25 * 1024 * 1024 },
-});
+interface AdminEditorProps {
+  initial: unknown;
+  onSave: (document: StudioDocument) => void;
+  /** Provided by your authenticated, publication-scoped media service. */
+  uploadMedia: NonNullable<VibressStudioProps['uploadMedia']>;
+}
 
-export function AdminEditor({ initial, onSave }: { initial: unknown; onSave: (d: StudioDocument) => void }) {
+export function AdminEditor({ initial, onSave, uploadMedia }: AdminEditorProps) {
   return (
     <VibressStudio
       value={initial}
       onChange={onSave}
-      uploadAdapter={adapter}
+      uploadMedia={uploadMedia}
       placeholder="Write content…"
     />
   );
 }
 ```
+
+The host's `uploadMedia(file, cardType)` implementation returns a durable
+`{ assetId, src }` payload (or `null` when cancelled). It must verify the
+authenticated user's publication permissions before saving any media.
+`requestMedia` is an optional asset-picker callback returning the same kind
+of payload, and can reject without crashing the editor.
+
+AI is disabled unless `enableAi` is true and `onAiGenerate` is supplied.
+The AI callback can receive the full current document as optional context;
+only send it to an external provider after explicit consent and authorization.
 
 ## Storing documents
 
@@ -71,23 +81,26 @@ const md = studioDocumentToMarkdown(post.document);       // for editors/exports
 
 ## Media flow
 
-Media cards use `uploadAdapter` when present. Without one, editors create
-temporary local previews that are never persisted — make sure the CMS
-provides an adapter in production (see
-[docs/media-upload-adapter.md](media-upload-adapter.md)).
+Media cards use the host-supplied `uploadMedia(file, cardType)` callback.
+Without this callback the editor leaves the card's empty placeholder intact:
+it does not persist `blob:` URLs or pretend that an upload succeeded.
+Rejected uploads display a retryable error, and partial gallery uploads retry
+only the failed files. See [media-upload-adapter.md](media-upload-adapter.md).
 
 ## Plugins
 
-Third-party plugins register through `StudioPluginRegistry` with an explicit
-capability manifest. By default the host sanitizes all plugin output; enable
-`raw-html` only for fully trusted partners (see
-[docs/plugin-sdk.md](plugin-sdk.md)).
+Third-party card registrations use `StudioPluginRegistry`. The registry
+prevents duplicate or built-in card identifier collisions. The safe path for
+plugin-provided HTML is `registry.renderCardHtml(type, data)`, which validates
+and sanitizes the output. Do not insert raw `definition.renderHtml()` into
+the DOM. Third-party plugin execution is not an isolation sandbox; untrusted
+plugins require a separate security boundary.
 
 ## Security checklist for the host
 
 - [ ] Serve pages with a CSP that restricts `script-src`; the renderer emits
       no inline scripts.
-- [ ] Provide a media upload adapter; never persist `blob:` preview URLs.
+- [ ] Provide publication-authorized `uploadMedia` and never persist `blob:` URLs.
 - [ ] Keep `studio-renderer`/`studio-html`/`studio-markdown` in server
       bundles only (they import no React/Lexical).
 - [ ] Run `pnpm verify:package-exports` in CI before releases.
