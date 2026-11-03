@@ -35,7 +35,7 @@ const SERVER_PACKAGES = new Set([
 function importsEditorRuntime(content) {
   // Scan both TypeScript ESM source and emitted NodeNext CommonJS. Do not
   // accept a server bundle that loads Lexical indirectly through editor packages.
-  return /(?:\\bfrom\\s*['"]|\\brequire\\(\\s*['"])(?:react(?:-dom)?(?:\\/[^'"]*)?|lexical(?:\\/[^'"]*)?|@lexical\\/[^'"]+|@vibress\\/studio-(?:cards|nodes|react|transforms)(?:\\/[^'"]*)?)['"]/.test(content);
+  return /(?:\bfrom\s*['"]|\brequire\(\s*['"])(?:react(?:-dom)?(?:\/[^'"]*)?|lexical(?:\/[^'"]*)?|@lexical\/[^'"]+|@vibress\/studio-(?:cards|nodes|react|transforms)(?:\/[^'"]*)?)['"]/.test(content);
 }
 
 const errors = [];
