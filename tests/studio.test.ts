@@ -119,3 +119,32 @@ describe('Vibress Studio Renderer & Markdown', () => {
     expect(elapsed).toBeLessThan(500);
   });
 });
+
+describe('Patched Zod schema backward compatibility', () => {
+  it('preserves saved Arabic text and custom root metadata', () => {
+    const original = {
+      schema: 'vibress-studio',
+      version: 1,
+      root: {
+        type: 'root',
+        children: [{ type: 'paragraph', children: [{ type: 'text', text: 'العربية English', version: 1 }] }],
+        direction: 'rtl',
+        customMetadata: { legacy: true },
+      },
+    };
+    expect(validateStudioDocument(original)).toEqual(original);
+  });
+
+  it('accepts historical object captions and applies optional defaults', () => {
+    const card = STUDIO_CARD_DEFINITIONS.image.validate({
+      src: '/images/legacy.png',
+      caption: { ar: 'وصف عربي', en: 'Caption' },
+    });
+    expect(card).toMatchObject({
+      src: '/images/legacy.png',
+      alt: '',
+      caption: { ar: 'وصف عربي', en: 'Caption' },
+    });
+    expect(() => STUDIO_CARD_DEFINITIONS.image.validate({ src: 42 })).toThrow();
+  });
+});
