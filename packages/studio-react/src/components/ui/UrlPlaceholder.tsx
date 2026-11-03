@@ -32,13 +32,13 @@ export function UrlPlaceholder({
     try {
       const parsed = new URL(url.trim());
       if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) {
-        setError('Enter an HTTP or HTTPS URL.');
+        setError('The URL is not valid. Use an HTTP or HTTPS address.');
         return;
       }
       setError('');
       onUrlSubmit(parsed.href);
     } catch {
-      setError('Enter a valid HTTP or HTTPS URL.');
+      setError('The URL is not valid. Use an HTTP or HTTPS address.');
     }
   };
 
