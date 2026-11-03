@@ -458,6 +458,9 @@ importers:
       '@vibress/studio-testing':
         specifier: workspace:*
         version: link:../packages/studio-testing
+      '@vibress/studio-utils':
+        specifier: workspace:*
+        version: link:../packages/studio-utils
       lexical:
         specifier: 0.13.1
         version: 0.13.1

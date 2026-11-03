@@ -9,19 +9,19 @@ test.describe('Upload adapter mock flow (E2E 4)', () => {
     await page.locator('[data-testid="studio-editor"] input[type="file"]').setInputFiles(TEST_IMAGE);
 
     const img = page.locator('.vb-image-card img');
-    await expect(img).toHaveAttribute('src', /mock:\/\/asset\/\d+/, { timeout: 10_000 });
+    await expect(img).toHaveAttribute('src', /\/mock\/assets\/\d+/, { timeout: 10_000 });
 
     const api = await studio(page);
     expect(await api.adapterName()).toBe('mock');
     const uploads = await api.uploads();
     expect(uploads).toHaveLength(1);
-    expect(uploads[0]?.url).toMatch(/^mock:\/\/asset\//);
+    expect(uploads[0]?.url).toMatch(/^\/mock\/assets\//);
     expect(uploads[0]?.mimeType).toBe('image/png');
 
     // The persisted asset metadata is stored on the card.
     const doc = await api.getDoc();
     const image = docCards(doc).find((c) => c.cardType === 'image');
-    expect(image?.cardData.src).toMatch(/^mock:\/\/asset\//);
+    expect(image?.cardData.src).toMatch(/^\/mock\/assets\//);
     expect(image?.cardData.assetId).toMatch(/^mock-/);
   });
 
@@ -41,7 +41,7 @@ test.describe('Upload adapter mock flow (E2E 4)', () => {
     await page.getByRole('button', { name: 'Retry' }).click();
 
     // Retry succeeds: no error overlay, asset persisted.
-    await expect(page.locator('.vb-image-card img')).toHaveAttribute('src', /mock:\/\/asset\/\d+/, { timeout: 10_000 });
+    await expect(page.locator('.vb-image-card img')).toHaveAttribute('src', /\/mock\/assets\/\d+/, { timeout: 10_000 });
     await expect(page.getByRole('alert').filter({ hasText: 'Upload failed' })).toHaveCount(0);
     expect(await api.uploads()).toHaveLength(1);
   });
@@ -70,7 +70,7 @@ test.describe('Upload adapter mock flow (E2E 4)', () => {
       .locator('[data-testid="studio-editor"] input[type="file"]')
       .setInputFiles({ name: 'clip.mp4', mimeType: 'video/mp4', buffer: Buffer.from('fake-mp4') });
 
-    await expect(page.locator('.vb-video-card video')).toHaveAttribute('src', /mock:\/\/asset\/\d+/, { timeout: 10_000 });
+    await expect(page.locator('.vb-video-card video')).toHaveAttribute('src', /\/mock\/assets\/\d+/, { timeout: 10_000 });
     const uploads = await studio(page).uploads();
     expect(uploads[0]?.mimeType).toBe('video/mp4');
   });
