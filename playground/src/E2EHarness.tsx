@@ -200,7 +200,7 @@ export function E2EHarness() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
         <section>
           <h2 style={{ fontSize: '16px', margin: '0 0 8px', color: '#1f2937' }}>Editor</h2>
-          <div data-testid="studio-editor">
+          <div data-testid="studio-editor" data-ai-enabled={aiEnabled}>
             <VibressStudio
               key={editorEpoch}
               value={doc}

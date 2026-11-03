@@ -207,6 +207,7 @@ export function VibressStudio({
     <StudioErrorBoundary onError={onError}>
       <StudioUploadContext.Provider value={{ uploadMedia }}>
         <div className={`vibress-studio-editor ${className}`}>
+          <fieldset disabled={readOnly} style={{ minWidth: 0, margin: 0, padding: 0, border: 0 }}>
           <LexicalComposer initialConfig={initialConfig}>
             <div style={{ position: 'relative', minHeight: '30vh', paddingLeft: '32px' }}>
               <RichTextPlugin
@@ -264,6 +265,7 @@ export function VibressStudio({
               )}
             </div>
           </LexicalComposer>
+          </fieldset>
         </div>
       </StudioUploadContext.Provider>
     </StudioErrorBoundary>

@@ -113,6 +113,7 @@ test.describe('explicit AI provider integration', () => {
   test('inserts host-provided text after the source block when the prompt steals focus', async ({ page }) => {
     await openHarness(page);
     await page.evaluate(() => window.__studio.setAiEnabled(true));
+    await expect(page.getByTestId('studio-editor')).toHaveAttribute('data-ai-enabled', 'true');
     await focusEditor(page);
     await page.keyboard.press('Space');
     const dialog = page.getByRole('dialog', { name: 'AI writing assistant' });
