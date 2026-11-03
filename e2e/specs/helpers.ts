@@ -13,6 +13,10 @@ export interface StudioTestApi {
   uploads: () => Array<{ id: string; url: string; mimeType: string; size: number; alt?: string }>;
   setAdapterFailNext: (v: boolean) => void;
   setAdapterFailForever: (v: boolean) => void;
+  setAdapterLatency: (ms: number) => void;
+  setCardField: (cardType: string, field: string, value: string) => void;
+  setPickerEnabled: (value: boolean) => void;
+  setPickerFailNext: (value: boolean) => void;
   adapterName: () => string;
   formatBlock: (type: 'h1' | 'h2' | 'paragraph' | 'bullet' | 'number') => void;
   importHTML: (html: string) => void;
@@ -36,6 +40,12 @@ export function studio(page: Page): StudioTestApi {
     uploads: () => page.evaluate(() => (window as unknown as { __studio: StudioTestApi }).__studio.uploads()),
     setAdapterFailNext: (v) => page.evaluate((val) => (window as unknown as { __studio: StudioTestApi }).__studio.setAdapterFailNext(val), v),
     setAdapterFailForever: (v) => page.evaluate((val) => (window as unknown as { __studio: StudioTestApi }).__studio.setAdapterFailForever(val), v),
+    setAdapterLatency: (ms) => page.evaluate((val) => (window as unknown as { __studio: StudioTestApi }).__studio.setAdapterLatency(val), ms),
+    setCardField: (cardType, field, value) => page.evaluate(([type, fieldName, text]) =>
+      (window as unknown as { __studio: StudioTestApi }).__studio.setCardField(type, fieldName, text),
+      [cardType, field, value] as const),
+    setPickerEnabled: (v) => page.evaluate((val) => (window as unknown as { __studio: StudioTestApi }).__studio.setPickerEnabled(val), v),
+    setPickerFailNext: (v) => page.evaluate((val) => (window as unknown as { __studio: StudioTestApi }).__studio.setPickerFailNext(val), v),
     adapterName: () => page.evaluate(() => (window as unknown as { __studio: StudioTestApi }).__studio.adapterName()),
     formatBlock: (type) => page.evaluate((t) => (window as unknown as { __studio: StudioTestApi }).__studio.formatBlock(t), type),
     importHTML: (html) => page.evaluate((h) => (window as unknown as { __studio: StudioTestApi }).__studio.importHTML(h), html),

@@ -75,3 +75,51 @@ test.describe('Upload adapter mock flow (E2E 4)', () => {
     expect(uploads[0]?.mimeType).toBe('video/mp4');
   });
 });
+
+test.describe('concurrent media updates and picker failures', () => {
+  for (const cardType of ['video', 'audio', 'file', 'gallery'] as const) {
+    test(`${cardType} upload preserves a caption edited while the adapter is pending`, async ({ page }) => {
+      await openHarness(page);
+      const api = studio(page);
+      await api.setAdapterLatency(800);
+      await insertCardViaSlash(page, cardType);
+      await page.locator('[data-testid="studio-editor"] input[type="file"]').setInputFiles({
+        name: 'asset.png', mimeType: 'image/png', buffer: TEST_IMAGE.buffer,
+      });
+      await api.setCardField(cardType, 'captionHtml', '<p>Edited during upload</p>');
+      await expect.poll(async () => {
+        const data = docCards(await api.getDoc()).find(card => card.cardType === cardType)?.cardData;
+        return Array.isArray(data?.images) ? data.images.length : data?.src;
+      }, { timeout: 10000 }).toBeTruthy();
+      const data = docCards(await api.getDoc()).find(card => card.cardType === cardType)?.cardData;
+      expect(data?.captionHtml).toBe('<p>Edited during upload</p>');
+    });
+  }
+
+  test('a rejected media picker leaves the inserted card usable', async ({ page }) => {
+    await openHarness(page);
+    const api = studio(page);
+    await api.setPickerEnabled(true);
+    await api.setPickerFailNext(true);
+    await insertCardViaSlash(page, 'image');
+    await expect(page.getByRole('alert').filter({hasText:'Media selection failed'})).toBeVisible();
+    expect(docCards(await api.getDoc()).some(card => card.cardType === 'image')).toBe(true);
+    await expect(page.getByRole('button', { name: /Add Image/i })).toBeVisible();
+    await page.getByRole('button', { name: 'Dismiss' }).click();
+    await expect(page.getByRole('alert').filter({hasText:'Media selection failed'})).toHaveCount(0);
+  });
+
+  test('a successful picker does not overwrite a card edit made while loading', async ({ page }) => {
+    await openHarness(page);
+    const api = studio(page);
+    await api.setPickerEnabled(true);
+    await insertCardViaSlash(page, 'image');
+    await api.setCardField('image', 'captionHtml', '<p>Edited before selection</p>');
+    await expect.poll(async () =>
+      docCards(await api.getDoc()).find(card => card.cardType === 'image')?.cardData.src,
+      { timeout: 10000 }
+    ).toBe('/mock/assets/from-picker');
+    const image = docCards(await api.getDoc()).find(card => card.cardType === 'image');
+    expect(image?.cardData.captionHtml).toBe('<p>Edited before selection</p>');
+  });
+});

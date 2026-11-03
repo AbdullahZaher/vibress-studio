@@ -77,6 +77,7 @@ export function SlashMenuPlugin({
 }) {
   const [editor] = useLexicalComposerContext();
   const [queryString, setQueryString] = useState<string | null>(null);
+  const [mediaError, setMediaError] = useState(false);
 
   const checkForTriggerMatch = useBasicTypeaheadTriggerMatch('/', {
     minLength: 0,
@@ -193,25 +194,39 @@ export function SlashMenuPlugin({
       });
 
       closeMenu();
+      setMediaError(false);
 
       const MEDIA_CARD_TYPES = new Set(['image', 'gallery', 'video', 'audio', 'file']);
-      if (cardType && MEDIA_CARD_TYPES.has(cardType) && requestMedia) {
-        requestMedia({ cardType }).then((payload) => {
-          if (!payload || insertedKey == null) return;
-          const nodeKey = insertedKey;
-          editor.update(() => {
-            const node = $getNodeByKey(nodeKey);
-            if ($isReactStudioCardNode(node)) {
-              node.setCardData(payload);
-            }
-          });
-        });
+      if (cardType && MEDIA_CARD_TYPES.has(cardType) && requestMedia && insertedKey !== null) {
+        const nodeKey = insertedKey;
+        // Normalize synchronous throws and rejected promises without leaking
+        // provider errors or replacing author edits made while it was pending.
+        Promise.resolve()
+          .then(() => requestMedia({ cardType }))
+          .then((payload) => {
+            if (!payload) return; // The user cancelled the media picker.
+            editor.update(() => {
+              const node = $getNodeByKey(nodeKey);
+              if (!$isReactStudioCardNode(node)) return; // Card was removed.
+              const next = { ...node.getCardData() };
+              for (const [name, value] of Object.entries(payload)) {
+                if (name === '__proto__' || name === 'constructor' || name === 'prototype') continue;
+                if (!Object.prototype.hasOwnProperty.call(next, name) ||
+                    next[name] === null || next[name] === '') {
+                  next[name] = value;
+                }
+              }
+              node.setCardData(next);
+            });
+          })
+          .catch(() => setMediaError(true));
       }
     },
     [editor, requestMedia]
   );
 
   return (
+    <>
     <LexicalTypeaheadMenuPlugin<StudioMenuOption>
       onQueryChange={setQueryString}
       onSelectOption={onSelectOption}
@@ -271,5 +286,12 @@ export function SlashMenuPlugin({
         );
       }}
     />
+    {mediaError && (
+      <div role="alert" className="my-2 text-sm text-red-700">
+        Media selection failed. You can upload directly from the inserted card.
+        <button type="button" className="mx-2 underline" onClick={() => setMediaError(false)}>Dismiss</button>
+      </div>
+    )}
+    </>
   );
 }
