@@ -218,7 +218,10 @@ function sanitizeNode(node: P5Node): P5Node[] {
 
   if (tag === 'a') {
     const href = attrs.find((a) => a.name.toLowerCase() === 'href');
-    if (!href || href.value.trim() === '') return [];
+    if (!href || href.value.trim() === '') {
+      // Strip an unsafe anchor but retain its readable, inert children.
+      return (node.childNodes || []).flatMap(sanitizeNode);
+    }
     // Enforce safe external-link conventions.
     const target = attrs.find((a) => a.name.toLowerCase() === 'target');
     if (target && target.value === '_blank' && !attrs.some((a) => a.name.toLowerCase() === 'rel')) {
