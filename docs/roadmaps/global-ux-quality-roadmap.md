@@ -359,14 +359,41 @@ These PRs are independent and **unmerged**. They do not imply Phase 2 or Phase 6
 
 | Phase | Status | Evidence |
 | --- | --- | --- |
-| 0 — canonical baseline | **Partial, G0 blocked** | Source comparison, ADR proposal and CI triage; live screenshots/tests absent |
-| 1 — design system | Not started | No isolated CSS/portal proof |
-| 2 — interactions | Not complete | Confirmed slash, duplicate and color defects |
-| 3 — media and preview | Not complete | Host features absent standalone; failing host E2E |
-| 4 — RTL/touch | Not certified | No documented viewport/IME evidence |
-| 5 — accessibility | Not certified | 20px controls and no manual screen-reader signoff |
-| 6 — reliability | Not certified | Editor remount/autosave issues and baseline CI blockers |
-| 7 — AI | Not certified | Standalone mock/providing behavior differs from host |
-| 8 — final certification | Not started | Independent evidence and weighted evaluation unavailable |
+| 0 — canonical baseline | **In Progress (Active)** | ADR-0001 approved; baseline PRs 1-4 merged; component parity sync underway |
+| 1 — design system | **In Progress (Active)** | Standalone token architecture and namespaced CSS under implementation |
+| 2 — interactions | **In Progress (Active)** | Slash query fix merged; true duplicate, durable color, and link popover in progress |
+| 3 — media and preview | **In Progress (Active)** | Porting unified floating media toolbar and 6 metadata popovers |
+| 4 — RTL/touch | **In Progress (Active)** | Direction-aware block gutter and responsive mobile drawer |
+| 5 — accessibility | **In Progress (Active)** | Keyboard block actions (Move Up/Down), >=24px touch targets, ARIA roles |
+| 6 — reliability | **In Progress (Active)** | Non-destructive page editor merged; serialization roundtrip tests |
+| 7 — AI | **Verified (Opt-in)** | Provider-backed AI merged (PR #4); fake generators eliminated |
+| 8 — final certification | Pending Phase 0-7 completion | Target >= 9.7/10 weighted score with independent evidence |
 
-**Production readiness verdict:** BLOCKED. The 9.7/10 target remains an acceptance criterion rather than an achieved or defensible score.
+**Production readiness verdict:** IN EXECUTION. P0 safety foundations merged; completing full core interaction, design system, and accessibility execution.
+
+---
+
+## 14. Principal Review & Master Execution Plan — 2026-11-04 (Approved & Active)
+
+This review confirms the completion of initial triage PRs and sets the concrete implementation path across both repositories.
+
+### Baseline Progress Summary
+
+1. **ADR-0001 Approved**: Option B is the binding architectural contract. The `vibress` monorepo is the canonical reference for runtime behavior, and `vibress-studio` is the downstream portable package target.
+2. **P0 Security & Safety Baselines Cleared**:
+   - `STU-001` (Literal slash search): Resolved and tested in both repos (`vibress-studio#3`, `vibress#119`).
+   - `STU-004` (PageEditor destructive remount): Resolved and tested in `vibress#120`.
+   - `STU-011` (Audit advisories): Resolved via Zod 4 migration and markdown-it patch (`vibress-studio#4`).
+   - `STU-009` (Fake AI): Removed alert button and simulated completions in favor of opt-in `enableAi` and `onAiGenerate` (`vibress-studio#4`).
+3. **All initial PRs merged**: PRs #1, #2, #3, #4 in `vibress-studio` are merged to `main` (`d2a843b`).
+
+### Master Implementation Workstream (Phases 0 through 8)
+
+| Phase | Core Objective | Key Deliverables |
+| :--- | :--- | :--- |
+| **Phase 0 & 3** | **Component & Media Parity** | Port `StudioMediaFloatingToolbar`, 6 metadata popovers (`Image`, `Gallery`, `Video`, `Audio`, `File`, `Embed`), and `StudioMediaContext` into `vibress-studio`. |
+| **Phase 1** | **Portable Design System** | Deliver `packages/studio-react/src/styles/tokens.css` and `studio.css` defining semantic `--vb-studio-*` variables with clean Light/Dark modes, host bridge mappings, and zero hardcoded hex styles. |
+| **Phase 2** | **Formatting & Interaction Integrity** | Rewrite `handleDuplicate` for deep Lexical node cloning; rewrite `handleApplyColor` using Lexical `$patchStyleText`; replace `prompt()` with accessible `FloatingLinkEditorPopover`; add Move Up/Down actions to block gutter. |
+| **Phase 4 & 5** | **RTL, Mobile & Accessibility** | Add direction-aware gutter placement; enforce WCAG 2.5.8 (>=24px target sizes); add single-pointer and keyboard block movement (WCAG 2.5.7); add mobile-responsive toolbar drawer; complete ARIA annotations. |
+| **Phase 6 & 7** | **Reliability & Performance** | Deep document serialization roundtrip tests (colors, duplicate nodes, cards, RTL tables); zero data loss; clean dependency audit. |
+| **Phase 8** | **Independent UX Certification** | Comprehensive audit against the 9-dimensional scorecard with concrete test logs and visual evidence to achieve >= 9.7/10. |
