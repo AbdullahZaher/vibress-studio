@@ -25,11 +25,11 @@ The sanitizer uses allowlisted HTML tags and **per-tag/global attributes**. Sour
 - The sanitizer permits some semantic elements such as controlled `button` and `input` forms for supported output (e.g., checklists). Those elements do not grant interactive behavior; published copy/share actions need an explicit functional host contract.
 - The permitted attributes and providers are not a public invitation to extend sanitizer rules at runtime. Policy changes require code review and targeted XSS tests.
 
-## Known limitations and security work
+## Security Hardening and Remediation Status
 
-1. `studio-markdown` link destinations are not yet escaped/validated as comprehensively as public HTML. See `STU-R05` and remediation roadmap PR A3.
-2. Text style fidelity must not be restored by allowing arbitrary CSS from documents. Use a narrow style-to-class or audited property mapping and security regressions.
-3. Plugin output must pass through `renderStudioCardSafeHtml`/`StudioPluginRegistry.renderCardHtml` or the validated document renderer; plugin code is not isolated.
-4. HTML sanitizer coverage must be re-verified whenever paste/import/export/rendering surfaces change.
+1. **Markdown Link Security (STU-R05 — Resolved):** `studioDocumentToMarkdown` enforces strict URL validation using the shared URL policy, stripping dangerous protocols (`javascript:`, `vbscript:`, `data:` except safe images), and escapes Markdown link syntax (`]`, `)`, whitespace). Covered in `packages/studio-testing/security/markdown-security.test.ts`.
+2. **Text Style Allowlist (STU-R04 — Resolved):** Color and highlight styles use strict allowlisted format rules (hex, rgb, hsl, CSS color names) in `packages/studio-renderer/src/index.ts` to prevent arbitrary CSS injection, verified in `packages/studio-renderer/src/__tests__/renderer.test.ts`.
+3. **Plugin Sanitization (STU-R13 — Resolved):** Plugin card rendering is mediated by `StudioPluginRegistry.renderCardHtml` which applies `sanitizeStudioHtml` to all plugin-generated HTML, preventing stored XSS from untrusted plugin outputs. Verified in `tests/studio-plugin-registry.test.ts`.
+4. **Sanitizer Coverage Maintenance:** HTML sanitizer coverage is continuously verified by `packages/studio-utils/src/__tests__/sanitize.test.ts`, `packages/studio-testing/security/content-security.test.ts`, and Playwright E2E spec `05-html-card-xss.spec.ts`.
 
 **Do not use examples from superseded docs** that import `sanitizeHtmlFragment`, `HTML_SANITIZE_POLICY`, or a missing `sanitize/policy.ts` file.

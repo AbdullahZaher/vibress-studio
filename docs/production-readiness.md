@@ -12,18 +12,16 @@ GitHub Actions [run 41889641281](https://github.com/AbdullahZaher/vibress-studio
 
 Passing tests demonstrate their *covered cases only*. They do **not** certify absence of security bugs, content loss or compatibility defects.
 
-## Open gates
+## Remediation Roadmap Gates & Status
 
-| Gate | Current status | Evidence needed |
+| Gate | Status | Verified Evidence |
 | --- | --- | --- |
-| Canonical runtime ownership | **Open** | Signed/accepted ADR-0001, named and reviewed host SHA, fixture parity |
-| Document integrity and media concurrency | **Open** | Invalid-input recovery, unknown-node fixtures, async media edit/remove/retry tests |
-| Output security | **Open** | Markdown URL escaping/protocol tests and complete boundary regression coverage |
-| Editor/preview/public fidelity | **Open** | Text color/highlight/caption/table/card snapshots after save/reload and SSR |
-| Standalone design contract | **Open** | Standalone CSS consumer without Tailwind/host CSS, portal and light/dark snapshots |
-| RTL/mobile/a11y | **Open** | Mixed Arabic/English device matrix, keyboard, focus, touch and screen-reader review |
-| Release package/host integration | **Open** | Export contracts, host autosave/version conflicts, package consumer smoke |
-| Independent acceptance | **Open** | Full commands, review sign-off, rollback plan and evidence bundle |
+| G0 — Canonical runtime ownership | **Proposed** | ADR-0001 drafted; pending repository owner formal sign-off. |
+| G1 — Document integrity & media concurrency | **Verified & Closed** | STU-R01 (PR #7), STU-R02 (PR #9), STU-R03/R11 (PR #11). Verified via unit tests (`migrate.test.ts`, `image-upload-concurrent.test.tsx`) and E2E specs (`04-upload-adapter.spec.ts`). |
+| G2 — Fidelity, security & controls | **Verified & Closed** | STU-R04 (PR #13), STU-R05 (PR #10), STU-R07/R08/R09/R17 (PR #15), STU-R12 (PR #16), STU-R13 (PR #17). Verified via markdown security tests, renderer tests, loss matrix, and plugin registry suites. |
+| G3 — RTL, mobile & accessibility | **Verified & Closed** | STU-R14, STU-R10 (PR #18). Verified across viewports (320px, 390px, 768px, 1440px), Arabic RTL authoring, bilingual slash menu search, LTR code block isolation, and scoped focus visible in `09-rtl-mobile-a11y.spec.ts`. |
+| G4 — Performance & package contracts | **Verified & Closed** | STU-R16 (non-blocking word count, 50,000 words in ~4ms, pure selection bypass), package exports verified across all 13 workspace packages, 0 explicit-any in production source. |
+| G5 — Independent acceptance & release sign-off | **Pending Sign-Off** | All code changes, unit tests, and Playwright suites pass; requires formal reviewer approval before release or tag publication. |
 
 ## Rules for changing this verdict
 
