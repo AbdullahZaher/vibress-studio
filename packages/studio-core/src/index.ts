@@ -189,12 +189,32 @@ export function migrateDocument(rawDoc: unknown): StudioDocument {
     if (rawDoc.trim() === '') {
       return createEmptyStudioDocument();
     }
+    // Parsing and migration have different failure semantics. A legacy plain
+    // text string may not be JSON, but a valid JSON document with an invalid
+    // envelope MUST NOT be converted to an editable paragraph of JSON text.
+    let parsed: unknown;
     try {
-      const parsed = JSON.parse(rawDoc);
-      return migrateDocument(parsed);
+      parsed = JSON.parse(rawDoc);
     } catch {
       return createDefaultStudioDocument(rawDoc);
     }
+
+    if (parsed !== null && typeof parsed === 'object') {
+      try {
+        return migrateDocument(parsed);
+      } catch (error) {
+        // Keep the actual persisted bytes available for recovery/export.
+        // A nested StudioMigrationError must not be swallowed as parse failure.
+        if (isStudioMigrationError(error)) {
+          throw new StudioMigrationError(error.message, rawDoc, error.code);
+        }
+        throw error;
+      }
+    }
+
+    // Preserve historical support for JSON-encoded strings and text that
+    // happens to be a JSON primitive (for example a legacy article "123").
+    return createDefaultStudioDocument(typeof parsed === 'string' ? parsed : rawDoc);
   }
 
   // Handle object inputs
