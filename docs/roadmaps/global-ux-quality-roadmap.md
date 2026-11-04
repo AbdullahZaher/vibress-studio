@@ -1,5 +1,6 @@
 # Vibress Studio — Global-Quality UX & Design Execution Roadmap
 
+> **Current status (2026-11-04):** See [§16 — authoritative remediation plan](#16-current-authoritative-remediation-and-development-plan--2026-11-04) and the [source reassessment](../audits/studio-source-reassessment-2026-11-04.md). Historical 9.82/10 certification and production-readiness language in §15 is **superseded and not independently verified**. ADR-0001 remains **Proposed** in the checked-in decision record.\n\n
 **Status:** Independent source audit appended; implementation phases 0–8 are not certified complete  
 **Prepared:** 2026-11-03  
 **Target repository:** AbdullahZaher/vibress-studio (standalone)  
@@ -442,3 +443,86 @@ Following the visual benchmark review against the world's leading publishing pla
 | **Performance** | 5% | **9.8 / 10** | Instant keystroke latency; debounced word counting; bundle size optimized. |
 | **Editor / Preview Fidelity** | 5% | **9.9 / 10** | Pixel-accurate matching between editor canvas, live preview mode, and serialized outputs. |
 | **Final Weighted Score** | **100%** | **9.82 / 10.0** | **CERTIFIED PRODUCTION READY** |
+
+
+---
+
+## 16. Current authoritative remediation and development plan — 2026-11-04
+
+> **Status: execution proposed; NOT implemented or certified.** This section supersedes the historical quality/certification wording in §13–15 wherever the two conflict. The earlier **9.82/10** and **CERTIFIED PRODUCTION READY** assertions are **withdrawn as current verdicts**, not supported by independent audit evidence. The codebase has a successful CI baseline but open, source-evidenced reliability and UX concerns. See [source reassessment](../audits/studio-source-reassessment-2026-11-04.md).
+>
+> **Decision authority:** `docs/adr/0001-studio-canonical-runtime.md` remains **Proposed** in the checked-in file. The roadmap calling it “Approved” is not proof of approval. Until the owner explicitly records approval, treat the Vibress host as the reference *for currently shipped behavior*, and prohibit automatic syncing/release.
+
+### 16.1 Scope, baseline and accountable roles
+
+- **Baseline:** standalone `be7150d04aa31e53034e832e16726a69f2c9c6e7`; host reference `b33fb1ab597bfabb8861516132cf8bad567f0bf1` (observed 2026-11-04; re-fetch at work start).
+- **Passing automated baseline:** [CI run 41889641281](https://github.com/AbdullahZaher/vibress-studio/actions/runs/41889641281) (`build`, `e2e` succeeded). Existing suites prove only their exercised paths.
+- **Lead:** Document/Editor Integrity for P0, Security for URL/output boundaries, Editor/Lexical + React UX for interactions, Accessibility/RTL for mobile/bidi, Package Engineering for public distribution, QA for independent release gate.
+- **Non-goals:** new CMS features, persistence/auth/AI server/collaboration implementations, major Lexical upgrades, schema v2, unapproved new dependencies, benchmark code/assets.
+- **Work rule:** each item is a **separate focused PR** with a failing regression where possible and verified pass after. Preserve legacy fixtures, public exports, selection/undo, host behavior and version 1 document shape. No merge, deploy or publish without explicit owner authorization.
+
+### 16.2 Milestone A — protect content and security first (P0)
+
+| PR | Scope / primary lead | Files | Acceptance criteria | Verification |
+| --- | --- | --- | --- | --- |
+| **A1** (`STU-R01`) | Document Architect: distinguish absent input from unsupported persisted content without changing schema v1 | `studio-core/src/index.ts`, `studio-react/src/VibressStudio.tsx`, fixtures | Existing valid and legacy documents still load; invalid/non-null input raises recoverable error, original input retained; no empty overwrite; unknown node round-trip | migrate tests, controlled host onChange test, `test:roundtrip`, browser reload |
+| **A2** (`STU-R02`) | Editor/Lexical: async image upload applies only media-owned fields to fresh node data | `ImageCardEditor.tsx`, `e2e/specs/04-upload-adapter.spec.ts` | Deferred upload concurrent with caption/alt/width edit does not revert edits; delete during upload cannot resurrect card; cancel, retry and durable src tested | deferred promises, media e2e, full security/roundtrip |
+| **A3** (`STU-R05`) | Security: safe Markdown link/export boundary | `studio-markdown/src/index.ts`, `studio-utils`, security suite | Unsafe/obfuscated schemes blocked; Markdown metacharacters escaped; no generated executable links after Markdown→HTML round-trip; safe URLs preserved | URL fuzz/fixtures, `test:security`, `test:roundtrip` |
+| **A4** (`STU-R03`) | React UX + Lexical: stable caption editor and error behavior | `NestedCaptionEditor.tsx`, six media card editors | First typed character does not unmount editor; IME, focus, undo and caption JSON/HTML survive; malformed initial caption visible/recoverable; read-only stops mutation | real-browser caption/IME tests, serialized fixture suite |
+
+**Gate A:** no open confirmed content-loss/XSS regression in touched paths; failing-before/passing-after tests; maintainer review; no host contract regressions. Do not market the result as blanket XSS or data-loss certification.
+
+### 16.3 Milestone B — published fidelity, responsive visual contract and honest controls (P1)
+
+| PR | Scope | Acceptance criteria |
+| --- | --- | --- |
+| **B1** (`STU-R04`) | Safe style-preserving HTML and server CSS | Color and highlight values round-trip and appear consistently in editor, preview and public HTML; allowlist excludes executable styles and unknown properties; XSS tests |
+| **B2** (`STU-R06`, `STU-R10`) | Self-contained, namespaced visual package | Embed `studio-react` using only its documented CSS exports in a clean Vite consumer (no Tailwind); all media popovers/placeholder/icon/toolbar states render correctly; host globals unaffected |
+| **B3** (`STU-R07`, `STU-R08`, `STU-R09`, `STU-R17`) | Honest insertion/preview actions | Picker inserts cards via real commands; save status reflects only verified action or is explicitly demo-only; preview preserves history/selection; drag claim removed or true accessible reorder implemented; code-copy works when advertised |
+| **B4** (`STU-R12`) | Documented import/export loss matrix | Every known card has a safe, readable Markdown fallback; list types, captions, links, tables, bidi and unsupported forward nodes evaluated; losses are explicit rather than falsely called lossless |
+| **B5** (`STU-R13`) | Define plugin SDK integration scope | Document the working registry API and unsupported editor integration; either add additive host-registered card insertion/rendering with tests, or keep capability unadvertised |
+
+**Gate B:** critical author journey matrix passes save/reload and editor/preview/server parity; standalone CSS works without host-only frameworks. Any new export/public API remains additive and verified.
+
+### 16.4 Milestone C — world-class Arabic/English UX and accessibility (P1)
+
+**Required device matrix:** desktop 1440px, tablet 768px, mobile 390px and 320px; light and dark themes; `dir=rtl`, `dir=ltr` and blocks with `dir=auto`; Arabic+Latin mixed paragraphs, punctuation, dates, URLs, inline code, tables and captions; touch/soft keyboard.
+
+**Required interactions:** full slash menu and picker keyboard operations, focus restoration, tab sequence, selection toolbars, insertion and deletion, width controls, card edit and reorder via keyboard and single pointer, announced upload/error status, read-only nested editors, accessible names/roles/states and visible focus. Use WCAG 2.2 AA as the acceptance bar, including target size and dragging alternatives where applicable; collect VoiceOver/TalkBack/manual evidence before declaring conformance.
+
+**Gate C:** device captures with recorded expected/observed results; no clipped menus, inaccessible touch actions, lost cursor, or unintended bidi reversal in agreed fixtures. Pass automated a11y + reviewer-signed manual checks.
+
+### 16.5 Milestone D — performance, compatibility and maintainability (P1/P2)
+
+1. **Host parity:** compare current named host SHA to standalone exported editor/card capabilities, document defaults, CSS and persistent fixtures; do not copy Yjs or a host service into standalone without an approved API and compatibility proposal.
+2. **API contracts:** verify ESM/CJS/types/CSS imports in a clean consuming app. Plugin behavior must be tested from public exports.
+3. **Performance:** profile large mixed-direction documents, long paste, 100+ cards, word count, preview switching, and selection latency on target devices. Collect repeated traces; only then optimize `WordCountPlugin` and heavy re-render paths (`STU-R16`). No unmeasured “instant” claims.
+4. **Documentation:** keep release status, supported providers, sanitized API, test inventory and limitations synchronized with source. Add lightweight checks for stale file paths/capability claims where feasible.
+
+**Gate D:** public-consumer smoke tests and host fixture parity reviewed; performance numbers reproducible; package contract stable; no unsupported readiness claim.
+
+### 16.6 Independent release gate E — evidence before any score or release
+
+**Required bundle, attached to the release PR:** exact head/host SHAs and ADR decision status; commands and raw logs; full `pnpm install --frozen-lockfile && pnpm build && pnpm lint && pnpm verify:explicit-any && pnpm typecheck && pnpm test && pnpm verify:package-exports && pnpm test:security && pnpm test:a11y && pnpm test:roundtrip && pnpm test:e2e && pnpm audit --prod` (document CI command differences such as `--audit-level high`); load/save and unknown-node evidence; XSS boundary tests; host integration with version-conflict/autosave behavior; visual screenshots and keyboard/RTL/mobile screen-reader results; performance traces; reviewer sign-offs and rollback plan.
+
+| Release gate | Independent evidence | Decision |
+| --- | --- | --- |
+| G0 — baseline/ADR | ADR approval explicitly recorded; named host SHA; reproducible baseline | **Open** |
+| G1 — content/security | A1–A4 regression coverage and no unresolved confirmed P0 | **Open** |
+| G2 — fidelity/UX | B1–B5 implemented or documented omissions, editor/preview/render parity | **Open** |
+| G3 — RTL/a11y/mobile | C device/keyboard/manual matrix + automated tests | **Open** |
+| G4 — distribution | D host/public API/performance evidence | **Open** |
+| G5 — certification/release | Independent sign-off with all bundle artifacts and no blocking failures | **Open** |
+
+**Scoring policy:** the nine-axis weighted framework from §6 is retained as a *rubric*, not a current score. Mark each dimension **Not measured** until an independent reviewer records reproducible results. Never recast estimates or historical author assertions as certification. Release is blocked until the owner approves the gates and records the actual evidence.
+
+### 16.7 Definition of done for every PR
+
+- One scoped concern and named Lead Role; minimal, reversible diff.
+- Failing regression before fix where practical, observed pass after; no test weakening.
+- Save/reload, export/import, undo/redo, read-only, selection and external sync checked when applicable.
+- Arabic/English/mixed-direction and narrow viewports checked for UI changes.
+- XSS and URL-policy checks for output/paste/import/HTML surfaces.
+- No schema fork, temporary persisted URLs, unauthorized host service, private deep imports or breaking exports.
+- Report exact tested commands, result, CI run and SHA; explicitly list unverified conditions.
+- Reviewer confirms no unrelated changes. **Never merge, release or deploy without authorization.**
