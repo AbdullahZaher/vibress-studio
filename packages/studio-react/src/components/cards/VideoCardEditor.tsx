@@ -7,6 +7,7 @@ import { VideoCardData, StudioCardNode } from '@vibress/studio-cards';
 import { NestedCaptionEditor } from './NestedCaptionEditor';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
+import { isDurableMediaUrl, mergeDurableMediaAsset } from '../../utils/mergeDurableMedia';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
 import { VideoMetadataPopover } from '../ui/media-popovers/VideoMetadataPopover';
 
@@ -33,18 +34,15 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
     Promise.resolve()
       .then(() => uploadMedia(selectedFile, 'video'))
       .then((payload) => {
-        if (!payload || typeof payload.src !== 'string') {
+        if (!payload || !isDurableMediaUrl(payload.src)) {
           setUploadError(true);
           return;
         }
         editor.update(() => {
           const node = $getNodeByKey(nodeKey);
           if (node instanceof StudioCardNode && node.isAttached()) {
-            node.setCardData({
-              ...node.getCardData(),
-              ...payload,
-              fileName: selectedFile.name,
-            });
+            const next = mergeDurableMediaAsset(node.getCardData(), payload, 'video', selectedFile.name);
+            if (next) node.setCardData(next);
           }
         });
       })
@@ -62,14 +60,12 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
       cardType: 'video',
       source: 'library',
     });
-    if (!payload) return;
+    if (!payload || !isDurableMediaUrl(payload.src)) return;
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
       if (node instanceof StudioCardNode && node.isAttached()) {
-        node.setCardData({
-          ...node.getCardData(),
-          ...payload,
-        });
+        const next = mergeDurableMediaAsset(node.getCardData(), payload, 'video');
+        if (next) node.setCardData(next);
       }
     });
   }, [editor, nodeKey, requestMedia]);
