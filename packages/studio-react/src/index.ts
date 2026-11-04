@@ -1,6 +1,7 @@
 export { VibressStudio, type VibressStudioProps } from './VibressStudio';
 export * from './plugins/SlashMenuPlugin';
 export * from './plugins/FloatingFormatToolbarPlugin';
+export * from './plugins/WordCountPlugin';
 export type { StudioAiContext } from './plugins/InlineAIPlugin';
 export * from './media-context';
 export * from './upload-context';

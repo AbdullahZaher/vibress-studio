@@ -18,6 +18,7 @@ import { FloatingFormatToolbarPlugin } from './plugins/FloatingFormatToolbarPlug
 import { FloatingCardActionToolbarPlugin } from './plugins/FloatingCardActionToolbarPlugin';
 import { BlockHandleGutterPlugin } from './plugins/BlockHandleGutterPlugin';
 import { InlineAIPlugin, type StudioAiContext } from './plugins/InlineAIPlugin';
+import { WordCountPlugin } from './plugins/WordCountPlugin';
 import { STUDIO_CORE_NODES } from '@vibress/studio-nodes';
 import { StudioCardNode } from '@vibress/studio-cards';
 import { ReactStudioCardNode } from './nodes/ReactStudioCardNode';
@@ -42,6 +43,7 @@ export interface VibressStudioProps {
    *  must use this instead of transient blob: URLs. */
   uploadMedia?: StudioUploadApi['uploadMedia'];
   allowUnsplash?: boolean;
+  showWordCount?: boolean;
   className?: string;
 }
 
@@ -146,6 +148,7 @@ export function VibressStudio({
   requestMedia,
   uploadMedia,
   allowUnsplash = true,
+  showWordCount = true,
   className = '',
 }: VibressStudioProps) {
   const parsedDoc = useMemo(() => migrateDocument(value), [value]);
@@ -263,6 +266,7 @@ export function VibressStudio({
               {!readOnly && <FloatingCardActionToolbarPlugin />}
               {!readOnly && <BlockHandleGutterPlugin />}
               {!readOnly && enableAi && onAiGenerate && <InlineAIPlugin onGenerate={onAiGenerate} />}
+              {showWordCount && <WordCountPlugin />}
               <EditorAccessibleNamePlugin />
               <EditorEditablePlugin readOnly={readOnly} />
               <DocumentSyncPlugin document={parsedDoc} onError={onError} />

@@ -52,6 +52,7 @@ export class StudioMenuOption extends MenuOption {
   cardType?: string | undefined;
   actionType?: string | undefined;
   icon: React.ReactNode;
+  badge?: React.ReactNode;
   description: string;
 
   constructor(
@@ -59,7 +60,7 @@ export class StudioMenuOption extends MenuOption {
     category: 'basic' | 'card' | 'ai',
     icon: React.ReactNode,
     description: string,
-    extra?: { cardType?: string; actionType?: string }
+    extra?: { cardType?: string; actionType?: string; badge?: React.ReactNode }
   ) {
     super(title);
     this.title = title;
@@ -68,6 +69,7 @@ export class StudioMenuOption extends MenuOption {
     this.description = description;
     this.cardType = extra?.cardType;
     this.actionType = extra?.actionType;
+    this.badge = extra?.badge;
   }
 }
 
@@ -85,35 +87,174 @@ export function SlashMenuPlugin({
   });
 
   const baseOptions: StudioMenuOption[] = useMemo(() => {
-    const list: StudioMenuOption[] = [
-      // Basic Blocks
-      new StudioMenuOption('Text', 'basic', <Box size={16} />, 'Just start writing with plain text', { actionType: 'paragraph' }),
-      new StudioMenuOption('Heading 1', 'basic', <Heading1 size={16} />, 'Large section heading', { actionType: 'h1' }),
-      new StudioMenuOption('Heading 2', 'basic', <Heading2 size={16} />, 'Medium section heading', { actionType: 'h2' }),
-      new StudioMenuOption('Heading 3', 'basic', <Heading3 size={16} />, 'Small section heading', { actionType: 'h3' }),
-      new StudioMenuOption('To-do list', 'basic', <CheckSquare size={16} color="#10b981" />, 'Track tasks with a to-do checklist', { actionType: 'check-list' }),
-      new StudioMenuOption('Table', 'basic', <TableIcon size={16} color="#3b82f6" />, 'Add a flexible 3x3 table grid', { actionType: 'table' }),
-      new StudioMenuOption('Bulleted list', 'basic', <List size={16} />, 'Create a simple bulleted list', { actionType: 'bullet-list' }),
-      new StudioMenuOption('Numbered list', 'basic', <ListOrdered size={16} />, 'Create a numbered list', { actionType: 'number-list' }),
-      new StudioMenuOption('Quote', 'basic', <Quote size={16} />, 'Capture a quotation or callout quote', { actionType: 'quote' }),
-      new StudioMenuOption('Code Block', 'basic', <Code size={16} />, 'Capture a code snippet with syntax highlighting', { actionType: 'code' }),
-      new StudioMenuOption('Divider', 'basic', <Minus size={16} />, 'Visually divide blocks with a line', { cardType: 'divider' }),
+    return [
+      // Column 1: Core Text, Headings & Tables (Notion Style)
+      new StudioMenuOption(
+        'Text',
+        'basic',
+        <Box size={14} />,
+        'Just start writing with plain text',
+        { actionType: 'paragraph', badge: <span style={{ fontFamily: 'serif', fontWeight: 600, fontSize: '12px' }}>Aa</span> }
+      ),
+      new StudioMenuOption(
+        'Heading 1',
+        'basic',
+        <Heading1 size={14} />,
+        'Large section heading',
+        { actionType: 'h1', badge: <span style={{ fontWeight: 700, fontSize: '11px' }}>H1</span> }
+      ),
+      new StudioMenuOption(
+        'Heading 2',
+        'basic',
+        <Heading2 size={14} />,
+        'Medium section heading',
+        { actionType: 'h2', badge: <span style={{ fontWeight: 700, fontSize: '11px' }}>H2</span> }
+      ),
+      new StudioMenuOption(
+        'Heading 3',
+        'basic',
+        <Heading3 size={14} />,
+        'Small section heading',
+        { actionType: 'h3', badge: <span style={{ fontWeight: 700, fontSize: '11px' }}>H3</span> }
+      ),
+      new StudioMenuOption(
+        'Quote',
+        'basic',
+        <Quote size={14} />,
+        'Capture a quotation or callout quote',
+        { actionType: 'quote', badge: <span style={{ fontFamily: 'serif', fontSize: '14px', lineHeight: 1 }}>“</span> }
+      ),
+      new StudioMenuOption(
+        'Code Block',
+        'basic',
+        <Code size={14} />,
+        'Capture a code snippet with syntax highlighting',
+        { actionType: 'code', badge: <span style={{ fontFamily: 'monospace', fontSize: '10px', fontWeight: 700 }}>&lt;/&gt;</span> }
+      ),
+      new StudioMenuOption(
+        'Table',
+        'basic',
+        <TableIcon size={14} color="#3b82f6" />,
+        'Add a flexible 3x3 table grid',
+        { actionType: 'table', badge: <TableIcon size={12} color="#3b82f6" /> }
+      ),
+      new StudioMenuOption(
+        'Divider',
+        'basic',
+        <Minus size={14} />,
+        'Visually divide blocks with a line',
+        { cardType: 'divider', badge: <span style={{ fontSize: '12px', fontWeight: 900 }}>—</span> }
+      ),
 
-      // Media & Rich Cards
-      new StudioMenuOption('Image', 'card', <ImageIcon size={16} color="#0284c7" />, 'Upload or embed with image card', { cardType: 'image' }),
-      new StudioMenuOption('Gallery', 'card', <Images size={16} color="#0284c7" />, 'Create an image grid or gallery', { cardType: 'gallery' }),
-      new StudioMenuOption('Video', 'card', <Video size={16} color="#dc2626" />, 'Embed or upload a video clip', { cardType: 'video' }),
-      new StudioMenuOption('Audio', 'card', <Box size={16} color="#ea580c" />, 'Upload an audio file or podcast track', { cardType: 'audio' }),
-      new StudioMenuOption('File', 'card', <FileIcon size={16} color="#d97706" />, 'Upload a downloadable document or asset', { cardType: 'file' }),
-      new StudioMenuOption('Bookmark', 'card', <Bookmark size={16} color="#4f46e5" />, 'Embed a web link with rich preview card', { cardType: 'bookmark' }),
-      new StudioMenuOption('Embed', 'card', <Layers size={16} color="#7c3aed" />, 'Embed YouTube, Vimeo, Spotify, or Twitter', { cardType: 'embed' }),
-      new StudioMenuOption('Callout', 'card', <MessageSquare size={16} color="#16a34a" />, 'Make writing stand out with an alert box', { cardType: 'callout' }),
-      new StudioMenuOption('Toggle', 'card', <ChevronRight size={16} color="#64748b" />, 'Hide or show collapsible text', { cardType: 'toggle' }),
-      new StudioMenuOption('Button', 'card', <MousePointerClick size={16} color="#2563eb" />, 'Add a clickable call-to-action button', { cardType: 'button' }),
-      new StudioMenuOption('Markdown', 'card', <Code2 size={16} color="#475569" />, 'Insert raw markdown block', { cardType: 'markdown' }),
-      new StudioMenuOption('HTML', 'card', <Code size={16} color="#e11d48" />, 'Insert raw custom HTML', { cardType: 'html' }),
+      // Column 2: Lists, Structure & Interactive Blocks
+      new StudioMenuOption(
+        'Numbered list',
+        'basic',
+        <ListOrdered size={14} />,
+        'Create a numbered list',
+        { actionType: 'number-list', badge: <span style={{ fontSize: '10px', fontWeight: 600 }}>1.=</span> }
+      ),
+      new StudioMenuOption(
+        'Bulleted list',
+        'basic',
+        <List size={14} />,
+        'Create a simple bulleted list',
+        { actionType: 'bullet-list', badge: <span style={{ fontSize: '11px', fontWeight: 700 }}>•-</span> }
+      ),
+      new StudioMenuOption(
+        'To-do list',
+        'basic',
+        <CheckSquare size={14} color="#10b981" />,
+        'Track tasks with a to-do checklist',
+        { actionType: 'check-list', badge: <CheckSquare size={12} color="#10b981" /> }
+      ),
+      new StudioMenuOption(
+        'Toggle',
+        'card',
+        <ChevronRight size={14} color="#64748b" />,
+        'Hide or show collapsible text',
+        { cardType: 'toggle', badge: <span style={{ fontSize: '10px' }}>▶</span> }
+      ),
+      new StudioMenuOption(
+        'Callout',
+        'card',
+        <MessageSquare size={14} color="#16a34a" />,
+        'Make writing stand out with an alert box',
+        { cardType: 'callout', badge: <MessageSquare size={12} color="#16a34a" /> }
+      ),
+      new StudioMenuOption(
+        'Button',
+        'card',
+        <MousePointerClick size={14} color="#2563eb" />,
+        'Add a clickable call-to-action button',
+        { cardType: 'button', badge: <MousePointerClick size={12} color="#2563eb" /> }
+      ),
+      new StudioMenuOption(
+        'Markdown',
+        'card',
+        <Code2 size={14} color="#475569" />,
+        'Insert raw markdown block',
+        { cardType: 'markdown', badge: <span style={{ fontSize: '9px', fontWeight: 700 }}>M↓</span> }
+      ),
+      new StudioMenuOption(
+        'HTML',
+        'card',
+        <Code size={14} color="#e11d48" />,
+        'Insert raw custom HTML',
+        { cardType: 'html', badge: <span style={{ fontFamily: 'monospace', fontSize: '9px', fontWeight: 700, color: '#e11d48' }}>&lt;&gt;</span> }
+      ),
+
+      // Column 3: Rich Media & Embeds
+      new StudioMenuOption(
+        'Image',
+        'card',
+        <ImageIcon size={14} color="#0284c7" />,
+        'Upload or embed with image card',
+        { cardType: 'image', badge: <ImageIcon size={12} color="#0284c7" /> }
+      ),
+      new StudioMenuOption(
+        'Gallery',
+        'card',
+        <Images size={14} color="#0284c7" />,
+        'Create an image grid or gallery',
+        { cardType: 'gallery', badge: <Images size={12} color="#0284c7" /> }
+      ),
+      new StudioMenuOption(
+        'Video',
+        'card',
+        <Video size={14} color="#dc2626" />,
+        'Embed or upload a video clip',
+        { cardType: 'video', badge: <Video size={12} color="#dc2626" /> }
+      ),
+      new StudioMenuOption(
+        'Audio',
+        'card',
+        <Box size={14} color="#ea580c" />,
+        'Upload an audio file or podcast track',
+        { cardType: 'audio', badge: <Box size={12} color="#ea580c" /> }
+      ),
+      new StudioMenuOption(
+        'File',
+        'card',
+        <FileIcon size={14} color="#d97706" />,
+        'Upload a downloadable document or asset',
+        { cardType: 'file', badge: <FileIcon size={12} color="#d97706" /> }
+      ),
+      new StudioMenuOption(
+        'Bookmark',
+        'card',
+        <Bookmark size={14} color="#4f46e5" />,
+        'Embed a web link with rich preview card',
+        { cardType: 'bookmark', badge: <Bookmark size={12} color="#4f46e5" /> }
+      ),
+      new StudioMenuOption(
+        'Embed',
+        'card',
+        <Layers size={14} color="#7c3aed" />,
+        'Embed YouTube, Vimeo, Spotify, or Twitter',
+        { cardType: 'embed', badge: <Layers size={12} color="#7c3aed" /> }
+      ),
     ];
-    return list;
   }, []);
 
   const options = useMemo(
@@ -240,45 +381,35 @@ export function SlashMenuPlugin({
             role="listbox"
             aria-label="Insert card"
             className="notion-slash-menu studio-glassy-menu"
-            style={{
-              position: 'absolute',
-              width: '330px',
-              maxHeight: '350px',
-              overflowY: 'auto',
-              zIndex: 250,
-              padding: '6px',
-            }}
           >
             <div role="presentation" className="studio-slash-header">
-              Blocks & Cards
+              Block Types
             </div>
-            {options.map((option, index) => {
-              const isSelected = selectedIndex === index;
-              return (
-                <div
-                  key={option.title}
-                  role="option"
-                  aria-label={option.title}
-                  aria-selected={isSelected}
-                  tabIndex={-1}
-                  onClick={() => selectOptionAndCleanUp(option)}
-                  onMouseEnter={() => setHighlightedIndex(index)}
-                  className={`studio-slash-item ${isSelected ? 'is-selected' : ''}`}
-                >
-                  <div className="studio-slash-icon">
-                    {option.icon}
-                  </div>
-                  <div className="studio-slash-content">
+            <div className="studio-slash-grid">
+              {options.map((option, index) => {
+                const isSelected = selectedIndex === index;
+                return (
+                  <div
+                    key={option.title}
+                    role="option"
+                    aria-label={option.title}
+                    aria-selected={isSelected}
+                    tabIndex={-1}
+                    title={`${option.title} — ${option.description}`}
+                    onClick={() => selectOptionAndCleanUp(option)}
+                    onMouseEnter={() => setHighlightedIndex(index)}
+                    className={`studio-slash-item ${isSelected ? 'is-selected' : ''}`}
+                  >
+                    <div className="studio-slash-badge" aria-hidden="true">
+                      {option.badge || option.icon}
+                    </div>
                     <span className="studio-slash-title">
                       {option.title}
                     </span>
-                    <span className="studio-slash-desc">
-                      {option.description}
-                    </span>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>,
           anchorElementRef.current
         );
