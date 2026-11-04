@@ -19,6 +19,13 @@
   box-sizing: inherit;
 }
 
+.vibress-studio-canvas {
+  position: relative;
+  min-height: 30vh;
+  padding-inline-start: 36px;
+  padding-inline-end: 16px;
+}
+
 /* Core Reading Measure Constraint (740px) */
 .vibress-studio-editor [contenteditable] > p,
 .vibress-studio-editor [contenteditable] > h1,
@@ -215,7 +222,7 @@ html[dir="rtl"] .studio-h3 {
   color: var(--vb-studio-foreground);
 }
 
-/* Code Blocks */
+/* Code Blocks (Enforce LTR direction and alignment for syntax safety in all bidi contexts) */
 .studio-code-block {
   background-color: #0f172a;
   color: #f8fafc;
@@ -227,6 +234,16 @@ html[dir="rtl"] .studio-h3 {
   overflow-x: auto;
   margin: 1.5rem auto;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: isolate;
+}
+
+.studio-code-block pre,
+.studio-code-block code {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: isolate;
 }
 
 .dark .studio-code-block {
@@ -242,6 +259,9 @@ html[dir="rtl"] .studio-h3 {
   font-size: 0.875em;
   font-family: var(--vb-studio-font-mono);
   border: 1px solid var(--vb-studio-border);
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: isolate;
 }
 
 /* Inline text formatting */
@@ -567,17 +587,30 @@ html[dir="rtl"] .studio-word-count-dock {
   box-shadow: var(--vb-studio-shadow-modal) !important;
 }
 
-/* High-Contrast Accessible Focus Ring */
-:focus-visible {
+/* High-Contrast Accessible Focus Ring (Scoped to Studio surfaces and portals) */
+.vibress-studio-editor :focus-visible,
+.notion-slash-menu :focus-visible,
+.notion-block-handle-gutter :focus-visible,
+.notion-floating-format-popup :focus-visible,
+.floating-card-action-popup :focus-visible,
+.studio-glassy-menu :focus-visible,
+.studio-glassy-modal :focus-visible {
   outline: 2px solid var(--vb-studio-ring);
   outline-offset: 1px;
 }
 
-/* Reduced Motion Preference */
+/* Reduced Motion Preference (Scoped to Studio surfaces and portals) */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  .vibress-studio-editor,
+  .vibress-studio-editor *,
+  .vibress-studio-editor *::before,
+  .vibress-studio-editor *::after,
+  .notion-slash-menu,
+  .notion-block-handle-gutter,
+  .notion-floating-format-popup,
+  .floating-card-action-popup,
+  .studio-glassy-menu,
+  .studio-glassy-modal {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -585,11 +618,27 @@ html[dir="rtl"] .studio-word-count-dock {
   }
 }
 
-/* Mobile Responsive Optimization */
+/* Mobile Responsive & Touch Optimizations */
+@media (max-width: 640px) {
+  .notion-slash-menu {
+    width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 24px) !important;
+  }
+
+  .studio-slash-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 @media (max-width: 768px) {
-  .vibress-studio-editor [contenteditable] {
+  .vibress-studio-canvas {
     padding-inline-start: 12px !important;
     padding-inline-end: 12px !important;
+  }
+
+  .vibress-studio-editor [contenteditable] {
+    padding-inline-start: 0 !important;
+    padding-inline-end: 0 !important;
   }
 
   .studio-paragraph {
@@ -608,14 +657,34 @@ html[dir="rtl"] .studio-word-count-dock {
     margin-top: 1.25rem;
   }
 
+  /* WCAG 2.5.8 Touch Target Compliance on Mobile */
   .notion-block-handle-btn {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
   }
 
   .notion-format-btn {
-    min-width: 34px;
-    height: 34px;
+    min-width: 36px;
+    height: 36px;
   }
+
+  .studio-slash-item {
+    min-height: 38px;
+    padding: 8px 10px;
+  }
+}
+
+/* RTL Table Direction */
+[dir="rtl"] .studio-table,
+html[dir="rtl"] .studio-table {
+  direction: rtl;
+  text-align: right;
+}
+
+[dir="rtl"] .studio-table th,
+[dir="rtl"] .studio-table td,
+html[dir="rtl"] .studio-table th,
+html[dir="rtl"] .studio-table td {
+  text-align: right;
 }
 

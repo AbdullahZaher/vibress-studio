@@ -59,20 +59,26 @@ function setFloatingElemPosition(targetRect: DOMRect | null, floatingElem: HTMLE
   }
 
   const floatingElemRect = floatingElem.getBoundingClientRect();
-  let top = targetRect.top + window.scrollY - floatingElemRect.height - 10;
-  let left = targetRect.left + window.scrollX + targetRect.width / 2 - floatingElemRect.width / 2;
+  const viewportWidth = window.visualViewport?.width || window.innerWidth;
+  const scrollX = window.visualViewport?.pageLeft ?? window.scrollX;
+  const scrollY = window.visualViewport?.pageTop ?? window.scrollY;
 
-  // Prevent overflowing viewport
-  if (left < 10) left = 10;
-  if (left + floatingElemRect.width > window.innerWidth - 10) {
-    left = window.innerWidth - floatingElemRect.width - 10;
-  }
-  if (top < 10) {
-    top = targetRect.bottom + window.scrollY + 10; // flip below if at top
+  let top = targetRect.top + scrollY - floatingElemRect.height - 10;
+  let left = targetRect.left + scrollX + targetRect.width / 2 - floatingElemRect.width / 2;
+
+  // Prevent overflowing viewport horizontally
+  const minLeft = scrollX + 8;
+  const maxLeft = scrollX + viewportWidth - floatingElemRect.width - 8;
+  if (left > maxLeft) left = maxLeft;
+  if (left < minLeft) left = minLeft;
+
+  // If above goes above viewport, flip below target
+  if (top < scrollY + 8) {
+    top = targetRect.bottom + scrollY + 8;
   }
 
   floatingElem.style.opacity = '1';
-  floatingElem.style.transform = `translate(${left}px, ${top}px)`;
+  floatingElem.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
 }
 
 export function FloatingFormatToolbarPlugin({ anchorElem = document.body }: { anchorElem?: HTMLElement }) {
@@ -221,6 +227,7 @@ export function FloatingFormatToolbarPlugin({ anchorElem = document.body }: { an
         color: 'var(--vb-studio-popover-foreground, #f8fafc)',
         borderRadius: 'var(--vb-studio-radius-md, 8px)',
         padding: '4px',
+        maxWidth: 'calc(100vw - 16px)',
         display: 'flex',
         alignItems: 'center',
         gap: '2px',

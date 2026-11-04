@@ -44,6 +44,7 @@ export interface VibressStudioProps {
   uploadMedia?: StudioUploadApi['uploadMedia'];
   allowUnsplash?: boolean;
   showWordCount?: boolean;
+  dir?: 'ltr' | 'rtl' | 'auto';
   className?: string;
 }
 
@@ -149,6 +150,7 @@ export function VibressStudio({
   uploadMedia,
   allowUnsplash = true,
   showWordCount = true,
+  dir,
   className = '',
 }: VibressStudioProps) {
   const { parsedDoc, migrationError } = useMemo(() => {
@@ -279,14 +281,15 @@ export function VibressStudio({
     <StudioErrorBoundary onError={onError}>
       <StudioUploadContext.Provider value={{ uploadMedia }}>
         <StudioMediaContext.Provider value={mediaContextValue}>
-        <div className={`vibress-studio-editor ${className || ''}`}>
+        <div className={`vibress-studio-editor ${className || ''}`} dir={dir}>
           <fieldset disabled={readOnly} style={{ minWidth: 0, margin: 0, padding: 0, border: 0 }}>
           <LexicalComposer initialConfig={initialConfig}>
-            <div style={{ position: 'relative', minHeight: '30vh', paddingInlineStart: '32px' }}>
+            <div className="vibress-studio-canvas" style={{ position: 'relative', minHeight: '30vh' }}>
               <RichTextPlugin
                 contentEditable={
                   <ContentEditable
                     aria-label="Editor content"
+                    dir={dir}
                     style={{
                       outline: 'none',
                       minHeight: '30vh',
@@ -298,13 +301,12 @@ export function VibressStudio({
                 }
                 placeholder={
                   <div
+                    className="vibress-studio-placeholder"
                     style={{
                       position: 'absolute',
                       top: '0',
-                      insetInlineStart: '32px',
-                      color: '#475569',
+                      insetInlineStart: '0',
                       pointerEvents: 'none',
-                      fontSize: '1.0625rem',
                     }}
                   >
                     {placeholder}
