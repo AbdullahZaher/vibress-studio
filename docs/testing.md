@@ -1,6 +1,6 @@
 # Vibress Studio — Test Inventory and Evidence
 
-**Source-reviewed:** 2026-11-04. Run all tests against the exact commit you intend to release. See [AGENT.md §15](../AGENT.md#15-verification-and-definition-of-done) and [roadmap §16](roadmaps/global-ux-quality-roadmap.md#16-current-authoritative-remediation-and-development-plan--2026-11-04).
+**Source-reviewed:** 2026-11-04. Run all tests against the exact commit you intend to release. See [AGENT.md §15](https://github.com/AbdullahZaher/vibress-studio/blob/main/AGENT.md#15-verification-and-definition-of-done) and [roadmap §16](roadmaps/global-ux-quality-roadmap.md#16-current-authoritative-remediation-and-development-plan--2026-11-04).
 
 ## Supported commands from root package.json
 
