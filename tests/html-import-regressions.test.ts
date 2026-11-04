@@ -93,4 +93,31 @@ describe('HTML table import and RTL round-trip', () => {
     expect(html).not.toMatch(/javascript:|onerror=/i);
     expect(html).toContain('Safe');
   });
+
+  it('imports HTML figure with image and figcaption into image card with caption (STU-R12)', () => {
+    const html = '<figure><img src="https://example.com/art.png" alt="Artwork" /><figcaption>Oil painting, 2026</figcaption></figure>';
+    const doc = htmlToStudioDocument(html);
+
+    const imageCard = doc.root.children.find(
+      (c: unknown) => (c as { type?: string }).type === 'studio-card' && (c as { cardType?: string }).cardType === 'image'
+    ) as { type: string; cardType: string; cardData: Record<string, unknown> } | undefined;
+
+    expect(imageCard).toBeDefined();
+    expect(imageCard?.cardData.src).toBe('https://example.com/art.png');
+    expect(imageCard?.cardData.alt).toBe('Artwork');
+    expect(imageCard?.cardData.caption).toBe('Oil painting, 2026');
+  });
+
+  it('imports HTML details/summary into toggle card (STU-R12)', () => {
+    const html = '<details><summary>Click to view FAQ</summary>Detailed answer text here</details>';
+    const doc = htmlToStudioDocument(html);
+
+    const toggleCard = doc.root.children.find(
+      (c: unknown) => (c as { type?: string }).type === 'studio-card' && (c as { cardType?: string }).cardType === 'toggle'
+    ) as { type: string; cardType: string; cardData: Record<string, unknown> } | undefined;
+
+    expect(toggleCard).toBeDefined();
+    expect(toggleCard?.cardData.title).toBe('Click to view FAQ');
+    expect(toggleCard?.cardData.content).toBe('Detailed answer text here');
+  });
 });

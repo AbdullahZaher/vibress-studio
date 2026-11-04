@@ -61,7 +61,7 @@ function element(type: string, contents: StudioNode[], extra: StudioNode = {}): 
 const BLOCK_TAGS = new Set([
   'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote',
   'ul', 'ol', 'pre', 'hr', 'div', 'section', 'article', 'main',
-  'header', 'footer', 'aside', 'figure', 'table',
+  'header', 'footer', 'aside', 'figure', 'table', 'details',
 ]);
 
 /** Keep adjacent inline nodes in the same paragraph, including formatting
@@ -149,6 +149,53 @@ function blockNodes(node: HtmlChild, inherited: Direction = null): StudioNode[] 
   }
   if (tag === 'pre') {
     return [element('code', childrenOf(node).flatMap(child => inlineNodes(child)))];
+  }
+  if (tag === 'figure') {
+    const children = childrenOf(node);
+    const imgNode = children.find(c => 'tagName' in c && c.tagName === 'img');
+    if (imgNode && 'attrs' in imgNode) {
+      const src = imgNode.attrs.find(attr => attr.name === 'src')?.value;
+      if (src) {
+        const alt = imgNode.attrs.find(attr => attr.name === 'alt')?.value ?? '';
+        const figcaption = children.find(c => 'tagName' in c && c.tagName === 'figcaption');
+        let caption = '';
+        if (figcaption) {
+          caption = childrenOf(figcaption)
+            .map(c => ('value' in c && typeof c.value === 'string' ? c.value : ''))
+            .join('')
+            .trim();
+        }
+        return [{
+          type: 'studio-card',
+          cardType: 'image',
+          cardData: { src, alt, ...(caption ? { caption } : {}) },
+          version: 1,
+        }];
+      }
+    }
+    return blocksFromChildren(children, direction);
+  }
+  if (tag === 'details') {
+    const children = childrenOf(node);
+    const summary = children.find(c => 'tagName' in c && c.tagName === 'summary');
+    let title = 'Details';
+    if (summary) {
+      title = childrenOf(summary)
+        .map(c => ('value' in c && typeof c.value === 'string' ? c.value : ''))
+        .join('')
+        .trim() || 'Details';
+    }
+    const nonSummary = children.filter(c => !('tagName' in c && c.tagName === 'summary'));
+    const content = nonSummary
+      .map(c => ('value' in c && typeof c.value === 'string' ? c.value : ''))
+      .join('')
+      .trim();
+    return [{
+      type: 'studio-card',
+      cardType: 'toggle',
+      cardData: { title, content },
+      version: 1,
+    }];
   }
   if (tag === 'hr') return [{ type: 'studio-card', cardType: 'divider', cardData: {}, version: 1 }];
   // A sanitized wrapper is flattened, without interpreting raw HTML as a node.
