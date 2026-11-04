@@ -9,6 +9,12 @@ export interface StudioCardDefinition<TData = Record<string, unknown>> {
   renderPlainText(data: TData): string;
 }
 
+/** Prefer the editor's rich caption HTML; never trust it as raw markup. */
+function safeMediaCaption(data: { caption: string | Record<string, unknown>; captionHtml?: string }): string {
+  const source = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+  return source ? sanitizeHtml(source) : '';
+}
+
 // 1. Image Card
 export const ImageCardSchema = z.object({
   assetId: z.string().optional(),
@@ -116,6 +122,7 @@ export const AudioCardSchema = z.object({
   src: z.string(),
   title: z.string().default(''),
   caption: z.union([z.string(), z.record(z.string(), z.unknown())]).default(''),
+  captionHtml: z.string().optional(),
 });
 export type AudioCardData = z.infer<typeof AudioCardSchema>;
 
@@ -126,11 +133,12 @@ export const AudioCardDefinition: StudioCardDefinition<AudioCardData> = {
   renderHtml: (data) => {
     const src = sanitizeUrl(data.src);
     const title = data.title ? `<div class="title">${escapeHtml(data.title)}</div>` : '';
-    return `<div class="kg-card kg-audio-card">${title}<audio src="${src}" controls></audio></div>`;
+    const caption = safeMediaCaption(data);
+    return `<div class="kg-card kg-audio-card">${title}<audio src="${src}" controls></audio>${caption ? `<div class="studio-media-caption">${caption}</div>` : ''}</div>`;
   },
   renderPlainText: (data) => {
-    const capStr = typeof data.caption === 'string' ? data.caption : '';
-    return data.title || capStr || data.src || '';
+    const caption = stripHtml(safeMediaCaption(data));
+    return [data.title, caption].filter(Boolean).join('\\n') || data.src || '';
   },
 };
 
@@ -141,6 +149,7 @@ export const FileCardSchema = z.object({
   fileName: z.string(),
   fileSize: z.string().default(''),
   caption: z.union([z.string(), z.record(z.string(), z.unknown())]).default(''),
+  captionHtml: z.string().optional(),
 });
 export type FileCardData = z.infer<typeof FileCardSchema>;
 
@@ -152,11 +161,12 @@ export const FileCardDefinition: StudioCardDefinition<FileCardData> = {
     const src = sanitizeUrl(data.src);
     const name = escapeHtml(data.fileName);
     const size = data.fileSize ? ` <span class="size">(${escapeHtml(data.fileSize)})</span>` : '';
-    return `<div class="kg-card kg-file-card"><a href="${src}" download>${name}${size}</a></div>`;
+    const caption = safeMediaCaption(data);
+    return `<div class="kg-card kg-file-card"><a href="${src}" download>${name}${size}</a>${caption ? `<div class="studio-media-caption">${caption}</div>` : ''}</div>`;
   },
   renderPlainText: (data) => {
-    const capStr = typeof data.caption === 'string' ? data.caption : '';
-    return data.fileName || capStr || data.src || '';
+    const caption = stripHtml(safeMediaCaption(data));
+    return [data.fileName, caption].filter(Boolean).join('\\n') || data.src || '';
   },
 };
 
@@ -191,6 +201,7 @@ export const EmbedCardSchema = z.object({
   embedType: z.string().default('video'),
   html: z.string().optional(),
   caption: z.union([z.string(), z.record(z.string(), z.unknown())]).default(''),
+  captionHtml: z.string().optional(),
 });
 export type EmbedCardData = z.infer<typeof EmbedCardSchema>;
 
@@ -203,16 +214,16 @@ export const EmbedCardDefinition: StudioCardDefinition<EmbedCardData> = {
     // safe external link. Arbitrary user-supplied iframe markup is never
     // trusted — the final output sanitizer enforces this a second time.
     const provider = getEmbedProvider(data.url);
-    const caption = typeof data.caption === 'string' ? data.caption : '';
-    const captionHtml = caption ? `<figcaption>${sanitizeHtml(caption)}</figcaption>` : '';
+    const caption = safeMediaCaption(data);
+    const captionHtml = caption ? `<figcaption>${caption}</figcaption>` : '';
     if (provider) {
       return `<figure class="kg-card kg-embed-card"><iframe src="${escapeHtml(provider.embedUrl)}" title="${escapeHtml(data.url)}" loading="lazy" allowfullscreen></iframe>${captionHtml}</figure>`;
     }
     return `<figure class="kg-card kg-embed-card"><a href="${sanitizeUrl(data.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(data.url)}</a>${captionHtml}</figure>`;
   },
   renderPlainText: (data) => {
-    const capStr = typeof data.caption === 'string' ? data.caption : '';
-    return data.url || capStr || '';
+    const caption = stripHtml(safeMediaCaption(data));
+    return [data.url, caption].filter(Boolean).join('\\n');
   },
 };
 
