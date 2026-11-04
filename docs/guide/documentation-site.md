@@ -1,6 +1,6 @@
 # Maintaining this documentation site
 
-VitePress renders the existing Markdown files under `docs/`. Its configuration lives in `docs/.vitepress/config.mts`, and the website's own CSS lives in `docs/public/custom.css` (not in the editor packages).
+VitePress renders the existing Markdown files under `docs/`. Its configuration lives in `docs/.vitepress/config.js`, and the website's own CSS lives in `docs/public/custom.css` (not in the editor packages).
 
 ## Develop and verify locally
 
