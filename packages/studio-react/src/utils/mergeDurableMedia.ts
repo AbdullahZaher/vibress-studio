@@ -45,7 +45,7 @@ export function mergeDurableMediaAsset(
     next.assetId = payload.assetId;
   }
 
-  if (kind === 'video' && isDurableMediaUrl(payload.poster)) {
+  if (kind === 'video' && !current.poster && isDurableMediaUrl(payload.poster)) {
     next.poster = payload.poster.trim();
   }
 
