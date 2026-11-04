@@ -86,6 +86,39 @@ describe('renderStudioDocumentToHtml — all Studio cards', () => {
     expect(html).toContain('download');
   });
 
+  it('retains serialized rich captions in audio, file and embed public HTML', () => {
+    const caption = { root: { type: 'root', children: [
+      { type: 'paragraph', children: [{ type: 'text', text: 'مرحبا بالقراء', version: 1 }] },
+    ] } };
+    const captionHtml = '<p>مرحبا <strong>بالقراء</strong></p>';
+    const input = doc([
+      card('audio', { src: '/a.mp3', title: 'Podcast', caption, captionHtml }),
+      card('file', { src: '/f.pdf', fileName: 'report.pdf', caption, captionHtml }),
+      card('embed', { url: 'https://vimeo.com/123456', caption, captionHtml }),
+    ]);
+    const html = renderStudioDocumentToHtml(input);
+    expect(html).toContain('kg-audio-card');
+    expect(html).toContain('kg-file-card');
+    expect(html).toContain('kg-embed-card');
+    expect((html.match(/مرحبا <strong>بالقراء<\\/strong>/g) || []).length).toBe(3);
+    expect(html).toContain('<div class="studio-media-caption"><p>مرحبا');
+    expect(html).toContain('<figcaption><p>مرحبا');
+    expect(renderStudioDocumentToPlainText(input)).toContain('مرحبا بالقراء');
+  });
+
+  it('removes executable markup from media caption HTML without dropping readable text', () => {
+    const captionHtml = '<p>Safe <strong>content</strong></p><img src="/ok.png" onerror="alert(1)"><script>alert(2)</script>';
+    const html = renderStudioDocumentToHtml(doc([
+      card('audio', { src: '/a.mp3', captionHtml }),
+      card('file', { src: '/report.pdf', fileName: 'report.pdf', captionHtml }),
+      card('embed', { url: 'https://example.org', captionHtml }),
+    ]));
+    expect(html).toContain('Safe <strong>content</strong>');
+    expect(html).not.toContain('onerror');
+    expect(html).not.toContain('<script');
+    expect(html).not.toContain('javascript:');
+  });
+
   it('renders bookmark card with safe url', () => {
     const html = renderStudioDocumentToHtml(doc([
       card('bookmark', { url: 'https://example.com/a', title: 'Example', description: 'desc' }),
