@@ -83,9 +83,9 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
     }) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
           node.setCardData({
-            ...cardData,
+            ...node.getCardData(),
             caption: data.caption,
             captionHtml: data.caption,
             poster: data.poster,
@@ -95,7 +95,7 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   const handleWidthChange = useCallback(
@@ -126,7 +126,7 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
     (captionJSON: Record<string, unknown>, captionHtml: string) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
           node.setCardData({
             ...node.getCardData(),
             caption: captionJSON,
@@ -233,19 +233,21 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
         autoPlay={cardData.autoplay}
         className="w-full rounded-xl overflow-hidden shadow-sm bg-black"
       />
-      {captionStr ? (
-        <figcaption className="mt-2 text-center text-xs text-muted-foreground">
-          {captionStr}
-        </figcaption>
-      ) : (
-        <NestedCaptionEditor
-          initialCaptionJSON={
-            typeof cardData.caption === 'object' ? cardData.caption : undefined
-          }
-          onChange={onCaptionChange}
-          placeholder="Type caption for video (optional)"
-        />
-      )}
+      <NestedCaptionEditor
+        initialCaptionJSON={
+          typeof cardData.caption === 'object' && cardData.caption !== null
+            ? (cardData.caption as Record<string, unknown>)
+            : undefined
+        }
+        initialCaptionText={captionStr}
+        captionHtml={
+          typeof cardData.captionHtml === 'string'
+            ? cardData.captionHtml
+            : undefined
+        }
+        onChange={onCaptionChange}
+        placeholder="Type caption for video (optional)"
+      />
     </figure>
   );
 }

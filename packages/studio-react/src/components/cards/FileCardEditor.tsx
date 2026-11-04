@@ -75,9 +75,9 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
     (data: { fileName: string; caption: string }) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
           node.setCardData({
-            ...cardData,
+            ...node.getCardData(),
             fileName: data.fileName,
             caption: data.caption,
             captionHtml: data.caption,
@@ -85,7 +85,7 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   const handleDelete = useCallback(() => {
@@ -101,7 +101,7 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
     (captionJSON: Record<string, unknown>, captionHtml: string) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
           node.setCardData({
             ...node.getCardData(),
             caption: captionJSON,
@@ -212,19 +212,21 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
           </a>
         )}
       </div>
-      {captionStr ? (
-        <figcaption className="mt-1 text-center text-xs text-muted-foreground">
-          {captionStr}
-        </figcaption>
-      ) : (
-        <NestedCaptionEditor
-          initialCaptionJSON={
-            typeof cardData.caption === 'object' ? cardData.caption : undefined
-          }
-          onChange={onCaptionChange}
-          placeholder="Type caption for file (optional)"
-        />
-      )}
+      <NestedCaptionEditor
+        initialCaptionJSON={
+          typeof cardData.caption === 'object' && cardData.caption !== null
+            ? (cardData.caption as Record<string, unknown>)
+            : undefined
+        }
+        initialCaptionText={captionStr}
+        captionHtml={
+          typeof (cardData as { captionHtml?: string }).captionHtml === 'string'
+            ? (cardData as { captionHtml?: string }).captionHtml
+            : undefined
+        }
+        onChange={onCaptionChange}
+        placeholder="Type caption for file (optional)"
+      />
     </figure>
   );
 }

@@ -78,9 +78,9 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
     (data: { title: string; caption: string }) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
           node.setCardData({
-            ...cardData,
+            ...node.getCardData(),
             title: data.title,
             caption: data.caption,
             captionHtml: data.caption,
@@ -88,7 +88,7 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   const handleDelete = useCallback(() => {
@@ -104,7 +104,7 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
     (captionJSON: Record<string, unknown>, captionHtml: string) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
           node.setCardData({
             ...node.getCardData(),
             caption: captionJSON,
@@ -191,19 +191,21 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
 
       {cardData.title && <div className="text-sm font-semibold">{cardData.title}</div>}
       <audio src={cardData.src} controls className="w-full" />
-      {captionStr ? (
-        <figcaption className="mt-1 text-center text-xs text-muted-foreground">
-          {captionStr}
-        </figcaption>
-      ) : (
-        <NestedCaptionEditor
-          initialCaptionJSON={
-            typeof cardData.caption === 'object' ? cardData.caption : undefined
-          }
-          onChange={onCaptionChange}
-          placeholder="Type caption for audio (optional)"
-        />
-      )}
+      <NestedCaptionEditor
+        initialCaptionJSON={
+          typeof cardData.caption === 'object' && cardData.caption !== null
+            ? (cardData.caption as Record<string, unknown>)
+            : undefined
+        }
+        initialCaptionText={captionStr}
+        captionHtml={
+          typeof (cardData as { captionHtml?: string }).captionHtml === 'string'
+            ? (cardData as { captionHtml?: string }).captionHtml
+            : undefined
+        }
+        onChange={onCaptionChange}
+        placeholder="Type caption for audio (optional)"
+      />
     </figure>
   );
 }

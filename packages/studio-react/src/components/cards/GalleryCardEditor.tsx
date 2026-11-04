@@ -93,16 +93,17 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
     (data: { caption: string }) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
+          const currentData = node.getCardData();
           node.setCardData({
-            ...cardData,
+            ...currentData,
             caption: data.caption,
             captionHtml: data.caption,
           });
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   const handleWidthChange = useCallback(
@@ -133,16 +134,17 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
     (captionJSON: Record<string, unknown>, captionHtml: string) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
+          const currentData = node.getCardData();
           node.setCardData({
-            ...cardData,
+            ...currentData,
             caption: captionJSON,
             captionHtml,
           });
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   const widthClass =
@@ -243,19 +245,21 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
             />
           ))}
         </div>
-        {captionStr ? (
-          <figcaption className="mt-2 text-center text-xs text-muted-foreground">
-            {captionStr}
-          </figcaption>
-        ) : (
-          <NestedCaptionEditor
-            initialCaptionJSON={
-              typeof cardData.caption === 'object' ? cardData.caption : undefined
-            }
-            onChange={onCaptionChange}
-            placeholder="Type caption for gallery (optional)"
-          />
-        )}
+        <NestedCaptionEditor
+          initialCaptionJSON={
+            typeof cardData.caption === 'object' && cardData.caption !== null
+              ? (cardData.caption as Record<string, unknown>)
+              : undefined
+          }
+          initialCaptionText={captionStr}
+          captionHtml={
+            typeof cardData.captionHtml === 'string'
+              ? cardData.captionHtml
+              : undefined
+          }
+          onChange={onCaptionChange}
+          placeholder="Type caption for gallery (optional)"
+        />
       </figure>
       {uploadFailure}
     </>
