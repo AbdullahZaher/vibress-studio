@@ -4,6 +4,8 @@ import { escapeHtml, sanitizeHtml, sanitizeUrl, stripHtml, getEmbedProvider, par
 export interface StudioCardDefinition<TData = Record<string, unknown>> {
   type: string;
   version: number;
+  title?: string;
+  description?: string;
   validate(data: unknown): TData;
   renderHtml(data: TData): string;
   renderPlainText(data: TData): string;

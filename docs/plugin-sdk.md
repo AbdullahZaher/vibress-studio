@@ -1,86 +1,132 @@
 # Vibress Studio — Plugin SDK
 
-`@vibress/studio-plugin-sdk` provides a safe, capability-gated extension
-model. Plugins can add cards, renderers, toolbar actions, slash commands,
-and upload providers — but unsafe capabilities are **disabled by default**.
+`@vibress/studio-plugin-sdk` provides an in-process extension model for Vibress Studio. Plugins can register custom card types with runtime schema validation, HTML rendering, plain-text export, and slash-menu discovery.
 
-## Manifest
+## Architecture and Execution Model
 
-Every plugin declares a manifest with an id, name, version, and the
-capabilities it wants:
+> [!IMPORTANT]
+> **No Sandboxing:** Plugins execute in-process within the host application's JavaScript runtime. They are **not isolated** in web workers or iframe sandboxes. Host applications must only install and register trusted plugins.
+
+Security and content integrity are maintained through three structural boundaries:
+1. **Collision Prevention:** Plugin card types cannot collide with or shadow built-in Studio cards (`image`, `video`, `gallery`, `audio`, `file`, `bookmark`, `embed`, `button`, `callout`, `toggle`, `markdown`, `html`, `divider`) or cards registered by other plugins.
+2. **Schema Validation:** Each card definition specifies a `validate(data)` function (typically using Zod) that rejects malformed payloads before rendering.
+3. **Mandatory Host Sanitization:** Output from a card's `renderHtml()` is **never** emitted raw. Both the public HTML renderer (`renderStudioDocumentToHtml`) and the editor canvas component (`StudioCardComponent`) pipe all card markup through `sanitizeStudioHtml()` (DOMPurify allowlist) before mounting or publishing. Executable script tags, inline event handlers (`onclick`, `onerror`), and unsafe URL schemes (`javascript:`, `vbscript:`, `data:`) are stripped unconditionally.
+
+---
+
+## Plugin Contract
+
+A plugin implements the `StudioPlugin` interface:
 
 ```ts
 import type { StudioPlugin } from '@vibress/studio-plugin-sdk';
+import type { StudioCardDefinition } from '@vibress/studio-card-definitions';
 
-const plugin: StudioPlugin = {
-  manifest: {
-    id: 'my-plugin',            // ^[a-z0-9][a-z0-9._-]*$
-    name: 'My Plugin',
-    version: '1.0.0',           // semver
-    capabilities: ['render-html', 'toolbar-command'],
+export interface StudioPlugin {
+  name: string;
+  version: string;
+  cards?: StudioCardDefinition[];
+  toolbarItems?: StudioToolbarItem[];
+}
+```
+
+### Card Definition
+
+A card definition implements `StudioCardDefinition`:
+
+```ts
+import { z } from 'zod';
+import { escapeHtml } from '@vibress/studio-utils';
+import type { StudioCardDefinition } from '@vibress/studio-card-definitions';
+
+const MetricCardSchema = z.object({
+  label: z.string(),
+  value: z.number(),
+  change: z.string().optional(),
+});
+
+type MetricCardData = z.infer<typeof MetricCardSchema>;
+
+export const MetricCardDefinition: StudioCardDefinition<MetricCardData> = {
+  type: 'metric-card',
+  version: 1,
+  title: 'Metric Card',
+  description: 'Display a KPI with trend indicator',
+  validate: (data: unknown) => MetricCardSchema.parse(data),
+  renderHtml: (data: MetricCardData) => {
+    return `<div class="studio-metric-card">
+      <span class="studio-metric-label">${escapeHtml(data.label)}</span>
+      <span class="studio-metric-value">${data.value}</span>
+    </div>`;
   },
-  install(registration) {
-    registration.registerCard(card);
-    registration.registerToolbarAction({ id: 'x', label: 'X', execute(editor) { /* ... */ } });
-  },
+  renderPlainText: (data: MetricCardData) => `${data.label}: ${data.value}`,
 };
 ```
 
-## Capabilities
+---
 
-| Capability | Grants |
-|---|---|
-| `render-html` | register custom renderers (host always sanitizes output) |
-| `raw-html` | allow a `trusted` card to emit HTML without host sanitization |
-| `upload` | register an upload provider |
-| `external-embed` | (declared intent) external embeds |
-| `toolbar-command` | register toolbar actions |
-| `slash-command` | register slash commands |
+## Registry Usage
 
-Rules:
-
-- Declaring a capability the host disallows fails registration.
-- `raw-html` requires BOTH the capability AND `trustLevel: 'trusted'` on the
-  card. Everything else is `host-sanitized` by default.
-- Custom renderers registered via `registerRenderer` are always
-  host-sanitized — there is no trusted path for them.
-- Invalid manifests, duplicate plugin ids, and duplicate card types are
-  rejected with `StudioPluginError` (codes `INVALID_MANIFEST`,
-  `DUPLICATE_PLUGIN`, `DUPLICATE_CARD`, `CAPABILITY_REQUIRED`,
-  `INVALID_UPLOAD_PROVIDER`).
-
-## Host-side registry
+### 1. Creating the Registry
 
 ```ts
 import { StudioPluginRegistry } from '@vibress/studio-plugin-sdk';
 
-const registry = new StudioPluginRegistry({
-  // Optionally block capabilities entirely:
-  allowedCapabilities: ['render-html', 'slash-command'],
-});
+const registry = new StudioPluginRegistry();
 
-registry.registerPlugin(plugin);
+registry.registerPlugin({
+  name: 'analytics-widgets',
+  version: '1.0.0',
+  cards: [MetricCardDefinition],
+});
 ```
 
-The registry also rolls back a plugin (removes its manifest) if `install`
-throws partway through.
+### 2. Preflight Collision Checks
 
-## Writing safe plugins
+Registration performs an atomic preflight check:
+- If `plugin.name` is already registered, registration is a safe no-op (idempotent).
+- If any card type matches a built-in card or an already registered plugin card, registration throws `Error('STUDIO_CARD_TYPE_CONFLICT: <type>')`.
+- If a plugin has multiple cards and any one fails, **no cards** from that plugin are registered (atomic failure).
 
-- Prefer `host-sanitized` cards; you never need `raw-html`.
-- Escape/validate inside your own `renderHtml` anyway (defense in depth):
-  `escapeHtml` for text, `sanitizeUrl` + `escapeAttribute` for URLs.
-- Never attempt to output `<script>`, `iframe`, or event handlers — the
-  host strips them and the tests assert this.
-- If you genuinely need trusted output, document the trust requirement and
-  the audit trail; the default host rejects it.
+### 3. Editor Integration
 
-## Plugin safety tests
+Pass the registry to `<VibressStudio />`:
 
-`packages/studio-testing/security/plugin-safety.test.ts` verifies:
+```tsx
+import { VibressStudio } from '@vibress/studio-react';
+import { registry } from './plugins';
 
-- plugin cannot bypass the sanitizer by default;
-- plugin `raw-html` denied without capability;
-- invalid manifest rejected;
-- duplicate card ids rejected;
-- malicious plugin renderer output sanitized.
+export function Editor({ value, onChange }) {
+  return (
+    <VibressStudio
+      value={value}
+      onChange={onChange}
+      pluginRegistry={registry}
+    />
+  );
+}
+```
+
+Registered plugin cards automatically:
+- Appear in the `/` slash menu under the `PLUGIN` badge.
+- Are inserted into the document schema as `studio-card` nodes (`cardType: 'metric-card'`).
+- Render in the editor canvas using the card's `validate` and `renderHtml` output, protected by `sanitizeStudioHtml`.
+
+### 4. Public Rendering Integration
+
+Pass the registry in `RenderOptions` to publish the document:
+
+```ts
+import { renderStudioDocumentToHtml, renderStudioDocumentToPlainText } from '@vibress/studio-renderer';
+import { registry } from './plugins';
+
+// HTML rendering with sanitization
+const html = renderStudioDocumentToHtml(doc, { pluginRegistry: registry });
+
+// Plain-text rendering for excerpts and search indexing
+const text = renderStudioDocumentToPlainText(doc, { pluginRegistry: registry });
+```
+
+If a document contains a custom card but no matching plugin is provided in `pluginRegistry`:
+- `renderStudioDocumentToHtml` safely drops the unknown card during allowlist sanitization without breaking the document or leaking internal data.
+- `renderStudioDocumentToPlainText` safely returns an empty string without throwing.

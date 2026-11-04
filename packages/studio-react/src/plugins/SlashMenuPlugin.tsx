@@ -21,6 +21,7 @@ import {
   $createReactStudioCardNode,
   $isReactStudioCardNode,
 } from '../nodes/ReactStudioCardNode';
+import { useStudioPluginRegistry } from '../plugin-context';
 import { createPortal } from 'react-dom';
 import {
   ImageIcon,
@@ -257,9 +258,37 @@ export function SlashMenuPlugin({
     ];
   }, []);
 
+  const pluginRegistry = useStudioPluginRegistry();
+
+  const pluginOptions: StudioMenuOption[] = useMemo(() => {
+    if (!pluginRegistry) return [];
+    const custom: StudioMenuOption[] = [];
+    for (const plugin of pluginRegistry.getPlugins()) {
+      for (const card of plugin.cards ?? []) {
+        const title = card.title || (card.type.charAt(0).toUpperCase() + card.type.slice(1));
+        const description = card.description || `Insert ${card.type} plugin card`;
+        custom.push(
+          new StudioMenuOption(
+            title,
+            'card',
+            <Box size={14} color="#0284c7" />,
+            description,
+            {
+              cardType: card.type,
+              badge: <span style={{ fontSize: '10px', color: '#0284c7', fontWeight: 600 }}>PLUGIN</span>,
+            }
+          )
+        );
+      }
+    }
+    return custom;
+  }, [pluginRegistry]);
+
+  const allOptions = useMemo(() => [...baseOptions, ...pluginOptions], [baseOptions, pluginOptions]);
+
   const options = useMemo(
-    () => filterSlashMenuOptions(baseOptions, queryString),
-    [baseOptions, queryString]
+    () => filterSlashMenuOptions(allOptions, queryString),
+    [allOptions, queryString]
   );
 
   const onSelectOption = useCallback(
