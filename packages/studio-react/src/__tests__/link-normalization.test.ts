@@ -37,3 +37,4 @@ describe('Floating Link Editor URL Normalization', () => {
     expect(normalizeUrl('   ')).toBe('');
   });
 });
+

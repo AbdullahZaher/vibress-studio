@@ -29,3 +29,4 @@ export function $deepCloneNode(node: LexicalNode): LexicalNode {
 
   return clone;
 }
+
