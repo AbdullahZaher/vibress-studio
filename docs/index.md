@@ -1,0 +1,39 @@
+---
+layout: home
+
+hero:
+  name: Vibress Studio
+  text: Structured content, without the CMS lock-in.
+  tagline: A reusable Lexical-powered editing library with a versioned document model, extensible cards and server-safe rendering.
+  actions:
+    - theme: brand
+      text: Get started
+      link: /guide/getting-started
+    - theme: alt
+      text: Integration guide
+      link: /guide/react-integration
+
+features:
+  - icon: ✍️
+    title: Authoring experience
+    details: React and Lexical for rich text, block controls, and content cards.
+  - icon: 🧩
+    title: Portable documents
+    details: A validated, migratable JSON envelope with schema vibress-studio and version 1.
+  - icon: 🛡️
+    title: Safer output
+    details: HTML and Markdown conversions with validation and sanitization boundaries.
+  - icon: 🌐
+    title: Mixed-language editing
+    details: Design and verification priorities include Arabic, English and bidirectional text.
+---
+
+## Built for publishing integrations
+
+Studio is a **library, not a CMS**. Your application supplies authentication, persistence, media storage, permissions, publishing and any AI provider. Read the [architecture](/architecture) and [host integration](/vibress-integration) documentation before embedding it.
+
+::: warning Runtime compatibility
+The Vibress host and this standalone repository are not automatically feature-equivalent. [ADR-0001](/adr/0001-studio-canonical-runtime) is **proposed**, and identifies the host as the current runtime reference. Verify public exports and integration compatibility at the exact revision you deploy.
+:::
+
+Use the [package exports](/package-exports), [security policy](/security), and [test guidance](/testing) as engineering references. The [Arabic introduction](/ar/) is also available.
