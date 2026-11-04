@@ -5,8 +5,10 @@ export type MediaAssetKind = 'image' | 'video' | 'audio' | 'file';
 /** A media source stored in a document must outlive the editor's browser tab. */
 export function isDurableMediaUrl(value: unknown): value is string {
   if (typeof value !== 'string') return false;
+  // Reject control characters before trim; browsers may interpret them inconsistently.
+  if (/[\u0000-\u001f\u007f\\]/.test(value)) return false;
   const url = value.trim();
-  if (!url || url.startsWith('#') || /[\u0000-\u001f\u007f\\]/.test(url)) return false;
+  if (!url || url.startsWith('#')) return false;
   if (!isSafeUrl(url)) return false;
   if (url.startsWith('//')) {
     try {
