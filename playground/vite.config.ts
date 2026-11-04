@@ -17,6 +17,8 @@ export default defineConfig({
       '@vibress/studio-markdown': path.resolve(__dirname, '../packages/studio-markdown/src/index.ts'),
       '@vibress/studio-plugin-sdk': path.resolve(__dirname, '../packages/studio-plugin-sdk/src/index.ts'),
       '@vibress/studio-testing': path.resolve(__dirname, '../packages/studio-testing/src/index.ts'),
+      '@vibress/studio-react/styles.css': path.resolve(__dirname, '../packages/studio-react/src/styles/studio.css'),
+      '@vibress/studio-react/tokens.css': path.resolve(__dirname, '../packages/studio-react/src/styles/tokens.css'),
       '@vibress/studio-react': path.resolve(__dirname, '../packages/studio-react/src/index.ts'),
     },
   },

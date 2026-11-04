@@ -24,6 +24,7 @@ import { ReactStudioCardNode } from './nodes/ReactStudioCardNode';
 import { StudioDocument, migrateDocument } from '@vibress/studio-core';
 import { serializeStudioDocument } from '@vibress/studio-serializer';
 import { StudioUploadContext, StudioUploadApi } from './upload-context';
+import { StudioMediaContext, StudioMediaApi, StudioMediaRequest } from './media-context';
 
 export interface VibressStudioProps {
   value?: unknown;
@@ -36,10 +37,11 @@ export interface VibressStudioProps {
   onAiGenerate?: (prompt: string, context?: StudioAiContext) => Promise<string>;
   placeholder?: string;
   onError?: (error: Error) => void;
-  requestMedia?: (req: { cardType: string }) => Promise<Record<string, unknown> | null>;
+  requestMedia?: (req: StudioMediaRequest) => Promise<Record<string, unknown> | null>;
   /** Durable upload adapter: local file → assetId/src payload. Card editors
    *  must use this instead of transient blob: URLs. */
   uploadMedia?: StudioUploadApi['uploadMedia'];
+  allowUnsplash?: boolean;
   className?: string;
 }
 
@@ -143,6 +145,7 @@ export function VibressStudio({
   onError,
   requestMedia,
   uploadMedia,
+  allowUnsplash = true,
   className = '',
 }: VibressStudioProps) {
   const parsedDoc = useMemo(() => migrateDocument(value), [value]);
@@ -203,10 +206,20 @@ export function VibressStudio({
     [readOnly, onError]
   );
 
+  const mediaContextValue = useMemo<StudioMediaApi>(
+    () => ({
+      uploadMedia,
+      requestMedia,
+      allowUnsplash,
+    }),
+    [uploadMedia, requestMedia, allowUnsplash]
+  );
+
   return (
     <StudioErrorBoundary onError={onError}>
       <StudioUploadContext.Provider value={{ uploadMedia }}>
-        <div className={`vibress-studio-editor ${className}`}>
+        <StudioMediaContext.Provider value={mediaContextValue}>
+        <div className={`vibress-studio-editor ${className || ''}`}>
           <fieldset disabled={readOnly} style={{ minWidth: 0, margin: 0, padding: 0, border: 0 }}>
           <LexicalComposer initialConfig={initialConfig}>
             <div style={{ position: 'relative', minHeight: '30vh', paddingInlineStart: '32px' }}>
@@ -267,6 +280,7 @@ export function VibressStudio({
           </LexicalComposer>
           </fieldset>
         </div>
+        </StudioMediaContext.Provider>
       </StudioUploadContext.Provider>
     </StudioErrorBoundary>
   );
