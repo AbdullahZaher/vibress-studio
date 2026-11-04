@@ -7,6 +7,7 @@ import { FileCardData, StudioCardNode } from '@vibress/studio-cards';
 import { NestedCaptionEditor } from './NestedCaptionEditor';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
+import { isDurableMediaUrl, mergeDurableMediaAsset } from '../../utils/mergeDurableMedia';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
 import { FileMetadataPopover } from '../ui/media-popovers/FileMetadataPopover';
 import { File as FileIcon, Download } from 'lucide-react';
@@ -34,14 +35,15 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
     Promise.resolve()
       .then(() => uploadMedia(selectedFile, 'file'))
       .then((payload) => {
-        if (!payload || typeof payload.src !== 'string') {
+        if (!payload || !isDurableMediaUrl(payload.src)) {
           setUploadError(true);
           return;
         }
         editor.update(() => {
           const node = $getNodeByKey(nodeKey);
           if (node instanceof StudioCardNode && node.isAttached()) {
-            node.setCardData({ ...node.getCardData(), ...payload });
+            const next = mergeDurableMediaAsset(node.getCardData(), payload, 'file', selectedFile.name);
+            if (next) node.setCardData(next);
           }
         });
       })
@@ -59,14 +61,12 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
       cardType: 'file',
       source: 'library',
     });
-    if (!payload) return;
+    if (!payload || !isDurableMediaUrl(payload.src)) return;
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
       if (node instanceof StudioCardNode && node.isAttached()) {
-        node.setCardData({
-          ...node.getCardData(),
-          ...payload,
-        });
+        const next = mergeDurableMediaAsset(node.getCardData(), payload, 'file');
+        if (next) node.setCardData(next);
       }
     });
   }, [editor, nodeKey, requestMedia]);
