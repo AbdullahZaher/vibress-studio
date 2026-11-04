@@ -32,14 +32,23 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
     setUploading(true);
     uploadMedia(file, 'image')
       .then((payload) => {
-        if (!payload) {
+        if (!payload || typeof payload.src !== 'string') {
           setUploadError(true);
           return;
         }
         editor.update(() => {
           const node = $getNodeByKey(nodeKey);
-          if (node instanceof StudioCardNode) {
-            node.setCardData({ ...cardData, ...payload });
+          if (node instanceof StudioCardNode && node.isAttached()) {
+            const currentData = (node.getCardData() || {}) as ImageCardData;
+            node.setCardData({
+              ...currentData,
+              ...payload,
+              alt: currentData.alt || (typeof payload.alt === 'string' ? payload.alt : ''),
+              caption: currentData.caption,
+              captionHtml: currentData.captionHtml,
+              width: currentData.width || (payload.width as ImageCardData['width']) || 'regular',
+              href: currentData.href,
+            });
           }
         });
       })
@@ -61,14 +70,20 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
     if (!payload) return;
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
-      if (node instanceof StudioCardNode) {
+      if (node instanceof StudioCardNode && node.isAttached()) {
+        const currentData = (node.getCardData() || {}) as ImageCardData;
         node.setCardData({
-          ...cardData,
+          ...currentData,
           ...payload,
+          alt: currentData.alt || (typeof payload.alt === 'string' ? payload.alt : ''),
+          caption: currentData.caption,
+          captionHtml: currentData.captionHtml,
+          width: currentData.width || (payload.width as ImageCardData['width']) || 'regular',
+          href: currentData.href,
         });
       }
     });
-  }, [editor, nodeKey, cardData, requestMedia]);
+  }, [editor, nodeKey, requestMedia]);
 
   const handleUnsplash = useCallback(async () => {
     if (!requestMedia) return;
@@ -79,22 +94,29 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
     if (!payload) return;
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
-      if (node instanceof StudioCardNode) {
+      if (node instanceof StudioCardNode && node.isAttached()) {
+        const currentData = (node.getCardData() || {}) as ImageCardData;
         node.setCardData({
-          ...cardData,
+          ...currentData,
           ...payload,
+          alt: currentData.alt || (typeof payload.alt === 'string' ? payload.alt : ''),
+          caption: currentData.caption,
+          captionHtml: currentData.captionHtml,
+          width: currentData.width || (payload.width as ImageCardData['width']) || 'regular',
+          href: currentData.href,
         });
       }
     });
-  }, [editor, nodeKey, cardData, requestMedia]);
+  }, [editor, nodeKey, requestMedia]);
 
   const handleMetadataUpdate = useCallback(
     (data: { alt: string; caption: string; href?: string | undefined }) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
+          const currentData = (node.getCardData() || {}) as ImageCardData;
           node.setCardData({
-            ...cardData,
+            ...currentData,
             alt: data.alt,
             caption: data.caption,
             captionHtml: data.caption,
@@ -103,28 +125,29 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   const handleWidthChange = useCallback(
     (newWidth: 'regular' | 'wide' | 'full') => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
+          const currentData = (node.getCardData() || {}) as ImageCardData;
           node.setCardData({
-            ...cardData,
+            ...currentData,
             width: newWidth,
           });
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   const handleDelete = useCallback(() => {
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
-      if (node) {
+      if (node && node.isAttached()) {
         node.remove();
       }
     });
@@ -134,16 +157,17 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
     (captionJSON: Record<string, unknown>, captionHtml: string) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
+          const currentData = (node.getCardData() || {}) as ImageCardData;
           node.setCardData({
-            ...cardData,
+            ...currentData,
             caption: captionJSON,
             captionHtml,
           });
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   const widthClass =

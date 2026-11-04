@@ -77,7 +77,7 @@ test.describe('Upload adapter mock flow (E2E 4)', () => {
 });
 
 test.describe('concurrent media updates and picker failures', () => {
-  for (const cardType of ['video', 'audio', 'file', 'gallery'] as const) {
+  for (const cardType of ['image', 'video', 'audio', 'file', 'gallery'] as const) {
     test(`${cardType} upload preserves a caption edited while the adapter is pending`, async ({ page }) => {
       await openHarness(page);
       const api = studio(page);
@@ -95,6 +95,28 @@ test.describe('concurrent media updates and picker failures', () => {
       expect(data?.captionHtml).toBe('<p>Edited during upload</p>');
     });
   }
+
+  test('deleting an image card while upload is in progress does not resurrect the card', async ({ page }) => {
+    await openHarness(page);
+    const api = studio(page);
+    await api.setAdapterLatency(800);
+    await insertCardViaSlash(page, 'image');
+
+    await page.locator('[data-testid="studio-editor"] input[type="file"]').setInputFiles({
+      name: 'asset.png', mimeType: 'image/png', buffer: TEST_IMAGE.buffer,
+    });
+
+    // Delete the card via keyboard while upload is in progress
+    await page.keyboard.press('Backspace');
+
+    // Wait for latency duration plus buffer
+    await page.waitForTimeout(1000);
+
+    // Verify card is not resurrected in document
+    const doc = await api.getDoc();
+    const imageCards = docCards(doc).filter(card => card.cardType === 'image');
+    expect(imageCards.length).toBe(0);
+  });
 
   test('a rejected media picker leaves the inserted card usable', async ({ page }) => {
     await openHarness(page);
