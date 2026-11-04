@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   CheckCircle2,
   Eye,
+  PanelRight,
   SlidersHorizontal,
   Plus,
   Moon,
@@ -35,12 +36,12 @@ import {
 
 export default function App() {
   const [doc, setDoc] = useState<StudioDocument>(createTestStudioDocument());
-  const [title, setTitle] = useState('The double-edged sword of independence');
+  const [title, setTitle] = useState('');
   const [featureImage, setFeatureImage] = useState<string | null>(null);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
-  const [showSettings, setShowSettings] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
   const [showInserter, setShowInserter] = useState(false);
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(true);
   const [isRtl, setIsRtl] = useState(false);
   const [searchBlockQuery, setSearchBlockQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'html' | 'json' | 'markdown' | 'text'>('html');
@@ -287,7 +288,7 @@ export default function App() {
               alignItems: 'center',
             }}
           >
-            <SlidersHorizontal size={16} />
+            <PanelRight size={16} />
           </button>
         </div>
       </header>
@@ -455,29 +456,54 @@ export default function App() {
                       </button>
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFeatureImage(
-                          'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=1200&q=80'
-                        )
-                      }
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '6px 12px',
-                        background: 'transparent',
-                        border: '1px dashed var(--vb-studio-border, #e2e8f0)',
-                        borderRadius: '6px',
-                        color: 'var(--vb-studio-foreground-muted, #64748b)',
-                        cursor: 'pointer',
-                        fontSize: '13px',
-                      }}
-                    >
-                      <ImageIcon size={14} />
-                      <span>+ Add feature image</span>
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFeatureImage(
+                            'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=1200&q=80'
+                          )
+                        }
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '4px 0',
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--vb-studio-foreground-muted, #64748b)',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          fontWeight: 500,
+                        }}
+                      >
+                        <span style={{ fontSize: '15px', lineHeight: 1 }}>+</span>
+                        <span>Add feature image</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFeatureImage(
+                            'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=1200&q=80'
+                          )
+                        }
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '24px',
+                          height: '24px',
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--vb-studio-foreground-muted, #64748b)',
+                          cursor: 'pointer',
+                          padding: 0,
+                        }}
+                        title="Add image"
+                      >
+                        <ImageIcon size={14} />
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -485,7 +511,7 @@ export default function App() {
                 <textarea
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Post title..."
+                  placeholder="Post title"
                   rows={1}
                   style={{
                     width: '100%',
@@ -493,10 +519,10 @@ export default function App() {
                     outline: 'none',
                     backgroundColor: 'transparent',
                     color: 'var(--vb-studio-foreground, #0f172a)',
-                    fontSize: '2.5rem',
+                    fontSize: '3rem',
                     fontWeight: 800,
-                    lineHeight: 1.25,
-                    marginBottom: '24px',
+                    lineHeight: 1.2,
+                    marginBottom: '20px',
                     letterSpacing: '-0.025em',
                     resize: 'none',
                     fontFamily: 'inherit',
@@ -512,7 +538,7 @@ export default function App() {
                 <VibressStudio
                   value={doc}
                   onChange={handleDocChange}
-                  placeholder='Begin your story, or press "/" for blocks and rich cards...'
+                  placeholder="Begin writing your post..."
                   showWordCount={true}
                 />
               </>
