@@ -57,33 +57,39 @@ const SAFE_DATA_IMAGE_RE = /^data:image\/(png|jpe?g|gif|webp|avif);base64,/i;
  */
 export function isSafeProtocolUrl(url: string): boolean {
   if (typeof url !== 'string') return false;
-  const trimmed = url.trim().toLowerCase();
+  const decoded = url.trim().replace(/&#x([0-9a-f]+);?/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&#([0-9]+);?/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+    .replace(/&colon;?/gi, ':')
+    .replace(/&tab;?/gi, '')
+    .replace(/&newline;?/gi, '');
+  const stripped = decoded.replace(/[\u0000-\u001f\u007f-\u009f\s]+/g, '').toLowerCase();
+
   if (
-    trimmed.startsWith('javascript:') ||
-    trimmed.startsWith('vbscript:') ||
-    trimmed.startsWith('file:') ||
-    trimmed.startsWith('blob:')
+    stripped.startsWith('javascript:') ||
+    stripped.startsWith('vbscript:') ||
+    stripped.startsWith('file:') ||
+    stripped.startsWith('blob:')
   ) {
     return false;
   }
   if (
-    trimmed.startsWith('http://') ||
-    trimmed.startsWith('https://') ||
-    trimmed.startsWith('mailto:') ||
-    trimmed.startsWith('tel:')
+    stripped.startsWith('http://') ||
+    stripped.startsWith('https://') ||
+    stripped.startsWith('mailto:') ||
+    stripped.startsWith('tel:')
   ) {
     return true;
   }
-  if (trimmed.startsWith('/') || trimmed.startsWith('#') || trimmed === '') {
+  if (url.trim().startsWith('/') || url.trim().startsWith('#') || url.trim() === '') {
     return true;
   }
   // data: images only for a small allowlist of raster formats (no SVG — SVG
   // can carry script inside <script>).
-  if (SAFE_DATA_IMAGE_RE.test(trimmed)) {
+  if (SAFE_DATA_IMAGE_RE.test(url.trim())) {
     return true;
   }
   // Scheme-less relative references ("example.com/path").
-  if (!trimmed.includes(':')) {
+  if (!stripped.includes(':')) {
     return true;
   }
   return false;

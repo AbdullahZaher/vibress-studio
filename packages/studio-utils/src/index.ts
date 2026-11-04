@@ -7,34 +7,49 @@ export function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
+function decodeBasicEntities(str: string): string {
+  return str
+    .replace(/&#x([0-9a-f]+);?/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&#([0-9]+);?/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+    .replace(/&colon;?/gi, ':')
+    .replace(/&tab;?/gi, '')
+    .replace(/&newline;?/gi, '');
+}
+
 export function isSafeUrl(url: unknown): boolean {
   if (typeof url !== 'string') return false;
-  const trimmed = url.trim().toLowerCase();
+  const decoded = decodeBasicEntities(url.trim());
+  const stripped = decoded.replace(/[\u0000-\u001f\u007f-\u009f\s]+/g, '').toLowerCase();
 
   // Reject dangerous protocols
   if (
-    trimmed.startsWith('javascript:') ||
-    trimmed.startsWith('vbscript:') ||
-    trimmed.startsWith('file:')
+    stripped.startsWith('javascript:') ||
+    stripped.startsWith('vbscript:') ||
+    stripped.startsWith('file:') ||
+    stripped.startsWith('blob:')
   ) {
     return false;
   }
 
+  // Reject data: URIs except safe raster image data URIs
+  if (stripped.startsWith('data:')) {
+    return /^data:image\/(png|jpe?g|gif|webp|avif);base64,/i.test(url.trim());
+  }
+
   // Allow safe protocols or relative paths
   if (
-    trimmed.startsWith('http://') ||
-    trimmed.startsWith('https://') ||
-    trimmed.startsWith('mailto:') ||
-    trimmed.startsWith('tel:') ||
-    trimmed.startsWith('/') ||
-    trimmed.startsWith('#') ||
-    trimmed.startsWith('data:image/')
+    stripped.startsWith('http://') ||
+    stripped.startsWith('https://') ||
+    stripped.startsWith('mailto:') ||
+    stripped.startsWith('tel:') ||
+    url.trim().startsWith('/') ||
+    url.trim().startsWith('#')
   ) {
     return true;
   }
 
   // If no scheme present (e.g. "example.com"), treat as relative/safe unless it contains colon early
-  const firstColon = trimmed.indexOf(':');
+  const firstColon = stripped.indexOf(':');
   if (firstColon === -1) return true;
 
   return false;
