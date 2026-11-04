@@ -401,6 +401,9 @@ importers:
 
   playground:
     dependencies:
+      '@lexical/code':
+        specifier: 0.13.1
+        version: 0.13.1(lexical@0.13.1)
       '@lexical/list':
         specifier: 0.13.1
         version: 0.13.1(lexical@0.13.1)
@@ -408,6 +411,9 @@ importers:
         specifier: 0.13.1
         version: 0.13.1(@lexical/clipboard@0.13.1(lexical@0.13.1))(@lexical/selection@0.13.1(lexical@0.13.1))(@lexical/utils@0.13.1(lexical@0.13.1))(lexical@0.13.1)
       '@lexical/selection':
+        specifier: 0.13.1
+        version: 0.13.1(lexical@0.13.1)
+      '@lexical/table':
         specifier: 0.13.1
         version: 0.13.1(lexical@0.13.1)
       '@lexical/utils':

@@ -171,6 +171,7 @@ export function StudioCardComponent({
 
   return (
     <div
+      data-studio-card={cardType}
       role="group"
       aria-label={cardType + ' card'}
       tabIndex={0}

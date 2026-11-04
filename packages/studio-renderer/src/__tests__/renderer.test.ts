@@ -344,3 +344,41 @@ describe('renderStudioDocumentToPlainText', () => {
     expect(toc[2]).toEqual({ id: 'first-section-1', text: 'First Section', level: 2 });
   });
 });
+
+describe('code block interactive controls (STU-R17)', () => {
+  it('does not emit dead copy buttons in static server rendering by default', () => {
+    const html = renderStudioDocumentToHtml(doc([
+      {
+        type: 'code',
+        language: 'typescript',
+        children: [{ type: 'text', text: 'const x = 1;', format: 0, mode: 'normal', version: 1 }],
+        version: 1,
+      },
+    ]));
+
+    expect(html).toContain('class="studio-code-block"');
+    expect(html).toContain('<span class="studio-code-lang">typescript</span>');
+    expect(html).toContain('<code>const x = 1;</code>');
+    expect(html).not.toContain('studio-code-copy-btn');
+    expect(html).not.toContain('Copy');
+  });
+
+  it('emits copy button when interactiveControls is explicitly enabled', () => {
+    const html = renderStudioDocumentToHtml(
+      doc([
+        {
+          type: 'code',
+          language: 'python',
+          children: [{ type: 'text', text: 'print("hello")', format: 0, mode: 'normal', version: 1 }],
+          version: 1,
+        },
+      ]),
+      { interactiveControls: true }
+    );
+
+    expect(html).toContain('class="studio-code-block"');
+    expect(html).toContain('<span class="studio-code-lang">python</span>');
+    expect(html).toContain('<button type="button" class="studio-code-copy-btn" aria-label="Copy code">Copy</button>');
+    expect(html).toContain('<code>print("hello")</code>');
+  });
+});

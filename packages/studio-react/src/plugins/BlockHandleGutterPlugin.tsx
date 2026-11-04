@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   $getNodeByKey,
-  $getNearestNodeFromDOMNode,
   $createParagraphNode,
   $isRootOrShadowRoot,
   $isElementNode,
@@ -70,24 +69,35 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
         return;
       }
 
-      // Find top-level block element under editor root
-      let blockElem: HTMLElement | null = target;
-      while (blockElem && blockElem.parentElement && blockElem.parentElement !== rootElement) {
-        blockElem = blockElem.parentElement;
+      // Walk up to find nearest DOM node with Lexical key attached
+      let dom: HTMLElement | null = target;
+      let foundKey: string | null = null;
+      const lexicalKeyProp = `__lexicalKey_${editor.getKey()}`;
+
+      while (dom && dom !== rootElement) {
+        const key = (dom as unknown as Record<string, unknown>)[lexicalKeyProp];
+        if (typeof key === 'string') {
+          foundKey = key;
+          break;
+        }
+        dom = dom.parentElement;
       }
 
-      if (blockElem && blockElem.parentElement === rootElement) {
+      if (foundKey) {
         editor.getEditorState().read(() => {
-          if (!blockElem) return;
-          const node = $getNearestNodeFromDOMNode(blockElem);
+          const node = $getNodeByKey(foundKey);
           if (node) {
             let topNode: LexicalNode = node;
             while (topNode.getParent() && !$isRootOrShadowRoot(topNode.getParent())) {
               const parent = topNode.getParent();
               if (parent) topNode = parent;
             }
-            setHoveredNodeKey(topNode.getKey());
-            setTargetRect(blockElem.getBoundingClientRect());
+            const topKey = topNode.getKey();
+            const topElem = editor.getElementByKey(topKey);
+            if (topElem) {
+              setHoveredNodeKey(topKey);
+              setTargetRect(topElem.getBoundingClientRect());
+            }
           }
         });
       }
@@ -294,14 +304,14 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
 
       <button
         type="button"
-        title="Drag to move, click for options"
-        aria-label="Block options"
+        title="Click for block actions (move up, move down, color, duplicate, delete)"
+        aria-label="Block actions"
         aria-haspopup="menu"
         aria-expanded={showMenu}
         onClick={() => setShowMenu(!showMenu)}
         className="notion-block-handle-btn"
         style={{
-          cursor: 'grab',
+          cursor: 'pointer',
           backgroundColor: showMenu ? 'var(--vb-studio-surface-muted, #e2e8f0)' : 'transparent',
         }}
       >
