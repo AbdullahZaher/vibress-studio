@@ -151,7 +151,20 @@ export function VibressStudio({
   showWordCount = true,
   className = '',
 }: VibressStudioProps) {
-  const parsedDoc = useMemo(() => migrateDocument(value), [value]);
+  const { parsedDoc, migrationError } = useMemo(() => {
+    try {
+      return { parsedDoc: migrateDocument(value), migrationError: null };
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      return { parsedDoc: null, migrationError: error };
+    }
+  }, [value]);
+
+  useEffect(() => {
+    if (migrationError && onError) {
+      onError(migrationError);
+    }
+  }, [migrationError, onError]);
 
   const initialConfig = useMemo(
     () => ({
@@ -217,6 +230,50 @@ export function VibressStudio({
     }),
     [uploadMedia, requestMedia, allowUnsplash]
   );
+
+  if (migrationError || !parsedDoc) {
+    return (
+      <div
+        role="alert"
+        aria-live="assertive"
+        className={`vibress-studio-editor studio-migration-error ${className || ''}`}
+        style={{
+          padding: '1.5rem',
+          border: '1px solid #ef4444',
+          borderRadius: '0.5rem',
+          background: '#fef2f2',
+          color: '#991b1b',
+          fontFamily: 'inherit',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+          <strong style={{ fontSize: '1rem' }}>Studio Document Recovery</strong>
+          <span style={{ fontSize: '0.8125rem', padding: '2px 8px', borderRadius: '9999px', background: '#fee2e2' }}>
+            Content Preserved
+          </span>
+        </div>
+        <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.875rem', lineHeight: '1.5' }}>
+          The document could not be loaded because the persisted format is unsupported or invalid.
+          The original content has been retained without overwriting.
+        </p>
+        <pre
+          style={{
+            margin: '0',
+            padding: '0.75rem',
+            background: '#ffffff',
+            border: '1px solid #fca5a5',
+            borderRadius: '0.375rem',
+            fontSize: '0.8125rem',
+            overflowX: 'auto',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-all',
+          }}
+        >
+          {migrationError?.message || 'Unsupported persisted document'}
+        </pre>
+      </div>
+    );
+  }
 
   return (
     <StudioErrorBoundary onError={onError}>
