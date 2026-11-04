@@ -66,6 +66,47 @@ describe('VibressStudio safe document migration and recovery (STU-R01)', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it('preserves newer document versions without emitting a downgraded v1 snapshot', () => {
+    const onChange = vi.fn();
+    const onError = vi.fn();
+    const newerDocument = {
+      schema: 'vibress-studio', version: 2,
+      root: { type: 'root', children: [
+        { type: 'paragraph', children: [{ type: 'text', text: 'Keep newer content', version: 1 }], version: 1 },
+      ], version: 1 },
+    };
+
+    render(<VibressStudio value={newerDocument} onError={onError} onChange={onChange} />);
+    expect(screen.getByRole('alert')).not.toBeNull();
+    expect(screen.getByText(/Cannot edit Studio document version 2/)).not.toBeNull();
+    expect(onChange).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledTimes(1);
+    const error = onError.mock.calls[0]?.[0];
+    expect(isStudioMigrationError(error)).toBe(true);
+    if (isStudioMigrationError(error)) expect(error.rawDocument).toBe(newerDocument);
+  });
+
+  it('does not discard unknown future Lexical nodes from a v1 document on save', () => {
+    const onChange = vi.fn();
+    const onError = vi.fn();
+    const forwardNodeDocument = {
+      schema: 'vibress-studio', version: 1,
+      root: { type: 'root', children: [
+        { type: 'paragraph', version: 1, children: [
+          { type: 'future-rich-node', version: 1, payload: { important: 'retain' } },
+        ] },
+      ], version: 1 },
+    };
+
+    render(<VibressStudio value={forwardNodeDocument} onError={onError} onChange={onChange} />);
+    expect(screen.getByRole('alert')).not.toBeNull();
+    expect(screen.getByText(/future-rich-node/)).not.toBeNull();
+    expect(onChange).not.toHaveBeenCalled();
+    const error = onError.mock.calls[0]?.[0];
+    expect(isStudioMigrationError(error)).toBe(true);
+    if (isStudioMigrationError(error)) expect(error.rawDocument).toBe(forwardNodeDocument);
+  });
+
   it('renders normally when value is genuinely absent (null/undefined)', () => {
     const onError = vi.fn();
     const onChange = vi.fn();
