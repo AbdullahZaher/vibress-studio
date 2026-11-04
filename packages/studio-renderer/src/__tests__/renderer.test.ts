@@ -100,7 +100,7 @@ describe('renderStudioDocumentToHtml — all Studio cards', () => {
     expect(html).toContain('kg-audio-card');
     expect(html).toContain('kg-file-card');
     expect(html).toContain('kg-embed-card');
-    expect((html.match(/مرحبا <strong>بالقراء<\\/strong>/g) || []).length).toBe(3);
+    expect(html.split('مرحبا <strong>بالقراء</strong>').length - 1).toBe(3);
     expect(html).toContain('<div class="studio-media-caption"><p>مرحبا');
     expect(html).toContain('<figcaption><p>مرحبا');
     expect(renderStudioDocumentToPlainText(input)).toContain('مرحبا بالقراء');
