@@ -118,6 +118,9 @@ audit on every push to `main` and on pull requests (`.github/workflows/ci.yml`).
 
 ## Documentation
 
+The documentation website is published (once GitHub Pages is enabled and the docs PR is merged) at **https://abdullahzaher.github.io/vibress-studio/**. Source Markdown remains in [docs/](docs/). Use `pnpm docs:dev` locally and `pnpm docs:build` to validate it; see [documentation site maintenance](docs/guide/documentation-site.md).
+
+
 | Doc | Contents |
 |---|---|
 | [docs/architecture.md](docs/architecture.md) | Layering, data flow, boundaries |
