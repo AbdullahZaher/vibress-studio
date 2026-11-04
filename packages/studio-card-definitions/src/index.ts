@@ -138,7 +138,7 @@ export const AudioCardDefinition: StudioCardDefinition<AudioCardData> = {
   },
   renderPlainText: (data) => {
     const caption = stripHtml(safeMediaCaption(data));
-    return [data.title, caption].filter(Boolean).join('\\n') || data.src || '';
+    return [data.title, caption].filter(Boolean).join('\n') || data.src || '';
   },
 };
 
@@ -166,7 +166,7 @@ export const FileCardDefinition: StudioCardDefinition<FileCardData> = {
   },
   renderPlainText: (data) => {
     const caption = stripHtml(safeMediaCaption(data));
-    return [data.fileName, caption].filter(Boolean).join('\\n') || data.src || '';
+    return [data.fileName, caption].filter(Boolean).join('\n') || data.src || '';
   },
 };
 
@@ -223,7 +223,7 @@ export const EmbedCardDefinition: StudioCardDefinition<EmbedCardData> = {
   },
   renderPlainText: (data) => {
     const caption = stripHtml(safeMediaCaption(data));
-    return [data.url, caption].filter(Boolean).join('\\n');
+    return [data.url, caption].filter(Boolean).join('\n');
   },
 };
 
