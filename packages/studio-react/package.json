@@ -6,7 +6,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc && node ../../scripts/build-package-esm.mjs",
+    "build": "tsc && node ../../scripts/build-package-esm.mjs && mkdir -p dist/styles && cp src/styles/*.css dist/styles/",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -54,7 +54,9 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
-    }
+    },
+    "./styles.css": "./dist/styles/studio.css",
+    "./tokens.css": "./dist/styles/tokens.css"
   },
   "files": [
     "dist"
