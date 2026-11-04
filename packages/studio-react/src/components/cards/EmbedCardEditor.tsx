@@ -3,7 +3,8 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import { NodeKey, $getNodeByKey } from 'lexical';
 import { EmbedCardData, StudioCardNode } from '@vibress/studio-cards';
-import { getEmbedProvider, sanitizeStudioHtml } from '@vibress/studio-utils';
+import { sanitizeStudioHtml } from '@vibress/studio-utils';
+import { resolveStudioEmbedDestination } from './embed-destination';
 
 import { NestedCaptionEditor } from './NestedCaptionEditor';
 import { UrlPlaceholder } from '../ui/UrlPlaceholder';
@@ -112,8 +113,7 @@ export function EmbedCardEditor({ nodeKey, cardData }: Props) {
     );
   }
 
-  const embedInfo = cardData.url ? getEmbedProvider(cardData.url) : null;
-  const embedSrc = embedInfo?.embedUrl || cardData.url || '';
+  const embedDestination = resolveStudioEmbedDestination(cardData.url);
   const sanitizedHtml = cardData.html ? sanitizeStudioHtml(cardData.html) : '';
 
   const captionStr =
@@ -164,18 +164,29 @@ export function EmbedCardEditor({ nodeKey, cardData }: Props) {
             className="absolute top-0 left-0 w-full h-full"
             dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
           />
-        ) : embedSrc ? (
+        ) : embedDestination.kind === 'iframe' ? (
           <iframe
             className="absolute top-0 left-0 w-full h-full"
-            src={embedSrc}
+            src={embedDestination.url}
             frameBorder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             title="Embedded content"
           />
+        ) : embedDestination.kind === 'external-link' ? (
+          <div className="absolute inset-0 flex items-center justify-center p-4 text-center">
+            <a
+              href={embedDestination.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm underline text-foreground"
+            >
+              Open external content
+            </a>
+          </div>
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
-            No embed URL provided.
+          <div role="status" className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
+            Unsupported or unsafe embed URL.
           </div>
         )}
       </div>
