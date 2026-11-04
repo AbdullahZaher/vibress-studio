@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeStudioHtml, stripHtml, getEmbedProvider, isSafeProtocolUrl } from '../sanitize';
+import { sanitizeStudioHtml, stripHtml, getEmbedProvider, isSafeProtocolUrl, isSafeCssColor, sanitizeInlineStyle } from '../sanitize';
 import { sanitizeHtml } from '../index';
 
 describe('sanitizeStudioHtml — allowlist sanitizer', () => {
@@ -131,5 +131,40 @@ describe('unsafe link text preservation', () => {
     const cleaned = sanitizeStudioHtml('<a href="javascript:alert(1)">read this</a>');
     expect(cleaned).toContain('read this');
     expect(cleaned).not.toContain('javascript:');
+  });
+});
+
+describe('isSafeCssColor and sanitizeInlineStyle', () => {
+  it('validates safe css colors', () => {
+    expect(isSafeCssColor('#fff')).toBe(true);
+    expect(isSafeCssColor('#1d4ed8')).toBe(true);
+    expect(isSafeCssColor('rgb(255, 0, 0)')).toBe(true);
+    expect(isSafeCssColor('rgba(255, 0, 0, 0.5)')).toBe(true);
+    expect(isSafeCssColor('hsl(200, 50%, 50%)')).toBe(true);
+    expect(isSafeCssColor('var(--vb-studio-primary)')).toBe(true);
+    expect(isSafeCssColor('transparent')).toBe(true);
+    expect(isSafeCssColor('inherit')).toBe(true);
+
+    // Reject dangerous or invalid values
+    expect(isSafeCssColor('red; background: url(https://evil.com)')).toBe(false);
+    expect(isSafeCssColor('expression(alert(1))')).toBe(false);
+    expect(isSafeCssColor('url(javascript:alert(1))')).toBe(false);
+    expect(isSafeCssColor('<script>')).toBe(false);
+  });
+
+  it('sanitizes inline styles and allowlists safe properties only', () => {
+    const safe = sanitizeInlineStyle('color: #1d4ed8; background-color: #dbeafe; text-align: center');
+    expect(safe).toBe('color: #1d4ed8; background-color: #dbeafe; text-align: center');
+
+    const stripped = sanitizeInlineStyle('position: fixed; top: 0; z-index: 9999; color: #1d4ed8');
+    expect(stripped).toBe('color: #1d4ed8');
+
+    const malicious = sanitizeInlineStyle('background: url(https://evil.example/track.png); color: expression(xss)');
+    expect(malicious).toBe('');
+  });
+
+  it('preserves sanitized style attribute through sanitizeStudioHtml', () => {
+    const html = sanitizeStudioHtml('<span style="color: #1d4ed8; position: fixed">Sample</span>');
+    expect(html).toBe('<span style="color: #1d4ed8">Sample</span>');
   });
 });

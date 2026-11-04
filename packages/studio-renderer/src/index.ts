@@ -1,6 +1,6 @@
 import { StudioDocument, validateStudioDocument, migrateDocument } from '@vibress/studio-core';
 import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-card-definitions';
-import { escapeHtml, sanitizeUrl, sanitizeStudioHtml } from '@vibress/studio-utils';
+import { escapeHtml, sanitizeUrl, sanitizeStudioHtml, sanitizeInlineStyle, isSafeCssColor } from '@vibress/studio-utils';
 
 export interface RenderOptions {
   target?: 'web' | 'email';
@@ -66,6 +66,15 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
     if (format & 2) text = `<em>${text}</em>`;
     if (format & 4) text = `<s>${text}</s>`;
     if (format & 8) text = `<u>${text}</u>`;
+    if (format & 32) text = `<sub>${text}</sub>`;
+    if (format & 64) text = `<sup>${text}</sup>`;
+
+    if (typeof n.style === 'string' && n.style.trim()) {
+      const safeStyle = sanitizeInlineStyle(n.style);
+      if (safeStyle) {
+        text = `<span style="${escapeHtml(safeStyle)}">${text}</span>`;
+      }
+    }
 
     return text;
   }
@@ -93,7 +102,8 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
           ((child as { type?: string }).type === 'studio-card')
       );
       if (hasBlockCard) return content;
-      const styleAttr = n.style ? ` style="${escapeHtml(String(n.style))}"` : '';
+      const safeStyle = typeof n.style === 'string' && n.style.trim() ? sanitizeInlineStyle(n.style) : '';
+      const styleAttr = safeStyle ? ` style="${escapeHtml(safeStyle)}"` : '';
       return content ? `<p${directionAttr}${styleAttr}>${content}</p>` : `<p${directionAttr}></p>`;
     }
 
@@ -102,7 +112,8 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
       const level = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag.toLowerCase())
         ? tag.toLowerCase()
         : 'h2';
-      const styleAttr = n.style ? ` style="${escapeHtml(String(n.style))}"` : '';
+      const safeStyle = typeof n.style === 'string' && n.style.trim() ? sanitizeInlineStyle(n.style) : '';
+      const styleAttr = safeStyle ? ` style="${escapeHtml(safeStyle)}"` : '';
       const childrenHtml = renderChildren();
       const rawText = extractNodeText(n);
       const slug = slugifyHeading(rawText);
@@ -148,7 +159,17 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
       const tag = isHeader ? 'th' : 'td';
       const colSpan = n.colSpan && Number(n.colSpan) > 1 ? ` colspan="${n.colSpan}"` : '';
       const rowSpan = n.rowSpan && Number(n.rowSpan) > 1 ? ` rowspan="${n.rowSpan}"` : '';
-      const bg = n.backgroundColor ? ` style="background-color: ${escapeHtml(String(n.backgroundColor))}"` : '';
+      let style = '';
+      if (typeof n.backgroundColor === 'string' && isSafeCssColor(n.backgroundColor)) {
+        style = `background-color: ${n.backgroundColor}`;
+      }
+      if (typeof n.style === 'string' && n.style.trim()) {
+        const safe = sanitizeInlineStyle(n.style);
+        if (safe) {
+          style = style ? `${style}; ${safe}` : safe;
+        }
+      }
+      const bg = style ? ` style="${escapeHtml(style)}"` : '';
       return `<${tag}${colSpan}${rowSpan}${bg}>${renderChildren()}</${tag}>`;
     }
 

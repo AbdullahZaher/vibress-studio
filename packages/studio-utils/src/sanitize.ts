@@ -152,6 +152,76 @@ function isAllowedIframeSrc(src: string): boolean {
   return getEmbedProvider(src) !== null;
 }
 
+const ALLOWED_STYLE_PROPERTIES = new Set(['color', 'background-color', 'text-align', 'vertical-align']);
+
+const SAFE_HEX_COLOR_RE = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+const SAFE_RGB_COLOR_RE = /^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(?:,\s*(?:0|1|0?\.\d+)\s*)?\)$/i;
+const SAFE_HSL_COLOR_RE = /^hsla?\(\s*\d{1,3}(?:deg)?\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%\s*(?:,\s*(?:0|1|0?\.\d+)\s*)?\)$/i;
+const SAFE_VAR_RE = /^var\(--[a-zA-Z0-9_-]+\)$/;
+const SAFE_NAMED_COLORS = new Set([
+  'inherit', 'transparent', 'currentcolor',
+  'black', 'white', 'gray', 'grey', 'silver', 'maroon', 'red', 'purple',
+  'fuchsia', 'green', 'lime', 'olive', 'yellow', 'navy', 'blue', 'teal',
+  'aqua', 'orange', 'slate', 'amber', 'emerald', 'cyan', 'sky', 'indigo', 'violet', 'rose'
+]);
+const SAFE_TEXT_ALIGN = new Set(['left', 'center', 'right', 'justify']);
+const SAFE_VERTICAL_ALIGN = new Set(['baseline', 'sub', 'super', 'top', 'middle', 'bottom']);
+
+export function isSafeCssColor(value: string): boolean {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  // Disallow dangerous CSS expressions or URL loads
+  if (/[<>"'\\;{}]/i.test(trimmed)) return false;
+  if (/url\(|expression\(|javascript:|@import/i.test(trimmed)) return false;
+
+  if (SAFE_HEX_COLOR_RE.test(trimmed)) return true;
+  if (SAFE_RGB_COLOR_RE.test(trimmed)) return true;
+  if (SAFE_HSL_COLOR_RE.test(trimmed)) return true;
+  if (SAFE_VAR_RE.test(trimmed)) return true;
+  if (SAFE_NAMED_COLORS.has(trimmed.toLowerCase())) return true;
+
+  return false;
+}
+
+export function sanitizeInlineStyle(style: unknown): string {
+  if (typeof style !== 'string' || !style.trim()) return '';
+
+  const declarations = style.split(';');
+  const safeDecls: string[] = [];
+
+  for (const decl of declarations) {
+    const colonIdx = decl.indexOf(':');
+    if (colonIdx === -1) continue;
+
+    const prop = decl.slice(0, colonIdx).trim().toLowerCase();
+    const val = decl.slice(colonIdx + 1).trim();
+
+    if (!ALLOWED_STYLE_PROPERTIES.has(prop)) continue;
+
+    // Disallow dangerous CSS expressions or URL loads in the property or value
+    if (/[<>"'\\;{}]/i.test(val) || /url\(|expression\(|javascript:|@import/i.test(val)) {
+      continue;
+    }
+
+    if (prop === 'color' || prop === 'background-color') {
+      if (isSafeCssColor(val)) {
+        safeDecls.push(`${prop}: ${val}`);
+      }
+    } else if (prop === 'text-align') {
+      if (SAFE_TEXT_ALIGN.has(val.toLowerCase())) {
+        safeDecls.push(`${prop}: ${val.toLowerCase()}`);
+      }
+    } else if (prop === 'vertical-align') {
+      if (SAFE_VERTICAL_ALIGN.has(val.toLowerCase())) {
+        safeDecls.push(`${prop}: ${val.toLowerCase()}`);
+      }
+    }
+  }
+
+  return safeDecls.join('; ');
+}
+
 type P5Node = {
   nodeName: string;
   tagName?: string;
@@ -195,7 +265,12 @@ function sanitizeNode(node: P5Node): P5Node[] {
   const attrs = (node.attrs || []).filter((attr) => {
     const name = attr.name.toLowerCase();
     if (name.startsWith('on')) return false; // event handlers
-    if (name === 'style') return false; // no inline style injection
+    if (name === 'style') {
+      const sanitized = sanitizeInlineStyle(attr.value);
+      if (!sanitized) return false;
+      attr.value = sanitized;
+      return true;
+    }
     if (name.startsWith('data-') || name === 'srcdoc' || name === 'formaction' || name === 'xlink:href') return false;
 
     if (name === 'class') {
