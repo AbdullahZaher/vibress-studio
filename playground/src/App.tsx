@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { VibressStudio } from '@vibress/studio-react';
+import { VibressStudio, UnsplashIcon } from '@vibress/studio-react';
 import { StudioDocument, createEmptyStudioDocument } from '@vibress/studio-core';
 import { renderStudioDocumentToHtml, renderStudioDocumentToPlainText } from '@vibress/studio-renderer';
 import { studioDocumentToMarkdown } from '@vibress/studio-markdown';
@@ -124,8 +124,8 @@ export default function App() {
       {/* 1. Ghost & Gutenberg-Style Editorial Top Bar */}
       <header
         style={{
-          height: '56px',
-          padding: '0 20px',
+          height: '64px',
+          padding: '0 40px',
           borderBottom: '1px solid var(--vb-studio-border, #e2e8f0)',
           display: 'flex',
           alignItems: 'center',
@@ -254,22 +254,31 @@ export default function App() {
             <span>{isPreviewMode ? 'Editor' : 'Preview'}</span>
           </button>
 
-          {/* Publish Button */}
+          {/* Publish / Save Button (Ghost Variant) */}
           <button
             type="button"
-            onClick={() => alert('Post published successfully in Vibress Studio!')}
+            onClick={() => alert('Post saved successfully in Vibress Studio!')}
             style={{
-              padding: '6px 16px',
+              padding: '6px 14px',
               borderRadius: '6px',
               border: 'none',
-              background: '#10b981',
-              color: '#ffffff',
+              background: 'transparent',
+              color: 'var(--vb-studio-foreground-muted, #64748b)',
               cursor: 'pointer',
               fontSize: '13px',
-              fontWeight: 600,
+              fontWeight: 500,
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--vb-studio-foreground, #0f172a)';
+              e.currentTarget.style.backgroundColor = 'var(--vb-studio-surface-muted, rgba(255, 255, 255, 0.06))';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--vb-studio-foreground-muted, #64748b)';
+              e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
-            Publish
+            Save Draft
           </button>
 
           {/* Ghost Settings Toggle */}
@@ -391,12 +400,12 @@ export default function App() {
           style={{
             flex: 1,
             overflowY: 'auto',
-            padding: '40px 24px 80px',
+            padding: '64px 40px 180px',
             position: 'relative',
             backgroundColor: 'var(--vb-studio-canvas, #ffffff)',
           }}
         >
-          <div style={{ maxWidth: '780px', margin: '0 auto', position: 'relative' }}>
+          <div style={{ maxWidth: '760px', margin: '0 auto', position: 'relative' }}>
             {isPreviewMode ? (
               /* Published Ghost Article View */
               <article style={{ lineHeight: '1.8' }}>
@@ -432,7 +441,7 @@ export default function App() {
               /* Ghost-Style Editorial Writing Surface */
               <>
                 {/* Feature Image Header Affordance */}
-                <div style={{ marginBottom: '24px' }}>
+                <div style={{ marginBottom: '28px' }}>
                   {featureImage ? (
                     <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden' }}>
                       <img src={featureImage} alt="Feature" style={{ width: '100%', maxHeight: '360px', objectFit: 'cover' }} />
@@ -499,9 +508,32 @@ export default function App() {
                           cursor: 'pointer',
                           padding: 0,
                         }}
-                        title="Add image"
+                        title="Add image from library"
                       >
                         <ImageIcon size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFeatureImage(
+                            'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=1200&q=80'
+                          )
+                        }
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '24px',
+                          height: '24px',
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--vb-studio-foreground-muted, #64748b)',
+                          cursor: 'pointer',
+                          padding: 0,
+                        }}
+                        title="Add image from Unsplash"
+                      >
+                        <UnsplashIcon size={14} />
                       </button>
                     </div>
                   )}
@@ -522,7 +554,7 @@ export default function App() {
                     fontSize: '3rem',
                     fontWeight: 800,
                     lineHeight: 1.2,
-                    marginBottom: '20px',
+                    marginBottom: '28px',
                     letterSpacing: '-0.025em',
                     resize: 'none',
                     fontFamily: 'inherit',
