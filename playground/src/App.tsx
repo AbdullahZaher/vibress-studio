@@ -508,29 +508,6 @@ export default function App() {
                           cursor: 'pointer',
                           padding: 0,
                         }}
-                        title="Add image from library"
-                      >
-                        <ImageIcon size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFeatureImage(
-                            'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=1200&q=80'
-                          )
-                        }
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '24px',
-                          height: '24px',
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--vb-studio-foreground-muted, #64748b)',
-                          cursor: 'pointer',
-                          padding: 0,
-                        }}
                         title="Add image from Unsplash"
                       >
                         <UnsplashIcon size={14} />
