@@ -1,76 +1,39 @@
-# Vibress Studio — Security
+# Vibress Studio — Security Model and Evidence
 
-This document describes the security model and guarantees of Vibress Studio.
+**Maintained against source:** 2026-11-04. This document explains controls and limitations; it is not a blanket security certification.
 
-> Also read: [Threat Model](security/threat-model.md), [XSS Regression Matrix](security/xss-regression-matrix.md), [Sanitization Policy](sanitization-policy.md).
+Related: [threat model](security/threat-model.md), [sanitization policy](sanitization-policy.md), [source reassessment](audits/studio-source-reassessment-2026-11-04.md) and [fix roadmap](roadmaps/global-ux-quality-roadmap.md#16-current-authoritative-remediation-and-development-plan--2026-11-04).
 
-## Security guarantees
+## Actual sanitizer and trust boundaries
 
-1. **No raw HTML rendering.** Every renderer (server HTML, plain text, React
-   preview, import paths) treats all input as untrusted. User-provided HTML
-   is only ever emitted after allowlist sanitization; text is escaped;
-   URLs are protocol-checked and attribute-escaped.
-2. **Allowlist sanitizer only.** The regex-based sanitizer was removed
-   (hardening P1). `sanitizeHtmlFragment` in `@vibress/studio-utils` is the
-   single sanitizer, backed by `sanitize-html` with an explicit policy in
-   `packages/studio-utils/src/sanitize/policy.ts`.
-3. **Safe HTML card.** The HTML card never emits raw HTML: its renderer
-   sanitizes through the same allowlist (Option B). There is no trusted raw
-   path by default.
-4. **Provider-allowlisted embeds.** The embed card emits `<iframe>` only for
-   allowlisted providers (YouTube, Vimeo, Spotify, SoundCloud, CodePen,
-   CodeSandbox, Twitter/X, Figma). Everything else degrades to a safe link.
-5. **Branded SafeHtml boundary.** In React, `dangerouslySetInnerHTML` exists
-   only in `SafeHtml`, which accepts exclusively `SanitizedHtml` values
-   created by `sanitizeToSafeHtml`.
-6. **Validated card data.** Every card schema is validated with Zod before
-   rendering (URL protocols, safe class tokens, numeric dimensions).
-7. **Server-safe renderer packages.** `studio-core`, `studio-cards`,
-   `studio-utils`, `studio-html`, `studio-markdown`, `studio-renderer`,
-   `studio-serializer`, and `studio-plugin-sdk` never import React or
-   Lexical (enforced by `pnpm verify:package-exports`).
+The current HTML sanitizer is **`sanitizeStudioHtml`** in `packages/studio-utils/src/sanitize.ts`, implemented with **parse5** and a tag/attribute allowlist. `sanitizeHtml` in `packages/studio-utils/src/index.ts` calls it. There is no current `sanitizeHtmlFragment`, `HTML_SANITIZE_POLICY`, `packages/studio-utils/src/sanitize/policy.ts`, or `sanitize-html`-based implementation.
 
-## Guaranteed-safe rendering path
+- Treat persisted documents, imported HTML/Markdown, pasted fragments, card payloads, URLs, captions and plugin renderer output as untrusted.
+- The final `renderStudioDocumentToHtml` boundary validates/migrates the document, escapes output and applies `sanitizeStudioHtml`. Never bypass the boundary by injecting card HTML directly.
+- Plugin authors can define untrusted renderer functions. `StudioPluginRegistry.renderCardHtml` passes registered card output through validation and sanitization; **plugins are not sandboxed**.
+- The React editor's static card path uses `sanitizeStudioHtml` before `dangerouslySetInnerHTML`; do not claim an exclusive `SafeHtml` wrapper exists in this revision. The playground preview uses sanitized renderer output.
+- `getEmbedProvider` supports **YouTube and Vimeo** (not arbitrary providers). Iframes must carry validated provider URLs; the HTML sanitizer enforces its own allowlist.
+- URLs and attributes require context-specific checks. `blob:` URLs are rejected for persisted/published media. The sanitizer allows a restricted raster `data:image/` family; do not treat that as permission to persist raw data URLs.
+- The host is responsible for authorization, secure media storage, AI gateway permissions, auditing and publication. Client-side validation does not substitute for host checks.
 
-```ts
-import { renderStudioDocumentToHtml } from '@vibress/studio-renderer';
+## Open source-evidenced concerns
 
-// SSR-safe: output contains no scripts, event handlers, or unsafe URLs.
-const html = renderStudioDocumentToHtml(storedDocument);
-```
+| Reference | Priority | Investigation or remediation |
+| --- | --- | --- |
+| `STU-R05` | P1 security | Markdown exporter emits link destinations without shared URL policy / Markdown escaping. Add malicious and escaped-destination regressions before stating comprehensive Markdown boundary safety. |
+| `STU-R01` | P0 candidate integrity | Unknown non-null document can migrate to an empty document. Preserve invalid input and prevent overwrite. |
+| `STU-R02` | P0 candidate integrity | Async image upload applies stale captured card metadata. Test and protect concurrent edits. |
+| `STU-R04` | P1 fidelity/security | Published color/highlight must use a safe allowlisted representation, never arbitrary CSS passthrough. |
+| Host/plugin integration | P1 | Verify all registered renderers are rendered only through the safe public boundary. |
 
-The document renderer:
+These are source review findings; no exploit was reproduced in the documentation update. For specific proof requirements see the [audit](audits/studio-source-reassessment-2026-11-04.md).
 
-- escapes text nodes with `escapeHtml`;
-- validates/escapes every `href`/`src` with `sanitizeUrl` + `escapeAttribute`;
-- renders cards through their sanitizing definitions;
-- never emits `javascript:`, `vbscript:`, `data:text/html`,
-  `data:image/svg+xml`, event handlers, or `srcdoc`.
+## Test coverage
 
-## Renderer responsibilities
+Actual active files include `packages/studio-utils/src/__tests__/sanitize.test.ts`, `packages/studio-testing/security/content-security.test.ts`, `packages/studio-testing/security/roundtrip.test.ts`, `tests/html-import-regressions.test.ts`, and E2E specs `05-html-card-xss.spec.ts` and `06-import-export.spec.ts`.
 
-| Layer | Responsibility |
-|---|---|
-| `escapeHtml` | text nodes |
-| `escapeAttribute` | attribute values |
-| `sanitizeUrl` / `isSafeUrl` | URL protocols + attribute breakout |
-| `sanitizeHtmlFragment` | HTML fragments (captions, embed html, markdown output, HTML card) |
-| `SafeHtml` | React `dangerouslySetInnerHTML` boundary |
-| Zod schemas | card data shape, dimensions, class tokens |
+`pnpm test:security` and the CI run cover these existing regressions. Do not claim that absent historical tests in earlier docs are current or that all attack vectors are proven impossible.
 
-## Known limitations
+## Reporting vulnerabilities
 
-- **Email rendering**: `renderStudioDocumentToHtml` with `target: 'email'`
-  currently shares the web policy; some CMS email features (e.g. tracking
-  pixels) are out of scope.
-- **SVG images**: `data:image/svg+xml` is rejected everywhere because SVG
-  can carry scripts. Hosting SVG assets requires a separate, dedicated
-  sanitizer/allowlist service.
-- **Trusted raw HTML**: not exposed. If a future requirement needs it, it
-  must add an explicit trusted-author path with server-side permission
-  checks, audit logging, and CSP validation — disabled by default.
-
-## Reporting a vulnerability
-
-Open an issue in the repository with the package, affected version, payload,
-and expected vs actual output.
+Disclose suspected exploitable issues privately to the repository owner/security contact; avoid publishing working payloads or production-sensitive details in public issues. Record reproduction, affected revision, impact, proposed regression and mitigation through the appropriate authorized channel.
