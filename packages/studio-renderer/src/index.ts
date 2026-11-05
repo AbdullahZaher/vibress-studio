@@ -91,8 +91,9 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
 
   // Handle TextNode
   if (type === 'text') {
-    let text = escapeHtml(n.text || '');
-    const format = typeof n.format === 'number' ? n.format : 0;
+    const rawText = typeof n.text === 'string' ? n.text : (n.text != null && typeof n.text !== 'object' ? String(n.text) : '');
+    let text = escapeHtml(rawText);
+    const format = typeof n.format === 'number' && Number.isFinite(n.format) ? n.format : 0;
 
     // Lexical format bitmask: 1=Bold, 2=Italic, 4=Strikethrough, 8=Underline, 16=Code, 32=Subscript, 64=Superscript
     if (format & 16) text = `<code>${text}</code>`;
@@ -142,9 +143,9 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
     }
 
     case 'heading': {
-      const tag = n.tag || 'h2';
-      const level = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag.toLowerCase())
-        ? tag.toLowerCase()
+      const rawTag = typeof n.tag === 'string' ? n.tag.toLowerCase().trim() : '';
+      const level = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(rawTag)
+        ? rawTag
         : 'h2';
       const safeStyle = typeof n.style === 'string' && n.style.trim() ? sanitizeInlineStyle(n.style) : '';
       const styleAttr = safeStyle ? ` style="${escapeHtml(safeStyle)}"` : '';
@@ -227,11 +228,12 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
     }
 
     case 'link': {
-      const url = sanitizeUrl(n.url || '#');
-      const target = typeof n.target === 'string' && n.target.trim() ? n.target.trim() : '';
+      const rawUrl = typeof n.url === 'string' ? n.url : '#';
+      const url = sanitizeUrl(rawUrl);
+      const target = typeof n.target === 'string' && n.target.trim() ? n.target.trim().toLowerCase() : '';
       let rel = typeof n.rel === 'string' && n.rel.trim() ? n.rel.trim() : '';
       if (target === '_blank') {
-        const tokens = new Set(rel.split(/\s+/).filter(Boolean));
+        const tokens = new Set(rel.toLowerCase().split(/\s+/).filter(Boolean));
         tokens.add('noopener');
         tokens.add('noreferrer');
         rel = Array.from(tokens).join(' ');
@@ -254,8 +256,10 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
 
     // Handle Studio Card Nodes (canonical type after normalization)
     case 'studio-card': {
-      const cardType = n.cardType;
-      const cardData = n.cardData || {};
+      const cardType = typeof n.cardType === 'string' ? n.cardType : '';
+      const cardData = typeof n.cardData === 'object' && n.cardData !== null && !Array.isArray(n.cardData)
+        ? (n.cardData as Record<string, unknown>)
+        : {};
       // A blob: URL only exists for the current browser session and can never
       // be published; skip the card rather than emit a broken/leaky reference.
       if (hasTransientMedia(cardData)) {
@@ -325,12 +329,14 @@ function renderNodeToPlainText(node: unknown, options: RenderOptions = {}): stri
   } & Record<string, unknown>;
 
   if (n.type === 'text') {
-    return n.text || '';
+    return typeof n.text === 'string' ? n.text : (n.text != null && typeof n.text !== 'object' ? String(n.text) : '');
   }
 
   if (n.type === 'studio-card') {
-    const cardType = n.cardType;
-    const cardData = n.cardData || {};
+    const cardType = typeof n.cardType === 'string' ? n.cardType : '';
+    const cardData = typeof n.cardData === 'object' && n.cardData !== null && !Array.isArray(n.cardData)
+      ? (n.cardData as Record<string, unknown>)
+      : {};
     // Transient blob: media must never surface in excerpts/search text.
     if (hasTransientMedia(cardData)) {
       return '';
@@ -422,8 +428,10 @@ function renderNodeToPlainText(node: unknown, options: RenderOptions = {}): stri
 
 export function extractNodeText(node: unknown): string {
   if (!node || typeof node !== 'object') return '';
-  const n = node as { type?: string; text?: string; children?: unknown[] };
-  if (n.type === 'text') return n.text || '';
+  const n = node as { type?: unknown; text?: unknown; children?: unknown };
+  if (n.type === 'text') {
+    return typeof n.text === 'string' ? n.text : (n.text != null && typeof n.text !== 'object' ? String(n.text) : '');
+  }
   if (Array.isArray(n.children)) {
     return n.children.map(extractNodeText).join('');
   }
@@ -431,6 +439,7 @@ export function extractNodeText(node: unknown): string {
 }
 
 export function slugifyHeading(text: string): string {
+  if (typeof text !== 'string') return '';
   return text
     .toLowerCase()
     .replace(/<[^>]*>?/gm, '')
@@ -456,9 +465,10 @@ export function extractTableOfContentsFromDocument(docInput: unknown): TableOfCo
 
   function walk(node: unknown): void {
     if (!node || typeof node !== 'object') return;
-    const n = node as { type?: string; tag?: string; children?: unknown[] };
+    const n = node as { type?: unknown; tag?: unknown; children?: unknown };
     if (n.type === 'heading') {
-      const tag = (n.tag || 'h2').toLowerCase();
+      const rawTag = typeof n.tag === 'string' ? n.tag.toLowerCase().trim() : 'h2';
+      const tag = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(rawTag) ? rawTag : 'h2';
       const rawText = extractNodeText(n).trim();
       const slug = slugTracker.allocate(rawText);
       if (['h2', 'h3'].includes(tag) && rawText && slug) {

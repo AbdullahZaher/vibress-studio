@@ -139,24 +139,90 @@ export const StudioCardNodeDataSchema = z.object({
 }).passthrough();
 export type StudioCardNode = z.infer<typeof StudioCardNodeDataSchema>;
 
+const VALID_HEADING_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
+const VALID_LIST_TYPES = new Set(['bullet', 'number', 'check']);
+
 export function isStudioTextNode(node: unknown): node is StudioTextNode {
-  return typeof node === 'object' && node !== null && (node as { type?: unknown }).type === 'text' && typeof (node as { text?: unknown }).text === 'string';
+  if (typeof node !== 'object' || node === null) return false;
+  const n = node as Record<string, unknown>;
+  return n.type === 'text' && typeof n.text === 'string';
 }
 
 export function isStudioHeadingNode(node: unknown): node is StudioHeadingNode {
-  return typeof node === 'object' && node !== null && (node as { type?: unknown }).type === 'heading';
+  if (typeof node !== 'object' || node === null) return false;
+  const n = node as Record<string, unknown>;
+  return (
+    n.type === 'heading' &&
+    typeof n.tag === 'string' &&
+    VALID_HEADING_TAGS.has(n.tag.toLowerCase()) &&
+    Array.isArray(n.children)
+  );
 }
 
 export function isStudioParagraphNode(node: unknown): node is StudioParagraphNode {
-  return typeof node === 'object' && node !== null && (node as { type?: unknown }).type === 'paragraph';
+  if (typeof node !== 'object' || node === null) return false;
+  const n = node as Record<string, unknown>;
+  return n.type === 'paragraph' && Array.isArray(n.children);
 }
 
 export function isStudioLinkNode(node: unknown): node is StudioLinkNode {
-  return typeof node === 'object' && node !== null && (node as { type?: unknown }).type === 'link';
+  if (typeof node !== 'object' || node === null) return false;
+  const n = node as Record<string, unknown>;
+  return n.type === 'link' && typeof n.url === 'string' && Array.isArray(n.children);
+}
+
+export function isStudioListNode(node: unknown): node is StudioListNode {
+  if (typeof node !== 'object' || node === null) return false;
+  const n = node as Record<string, unknown>;
+  return (
+    n.type === 'list' &&
+    typeof n.listType === 'string' &&
+    VALID_LIST_TYPES.has(n.listType) &&
+    Array.isArray(n.children)
+  );
+}
+
+export function isStudioListItemNode(node: unknown): node is StudioListItemNode {
+  if (typeof node !== 'object' || node === null) return false;
+  const n = node as Record<string, unknown>;
+  return n.type === 'listitem' && Array.isArray(n.children);
+}
+
+export function isStudioCodeNode(node: unknown): node is StudioCodeNode {
+  if (typeof node !== 'object' || node === null) return false;
+  const n = node as Record<string, unknown>;
+  return n.type === 'code' && Array.isArray(n.children);
+}
+
+export function isStudioTableNode(node: unknown): node is StudioTableNode {
+  if (typeof node !== 'object' || node === null) return false;
+  const n = node as Record<string, unknown>;
+  return n.type === 'table' && Array.isArray(n.children);
+}
+
+export function isStudioTableRowNode(node: unknown): node is StudioTableRowNode {
+  if (typeof node !== 'object' || node === null) return false;
+  const n = node as Record<string, unknown>;
+  return n.type === 'tablerow' && Array.isArray(n.children);
+}
+
+export function isStudioTableCellNode(node: unknown): node is StudioTableCellNode {
+  if (typeof node !== 'object' || node === null) return false;
+  const n = node as Record<string, unknown>;
+  return n.type === 'tablecell' && Array.isArray(n.children);
 }
 
 export function isStudioCardNode(node: unknown): node is StudioCardNode {
-  return typeof node === 'object' && node !== null && (node as { type?: unknown }).type === 'studio-card';
+  if (typeof node !== 'object' || node === null) return false;
+  const n = node as Record<string, unknown>;
+  return (
+    n.type === 'studio-card' &&
+    typeof n.cardType === 'string' &&
+    n.cardType.trim().length > 0 &&
+    typeof n.cardData === 'object' &&
+    n.cardData !== null &&
+    !Array.isArray(n.cardData)
+  );
 }
 
 // ============================================================================
@@ -178,18 +244,201 @@ export const DEFAULT_DOCUMENT_RESOURCE_LIMITS: Required<DocumentResourceLimits> 
   maxDepth: 64,
 };
 
-function getUtf8ByteLength(str: string): number {
+export function resolveResourceLimits(limits?: DocumentResourceLimits): Required<DocumentResourceLimits> {
+  const maxSizeBytes =
+    typeof limits?.maxSizeBytes === 'number' && Number.isFinite(limits.maxSizeBytes) && limits.maxSizeBytes > 0
+      ? limits.maxSizeBytes
+      : DEFAULT_DOCUMENT_RESOURCE_LIMITS.maxSizeBytes;
+
+  const maxNodeCount =
+    typeof limits?.maxNodeCount === 'number' && Number.isFinite(limits.maxNodeCount) && limits.maxNodeCount > 0
+      ? Math.floor(limits.maxNodeCount)
+      : DEFAULT_DOCUMENT_RESOURCE_LIMITS.maxNodeCount;
+
+  const maxDepth =
+    typeof limits?.maxDepth === 'number' && Number.isFinite(limits.maxDepth) && limits.maxDepth > 0
+      ? Math.floor(limits.maxDepth)
+      : DEFAULT_DOCUMENT_RESOURCE_LIMITS.maxDepth;
+
+  return { maxSizeBytes, maxNodeCount, maxDepth };
+}
+
+export function getUtf8ByteLength(str: string): number {
   if (typeof TextEncoder !== 'undefined') {
     return new TextEncoder().encode(str).length;
   }
-  return str.length;
+  let bytes = 0;
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    if (code < 0x80) bytes += 1;
+    else if (code < 0x800) bytes += 2;
+    else if (code >= 0xd800 && code <= 0xdbff) {
+      bytes += 4;
+      i++;
+    } else bytes += 3;
+  }
+  return bytes;
+}
+
+function getJsonStringByteLength(str: string): number {
+  let extraEscapes = 0;
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    if (code === 34 || code === 92) {
+      extraEscapes += 1;
+    } else if (code < 32) {
+      if (code === 8 || code === 9 || code === 10 || code === 12 || code === 13) {
+        extraEscapes += 1;
+      } else {
+        extraEscapes += 5;
+      }
+    }
+  }
+  return 2 + getUtf8ByteLength(str) + extraEscapes;
+}
+
+function checkObjectResourceLimits(
+  rootObj: object,
+  rawDoc: unknown,
+  limits: Required<DocumentResourceLimits>
+): void {
+  let accumulatedBytes = 0;
+  let nodeCount = 0;
+  let totalSteps = 0;
+  const visited = new Set<unknown>();
+
+  function traverse(item: unknown, depth: number, isAstNode: boolean): void {
+    if (depth > limits.maxDepth) {
+      throw new StudioMigrationError(
+        `Document nesting depth (${depth}) exceeds maximum allowed limit (${limits.maxDepth}).`,
+        rawDoc,
+        'RESOURCE_LIMIT_EXCEEDED'
+      );
+    }
+
+    totalSteps++;
+    if (totalSteps > limits.maxNodeCount * 10) {
+      throw new StudioMigrationError(
+        `Document complexity exceeds maximum processing limits.`,
+        rawDoc,
+        'RESOURCE_LIMIT_EXCEEDED'
+      );
+    }
+
+    if (item === null || item === undefined) {
+      accumulatedBytes += 4; // 'null'
+      if (accumulatedBytes > limits.maxSizeBytes) {
+        throw new StudioMigrationError(
+          `Document size (${(accumulatedBytes / (1024 * 1024)).toFixed(2)} MB) exceeds maximum allowed limit (${(limits.maxSizeBytes / (1024 * 1024)).toFixed(2)} MB).`,
+          rawDoc,
+          'RESOURCE_LIMIT_EXCEEDED'
+        );
+      }
+      return;
+    }
+
+    const itemType = typeof item;
+    if (itemType === 'string') {
+      accumulatedBytes += getJsonStringByteLength(item as string);
+      if (accumulatedBytes > limits.maxSizeBytes) {
+        throw new StudioMigrationError(
+          `Document size (${(accumulatedBytes / (1024 * 1024)).toFixed(2)} MB) exceeds maximum allowed limit (${(limits.maxSizeBytes / (1024 * 1024)).toFixed(2)} MB).`,
+          rawDoc,
+          'RESOURCE_LIMIT_EXCEEDED'
+        );
+      }
+      return;
+    }
+
+    if (itemType === 'number') {
+      accumulatedBytes += Number.isFinite(item as number) ? String(item).length : 4;
+      if (accumulatedBytes > limits.maxSizeBytes) {
+        throw new StudioMigrationError(
+          `Document size (${(accumulatedBytes / (1024 * 1024)).toFixed(2)} MB) exceeds maximum allowed limit (${(limits.maxSizeBytes / (1024 * 1024)).toFixed(2)} MB).`,
+          rawDoc,
+          'RESOURCE_LIMIT_EXCEEDED'
+        );
+      }
+      return;
+    }
+
+    if (itemType === 'boolean') {
+      accumulatedBytes += item ? 4 : 5;
+      if (accumulatedBytes > limits.maxSizeBytes) {
+        throw new StudioMigrationError(
+          `Document size (${(accumulatedBytes / (1024 * 1024)).toFixed(2)} MB) exceeds maximum allowed limit (${(limits.maxSizeBytes / (1024 * 1024)).toFixed(2)} MB).`,
+          rawDoc,
+          'RESOURCE_LIMIT_EXCEEDED'
+        );
+      }
+      return;
+    }
+
+    if (itemType !== 'object') {
+      return;
+    }
+
+    if (visited.has(item)) {
+      throw new StudioMigrationError(
+        'Cyclic reference detected in document tree.',
+        rawDoc,
+        'CORRUPTED_DOCUMENT'
+      );
+    }
+    visited.add(item);
+
+    if (Array.isArray(item)) {
+      accumulatedBytes += 2; // '[]'
+      for (let i = 0; i < item.length; i++) {
+        if (i > 0) accumulatedBytes += 1; // ','
+        traverse(item[i], depth + 1, isAstNode);
+      }
+    } else {
+      accumulatedBytes += 2; // '{}'
+      const obj = item as Record<string, unknown>;
+
+      if (isAstNode) {
+        nodeCount++;
+        if (nodeCount > limits.maxNodeCount) {
+          throw new StudioMigrationError(
+            `Document node count (${nodeCount}) exceeds maximum allowed limit (${limits.maxNodeCount}).`,
+            rawDoc,
+            'RESOURCE_LIMIT_EXCEEDED'
+          );
+        }
+      }
+
+      let writtenFields = 0;
+      for (const [k, v] of Object.entries(obj)) {
+        if (v === undefined || typeof v === 'function') continue;
+        if (writtenFields > 0) accumulatedBytes += 1; // ','
+        accumulatedBytes += getJsonStringByteLength(k) + 1; // "key":
+
+        const childIsAstNode = (k === 'root' || k === 'children') && typeof v === 'object' && v !== null;
+        traverse(v, depth + 1, childIsAstNode);
+        writtenFields++;
+      }
+    }
+
+    visited.delete(item);
+
+    if (accumulatedBytes > limits.maxSizeBytes) {
+      throw new StudioMigrationError(
+        `Document size (${(accumulatedBytes / (1024 * 1024)).toFixed(2)} MB) exceeds maximum allowed limit (${(limits.maxSizeBytes / (1024 * 1024)).toFixed(2)} MB).`,
+        rawDoc,
+        'RESOURCE_LIMIT_EXCEEDED'
+      );
+    }
+  }
+
+  traverse(rootObj, 1, true);
 }
 
 export function checkDocumentResourceLimits(
   rawDoc: unknown,
   limits: DocumentResourceLimits = {}
 ): void {
-  const merged = { ...DEFAULT_DOCUMENT_RESOURCE_LIMITS, ...limits };
+  const merged = resolveResourceLimits(limits);
 
   if (typeof rawDoc === 'string') {
     const bytes = getUtf8ByteLength(rawDoc);
@@ -200,52 +449,23 @@ export function checkDocumentResourceLimits(
         'RESOURCE_LIMIT_EXCEEDED'
       );
     }
+
+    try {
+      const parsed = JSON.parse(rawDoc);
+      if (parsed && typeof parsed === 'object') {
+        checkObjectResourceLimits(parsed as object, rawDoc, merged);
+      }
+    } catch (err) {
+      if (isStudioMigrationError(err)) {
+        throw err;
+      }
+      // Non-JSON plain strings are governed by maxSizeBytes alone
+    }
+    return;
   }
 
   if (rawDoc && typeof rawDoc === 'object') {
-    let nodeCount = 0;
-    const visited = new Set<unknown>();
-
-    function measure(node: unknown, depth: number): void {
-      if (!node || typeof node !== 'object') return;
-      if (visited.has(node)) {
-        throw new StudioMigrationError(
-          'Cyclic reference detected in document tree.',
-          rawDoc,
-          'CORRUPTED_DOCUMENT'
-        );
-      }
-      visited.add(node);
-      nodeCount++;
-
-      if (nodeCount > merged.maxNodeCount) {
-        throw new StudioMigrationError(
-          `Document node count (${nodeCount}) exceeds maximum allowed limit (${merged.maxNodeCount}).`,
-          rawDoc,
-          'RESOURCE_LIMIT_EXCEEDED'
-        );
-      }
-      if (depth > merged.maxDepth) {
-        throw new StudioMigrationError(
-          `Document nesting depth (${depth}) exceeds maximum allowed limit (${merged.maxDepth}).`,
-          rawDoc,
-          'RESOURCE_LIMIT_EXCEEDED'
-        );
-      }
-
-      const obj = node as { children?: unknown; root?: unknown };
-      if (obj.root && typeof obj.root === 'object') {
-        measure(obj.root, depth + 1);
-      }
-      if (Array.isArray(obj.children)) {
-        for (const child of obj.children) {
-          measure(child, depth + 1);
-        }
-      }
-      visited.delete(node);
-    }
-
-    measure(rawDoc, 1);
+    checkObjectResourceLimits(rawDoc as object, rawDoc, merged);
   }
 }
 

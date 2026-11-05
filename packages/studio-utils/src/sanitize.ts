@@ -51,6 +51,20 @@ const TAG_ATTRS: Record<string, Set<string>> = {
 const URL_ATTRS = new Set(['href', 'src', 'poster']);
 const SAFE_DATA_IMAGE_RE = /^data:image\/(png|jpe?g|gif|webp|avif);base64,/i;
 
+export const ALLOWED_REL_TOKENS = new Set([
+  'noopener',
+  'noreferrer',
+  'nofollow',
+  'ugc',
+  'sponsored',
+  'external',
+  'help',
+  'license',
+  'next',
+  'prev',
+  'tag',
+]);
+
 /**
  * Reject dangerous URL schemes. `blob:` is never safe in persisted/published
  * content (it only exists for the current browser session).
@@ -304,10 +318,56 @@ function sanitizeNode(node: P5Node): P5Node[] {
       // Strip an unsafe anchor but retain its readable, inert children.
       return (node.childNodes || []).flatMap(sanitizeNode);
     }
-    // Enforce safe external-link conventions.
-    const target = attrs.find((a) => a.name.toLowerCase() === 'target');
-    if (target && target.value === '_blank' && !attrs.some((a) => a.name.toLowerCase() === 'rel')) {
-      attrs.push({ name: 'rel', value: 'noopener noreferrer' });
+
+    // Validate target attribute
+    const targetIdx = attrs.findIndex((a) => a.name.toLowerCase() === 'target');
+    let isBlank = false;
+    if (targetIdx !== -1) {
+      const targetAttr = attrs[targetIdx];
+      if (targetAttr) {
+        const rawTarget = targetAttr.value.trim().toLowerCase();
+        if (rawTarget === '_blank') {
+          isBlank = true;
+          targetAttr.value = '_blank';
+        } else if (rawTarget === '_self' || rawTarget === '_parent' || rawTarget === '_top') {
+          targetAttr.value = rawTarget;
+        } else {
+          attrs.splice(targetIdx, 1);
+        }
+      }
+    }
+
+    // Enforce safe rel protection
+    const relIdx = attrs.findIndex((a) => a.name.toLowerCase() === 'rel');
+    const relAttr = relIdx !== -1 ? attrs[relIdx] : undefined;
+    if (isBlank) {
+      const existingRel = relAttr ? relAttr.value : '';
+      const tokens = new Set(
+        existingRel
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((t) => ALLOWED_REL_TOKENS.has(t))
+      );
+      tokens.add('noopener');
+      tokens.add('noreferrer');
+      const normalizedRel = Array.from(tokens).join(' ');
+      if (relAttr) {
+        relAttr.value = normalizedRel;
+      } else {
+        attrs.push({ name: 'rel', value: normalizedRel });
+      }
+    } else if (relAttr) {
+      const tokens = new Set(
+        relAttr.value
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((t) => ALLOWED_REL_TOKENS.has(t))
+      );
+      if (tokens.size > 0) {
+        relAttr.value = Array.from(tokens).join(' ');
+      } else if (relIdx !== -1) {
+        attrs.splice(relIdx, 1);
+      }
     }
   }
 

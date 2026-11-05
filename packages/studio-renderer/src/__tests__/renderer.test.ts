@@ -805,4 +805,64 @@ describe('code block interactive controls (STU-R17)', () => {
     expect(html).toContain('<button type="button" class="studio-code-copy-btn" aria-label="Copy code">Copy</button>');
     expect(html).toContain('<code>print("hello")</code>');
   });
+
+  describe('Malformed known node handling and safe fallbacks (STU-201, STU-202)', () => {
+    it('safely renders headings with non-string or unknown tags without throwing', () => {
+      const html1 = renderStudioDocumentToHtml(doc([
+        { type: 'heading', tag: 42, children: [{ type: 'text', text: 'Numeric Tag' }] },
+      ]));
+      expect(html1).toContain('<h2 id="numeric-tag">Numeric Tag');
+
+      const html2 = renderStudioDocumentToHtml(doc([
+        { type: 'heading', tag: 'h99', children: [{ type: 'text', text: 'Unsupported Tag' }] },
+      ]));
+      expect(html2).toContain('<h2 id="unsupported-tag">Unsupported Tag');
+    });
+
+    it('safely renders text nodes with null or non-string text', () => {
+      const html = renderStudioDocumentToHtml(doc([
+        { type: 'paragraph', children: [{ type: 'text', text: null }, { type: 'text', text: 42 }, { type: 'text', text: 'Safe' }] },
+      ]));
+      expect(html).toContain('<p>42Safe</p>');
+    });
+
+    it('safely renders links with non-string url or invalid target', () => {
+      const html = renderStudioDocumentToHtml(doc([
+        { type: 'link', url: 123, target: 'untrusted_window', children: [{ type: 'text', text: 'Link Text' }] },
+      ]));
+      expect(html).toContain('<a href="#">Link Text</a>');
+      expect(html).not.toContain('target="untrusted_window"');
+    });
+
+    it('safely renders paragraphs and tables with malformed or non-array children', () => {
+      const html = renderStudioDocumentToHtml(doc([
+        { type: 'paragraph', children: 'invalid' },
+        { type: 'table', children: null },
+      ]));
+      expect(html).toContain('<p></p>');
+      expect(html).toContain('<table class="studio-table"><tbody></tbody></table>');
+    });
+
+    it('safely extracts table of contents from documents with malformed heading tags', () => {
+      const toc = extractTableOfContentsFromDocument(doc([
+        { type: 'heading', tag: 42, children: [{ type: 'text', text: 'Overview' }] },
+        { type: 'heading', tag: 'h3', children: [{ type: 'text', text: 'Details' }] },
+      ]));
+      expect(toc.length).toBe(2);
+      expect(toc[0]?.id).toBe('overview');
+      expect(toc[0]?.level).toBe(2);
+      expect(toc[1]?.id).toBe('details');
+      expect(toc[1]?.level).toBe(3);
+    });
+
+    it('safely renders plain text from documents with malformed nodes', () => {
+      const plain = renderStudioDocumentToPlainText(doc([
+        { type: 'heading', tag: 42, children: [{ type: 'text', text: 'Overview' }] },
+        { type: 'paragraph', children: [{ type: 'text', text: null }, { type: 'text', text: 42 }] },
+        { type: 'studio-card', cardType: 123, cardData: null },
+      ]));
+      expect(plain).toContain('Overview');
+      expect(plain).toContain('42');
+    });
+  });
 });
