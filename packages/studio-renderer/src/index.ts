@@ -10,6 +10,24 @@ export interface RenderOptions {
   interactiveControls?: boolean;
 }
 
+export class HeadingSlugTracker {
+  private seenSlugs = new Map<string, number>();
+
+  allocate(rawText: string): string {
+    const trimmed = rawText.trim();
+    let baseSlug = slugifyHeading(trimmed);
+    if (!baseSlug && trimmed) baseSlug = 'heading';
+    if (!baseSlug) return '';
+    const count = this.seenSlugs.get(baseSlug) || 0;
+    this.seenSlugs.set(baseSlug, count + 1);
+    return count > 0 ? `${baseSlug}-${count}` : baseSlug;
+  }
+
+  reset(): void {
+    this.seenSlugs.clear();
+  }
+}
+
 export function renderStudioDocumentToHtml(docInput: unknown, options: RenderOptions = {}): string {
   // migrateDocument applies the canonical normalization layer
   // (react-studio-card → studio-card) plus legacy migration.
@@ -18,8 +36,8 @@ export function renderStudioDocumentToHtml(docInput: unknown, options: RenderOpt
     return '';
   }
 
-  const seenSlugs = new Map<string, number>();
-  const raw = doc.root.children.map((node) => renderNodeToHtml(node, options, seenSlugs)).join('');
+  const slugTracker = new HeadingSlugTracker();
+  const raw = doc.root.children.map((node) => renderNodeToHtml(node, options, slugTracker)).join('');
 
   // FINAL security boundary: every Studio card's rendered markup passes
   // through the shared allowlist sanitizer before leaving the server.
@@ -51,7 +69,7 @@ function firstChildDirection(node: unknown): 'ltr' | 'rtl' | null {
   return null;
 }
 
-function renderNodeToHtml(node: unknown, options: RenderOptions, seenSlugs?: Map<string, number>): string {
+function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: HeadingSlugTracker | Map<string, number>): string {
   if (!node || typeof node !== 'object') return '';
   const n = node as { type?: string; text?: string; format?: number; children?: unknown[]; tag?: string; listType?: string; url?: string; src?: string; alt?: string; cardType?: string; caption?: string; rel?: string; target?: string; cardData?: Record<string, unknown>; } & Record<string, unknown>;
 
@@ -87,7 +105,7 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, seenSlugs?: Map
   // Render children helper
   const renderChildren = () => {
     if (Array.isArray(n.children)) {
-      return n.children.map((child: unknown) => renderNodeToHtml(child, options, seenSlugs)).join('');
+      return n.children.map((child: unknown) => renderNodeToHtml(child, options, slugTracker)).join('');
     }
     return '';
   };
@@ -121,13 +139,19 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, seenSlugs?: Map
       const styleAttr = safeStyle ? ` style="${escapeHtml(safeStyle)}"` : '';
       const childrenHtml = renderChildren();
       const rawText = extractNodeText(n).trim();
-      let baseSlug = slugifyHeading(rawText);
-      if (!baseSlug && rawText) baseSlug = 'heading';
       let slug = '';
-      if (baseSlug) {
-        const count = seenSlugs?.get(baseSlug) || 0;
-        seenSlugs?.set(baseSlug, count + 1);
-        slug = count > 0 ? `${baseSlug}-${count}` : baseSlug;
+      if (slugTracker instanceof HeadingSlugTracker) {
+        slug = slugTracker.allocate(rawText);
+      } else if (slugTracker instanceof Map) {
+        let baseSlug = slugifyHeading(rawText);
+        if (!baseSlug && rawText) baseSlug = 'heading';
+        if (baseSlug) {
+          const count = slugTracker.get(baseSlug) || 0;
+          slugTracker.set(baseSlug, count + 1);
+          slug = count > 0 ? `${baseSlug}-${count}` : baseSlug;
+        }
+      } else {
+        slug = slugifyHeading(rawText);
       }
       const idAttr = slug ? ` id="${escapeHtml(slug)}"` : '';
       const anchor = slug
@@ -402,29 +426,33 @@ export function extractTableOfContentsFromDocument(docInput: unknown): TableOfCo
   }
 
   const items: TableOfContentsItem[] = [];
-  const seenSlugs = new Map<string, number>();
+  const slugTracker = new HeadingSlugTracker();
 
-  for (const node of doc.root.children) {
-    if (!node || typeof node !== 'object') continue;
+  function walk(node: unknown): void {
+    if (!node || typeof node !== 'object') return;
     const n = node as { type?: string; tag?: string; children?: unknown[] };
     if (n.type === 'heading') {
       const tag = (n.tag || 'h2').toLowerCase();
-      if (['h2', 'h3'].includes(tag)) {
-        const text = extractNodeText(n).trim();
-        if (text) {
-          let baseSlug = slugifyHeading(text);
-          if (!baseSlug) baseSlug = 'heading';
-          const count = seenSlugs.get(baseSlug) || 0;
-          seenSlugs.set(baseSlug, count + 1);
-          const slug = count > 0 ? `${baseSlug}-${count}` : baseSlug;
-          items.push({
-            id: slug,
-            text,
-            level: tag === 'h2' ? 2 : 3,
-          });
-        }
+      const rawText = extractNodeText(n).trim();
+      const slug = slugTracker.allocate(rawText);
+      if (['h2', 'h3'].includes(tag) && rawText && slug) {
+        items.push({
+          id: slug,
+          text: rawText,
+          level: tag === 'h2' ? 2 : 3,
+        });
+      }
+      return;
+    }
+    if (Array.isArray(n.children)) {
+      for (const child of n.children) {
+        walk(child);
       }
     }
+  }
+
+  for (const child of doc.root.children) {
+    walk(child);
   }
 
   return items;

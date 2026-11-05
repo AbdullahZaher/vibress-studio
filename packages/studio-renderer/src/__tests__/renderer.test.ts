@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { renderStudioDocumentToHtml, renderStudioDocumentToPlainText, extractTableOfContentsFromDocument } from '../index';
+import {
+  renderStudioDocumentToHtml,
+  renderStudioDocumentToPlainText,
+  extractTableOfContentsFromDocument,
+  HeadingSlugTracker,
+} from '../index';
 import { XSS_TEST_PAYLOADS } from '@vibress/studio-testing';
 
 function doc(children: unknown[]): unknown {
@@ -400,6 +405,82 @@ describe('renderStudioDocumentToPlainText', () => {
     expect(html).toContain('<h2 id="first-section-1">');
     expect(html).toContain('<h2 id="مقدمة">');
     expect(html).toContain('<h2 id="مقدمة-1">');
+  });
+
+  it('unifies heading slug allocation across H1-H6 so TOC targets match HTML exactly (Finding 3)', () => {
+    // Sibling H1 and H2 with identical titles:
+    // H1 gets "overview", H2 gets "overview-1".
+    // TOC only includes H2/H3, but its ID must be "overview-1", NOT "overview".
+    const document = doc([
+      { type: 'heading', tag: 'h1', children: [{ type: 'text', text: 'Overview' }] },
+      { type: 'paragraph', children: [{ type: 'text', text: 'Intro paragraph' }] },
+      { type: 'heading', tag: 'h2', children: [{ type: 'text', text: 'Overview' }] },
+      { type: 'heading', tag: 'h4', children: [{ type: 'text', text: 'Deep Dive' }] },
+      { type: 'heading', tag: 'h3', children: [{ type: 'text', text: 'Deep Dive' }] },
+      { type: 'heading', tag: 'h1', children: [{ type: 'text', text: 'مقدمة' }] },
+      { type: 'heading', tag: 'h2', children: [{ type: 'text', text: 'مقدمة' }] },
+    ]);
+
+    const toc = extractTableOfContentsFromDocument(document);
+    const html = renderStudioDocumentToHtml(document);
+
+    // Verify TOC contents
+    expect(toc).toHaveLength(3);
+    // H2 "Overview" must have slug "overview-1" because H1 took "overview"
+    expect(toc[0]).toEqual({ id: 'overview-1', text: 'Overview', level: 2 });
+    // H3 "Deep Dive" must have slug "deep-dive-1" because H4 took "deep-dive"
+    expect(toc[1]).toEqual({ id: 'deep-dive-1', text: 'Deep Dive', level: 3 });
+    // H2 "مقدمة" must have slug "مقدمة-1" because H1 took "مقدمة"
+    expect(toc[2]).toEqual({ id: 'مقدمة-1', text: 'مقدمة', level: 2 });
+
+    // Verify HTML has matching IDs and anchors
+    expect(html).toContain('<h1 id="overview">Overview<a href="#overview" class="heading-anchor"');
+    expect(html).toContain('<h2 id="overview-1">Overview<a href="#overview-1" class="heading-anchor"');
+    expect(html).toContain('<h4 id="deep-dive">Deep Dive<a href="#deep-dive" class="heading-anchor"');
+    expect(html).toContain('<h3 id="deep-dive-1">Deep Dive<a href="#deep-dive-1" class="heading-anchor"');
+    expect(html).toContain('<h1 id="مقدمة">مقدمة<a href="#مقدمة" class="heading-anchor"');
+    expect(html).toContain('<h2 id="مقدمة-1">مقدمة<a href="#مقدمة-1" class="heading-anchor"');
+
+    // Every TOC item must match an anchor in the HTML
+    for (const item of toc) {
+      expect(html).toContain(`id="${item.id}"`);
+      expect(html).toContain(`href="#${item.id}"`);
+    }
+  });
+
+  it('handles empty and punctuation-only headings without collision or invalid anchors', () => {
+    const document = doc([
+      { type: 'heading', tag: 'h2', children: [{ type: 'text', text: '???' }] },
+      { type: 'heading', tag: 'h2', children: [{ type: 'text', text: '!!!' }] },
+      { type: 'heading', tag: 'h2', children: [{ type: 'text', text: '   ' }] },
+      { type: 'heading', tag: 'h2', children: [] },
+    ]);
+
+    const toc = extractTableOfContentsFromDocument(document);
+    const html = renderStudioDocumentToHtml(document);
+
+    expect(toc).toHaveLength(2);
+    expect(toc[0]).toEqual({ id: 'heading', text: '???', level: 2 });
+    expect(toc[1]).toEqual({ id: 'heading-1', text: '!!!', level: 2 });
+
+    expect(html).toContain('<h2 id="heading">???<a href="#heading"');
+    expect(html).toContain('<h2 id="heading-1">!!!<a href="#heading-1"');
+    // Whitespace only heading gets no ID or anchor
+    expect(html).toContain('<h2>   </h2>');
+    expect(html).toContain('<h2></h2>');
+  });
+
+  it('HeadingSlugTracker correctly tracks, allocates, and resets slug state', () => {
+    const tracker = new HeadingSlugTracker();
+    expect(tracker.allocate('Getting Started')).toBe('getting-started');
+    expect(tracker.allocate('Getting Started')).toBe('getting-started-1');
+    expect(tracker.allocate('Getting Started')).toBe('getting-started-2');
+    expect(tracker.allocate('   ')).toBe('');
+    expect(tracker.allocate('***')).toBe('heading');
+    expect(tracker.allocate('***')).toBe('heading-1');
+
+    tracker.reset();
+    expect(tracker.allocate('Getting Started')).toBe('getting-started');
   });
 
   it('renders structured plain text for lists, checklists and tables (Phase D)', () => {

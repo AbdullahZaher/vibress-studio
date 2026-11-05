@@ -488,18 +488,20 @@ function blockNodes(node: HtmlChild, inherited: Direction = null): StudioNode[] 
   if (tag === 'details') {
     const children = childrenOf(node);
     const summary = children.find(c => isElement(c) && c.tagName === 'summary');
-    let title = 'Details';
-    if (summary) {
-      title = childrenOf(summary)
-        .map(c => ('value' in c && typeof c.value === 'string' ? c.value : ''))
-        .join('')
-        .trim() || 'Details';
-    }
+    const title = summary ? extractHtmlChildText(summary).trim() || 'Details' : 'Details';
     const nonSummary = children.filter(c => !(isElement(c) && c.tagName === 'summary'));
-    const content = nonSummary
-      .map(c => ('value' in c && typeof c.value === 'string' ? c.value : ''))
-      .join('')
-      .trim();
+
+    let content = '';
+    if (nonSummary.length === 1 && isElement(nonSummary[0]) && nonSummary[0].tagName === 'div') {
+      // Toggle card public renderer wraps content in a container <div>
+      const rawHtml = serialize(nonSummary[0]).trim();
+      content = sanitizeHtml(rawHtml).trim();
+    } else if (nonSummary.length > 0) {
+      // Multiple or direct children (e.g. <p>, <br>, text nodes)
+      const rawHtml = serialize({ nodeName: '#document-fragment', childNodes: nonSummary } as unknown as HtmlElement).trim();
+      content = sanitizeHtml(rawHtml).trim();
+    }
+
     return [{
       type: 'studio-card',
       cardType: 'toggle',

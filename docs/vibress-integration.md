@@ -49,6 +49,15 @@ export function AdminEditor({
 
 **Important:** `onChange` emits editor snapshots; it is **not** a verified durable save. The host must debounce/queue saves, enforce permission checks, maintain expected revision numbers, handle version conflicts, and show truthful persistence status. An echo of an older autosave response must not overwrite newer unsaved edits. Do not remount the editor on every save. Exercise the host's actual save/reload workflow and crash recovery before release.
 
+### External Value Synchronization and Revision Management
+
+When integrating `VibressStudio` with host persistence or autosave lifecycles, observe the following synchronization contract:
+
+1. **Local `onChange` Echoes:** When the host holds editor state in React state and passes it back to `value`, Studio detects that the incoming snapshot matches the current editor state. Studio will **not** re-parse or reset editor state, preserving user selection, caret position, and undo/redo history without triggering `onChange` loops.
+2. **Stale Autosave Acknowledgments:** Studio maintains an internal bounded history (up to 50 snapshots) of locally emitted states. If an incoming `value` matches an earlier emitted snapshot while local edits have since occurred, Studio ignores the stale echo to prevent older autosave acknowledgments from overwriting newer unsaved edits.
+3. **Intentional Revision Restorations:** When the host deliberately restores an earlier revision (e.g. user selects "Restore Revision A" from history), the host should pass an explicit `revisionId` prop (e.g. `<VibressStudio value={earlierDoc} revisionId={revisionId} />`) or include `revisionId` in the document envelope. When `revisionId` changes, Studio honors the replacement, applies the earlier revision, and resets the emitted snapshot history.
+4. **Genuinely New Documents:** Incoming documents whose root structure does not match previously emitted snapshots are applied immediately.
+
 `uploadMedia(file, cardType)` and `requestMedia({ cardType, source })` are host callbacks, returning durable `{ assetId, src, ... }` asset references or `null` for cancellation. Only the host can guarantee persistence and authorization. Never store `blob:` object URLs or temporary previews. Mock adapters are for tests and the playground only.
 
 AI is opt-in using `enableAi` and `onAiGenerate`. The callback may be supplied full document/selection context; obtain user consent and host authorization before transmitting any private material to a provider.

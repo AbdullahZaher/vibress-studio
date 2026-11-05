@@ -65,6 +65,14 @@ Current embed allowlist supports YouTube and Vimeo. Treat all document, caption,
 - **Host:** auth, autosave, publication context, revision conflicts, durable asset storage, collaboration provider lifecycle and AI gateway.
 - **Do not** add a Studio backend, persistence store or Yjs service for parity. Scope such integrations in the host and test via public APIs.
 
+### External synchronization and revision management
+`studio-react` implements an explicit synchronization contract via `DocumentSyncPlugin`:
+- Distinguishes local `onChange` echoes from out-of-order autosave responses and genuine external updates.
+- Uses host-supplied `revisionId` (prop or document field) to authorize intentional restorations of previously emitted states.
+- Rejects stale echoes to guarantee newer local keystrokes are never overwritten by delayed autosave acknowledgments.
+- Preserves selection, caret position, and undo/redo stacks when content is unchanged.
+- Guarantees deterministic heading slug allocation between `studio-renderer` and `extractTableOfContentsFromDocument` via `HeadingSlugTracker`.
+
 ## Canonical runtime proposal
 
 `docs/adr/0001-studio-canonical-runtime.md` says **Proposed**. Its intended direction uses `AbdullahZaher/vibress` as the reference for the currently shipped runtime and standalone as a downstream distribution target. The source review observed host SHA `b33fb1ab597bfabb8861516132cf8bad567f0bf1`. Host collaboration exports are missing from standalone, so **do not assume parity or copy host files blindly**. Obtain explicit ADR approval and compare named SHAs and v1 fixtures before syncing.

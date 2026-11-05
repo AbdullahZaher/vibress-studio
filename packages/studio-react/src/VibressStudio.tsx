@@ -78,6 +78,13 @@ function assertEditorCanPreserveDocument(document: StudioDocument, rawDocument: 
 
 export interface VibressStudioProps {
   value?: unknown;
+  /**
+   * Optional revision or transaction identifier (e.g. revision hash, timestamp, or version number)
+   * provided by the host. When revisionId changes, the incoming document is treated as
+   * an intentional external update or restoration, even if its content was previously emitted
+   * by this editor instance (e.g. restoring an earlier revision A after edit B).
+   */
+  revisionId?: string | number;
   onChange?: (doc: StudioDocument) => void;
   /** Optional host integration for editor-specific commands; null on cleanup. */
   onEditorReady?: (editor: LexicalEditor | null) => void;
@@ -155,27 +162,43 @@ function EditorAccessibleNamePlugin() {
  */
 function DocumentSyncPlugin({
   document,
+  revisionId,
   onError,
   isStaleEcho,
+  onResetEmittedHistory,
 }: {
   document: StudioDocument;
+  revisionId?: string | number;
   onError?: (error: Error) => void;
   isStaleEcho: (incomingJson: string) => boolean;
+  onResetEmittedHistory: () => void;
 }) {
   const [editor] = useLexicalComposerContext();
   const lastApplied = useRef<string | null>(null);
+  const lastAppliedRevisionId = useRef<string | number | undefined>(revisionId);
 
   useEffect(() => {
     const incoming = JSON.stringify(document.root);
-    if (incoming === lastApplied.current) return;
+    const isExplicitRevisionChange =
+      revisionId !== undefined && revisionId !== lastAppliedRevisionId.current;
+
+    if (incoming === lastApplied.current && !isExplicitRevisionChange) return;
+
     try {
       const current = serializeStudioDocument(editor.getEditorState().toJSON().root);
       const currentJson = JSON.stringify(current.root);
+
+      if (currentJson === incoming && !isExplicitRevisionChange) {
+        lastApplied.current = incoming;
+        lastAppliedRevisionId.current = revisionId;
+        return;
+      }
+
       if (currentJson !== incoming) {
         // If the incoming document matches an earlier snapshot this editor instance
         // already emitted in the past (an out-of-order autosave response or stale
         // external echo), do NOT overwrite the newer local edits!
-        if (isStaleEcho(incoming)) {
+        if (!isExplicitRevisionChange && isStaleEcho(incoming)) {
           lastApplied.current = incoming;
           return;
         }
@@ -185,11 +208,18 @@ function DocumentSyncPlugin({
         }));
         editor.setEditorState(next);
       }
+
       lastApplied.current = incoming;
+      lastAppliedRevisionId.current = revisionId;
+
+      if (isExplicitRevisionChange) {
+        onResetEmittedHistory();
+      }
     } catch (error) {
       onError?.(error instanceof Error ? error : new Error('Unable to load Studio document'));
     }
-  }, [editor, document, onError, isStaleEcho]);
+  }, [editor, document, revisionId, onError, isStaleEcho, onResetEmittedHistory]);
+
   return null;
 }
 
@@ -204,6 +234,7 @@ function EditorEditablePlugin({ readOnly }: { readOnly: boolean }) {
 
 export function VibressStudio({
   value,
+  revisionId,
   onChange,
   onEditorReady,
   readOnly = false,
@@ -221,9 +252,19 @@ export function VibressStudio({
 }: VibressStudioProps) {
   const emittedSnapshotsRef = useRef<Set<string>>(new Set());
 
+  const onResetEmittedHistory = useCallback(() => {
+    emittedSnapshotsRef.current.clear();
+  }, []);
+
   const isStaleEcho = useCallback((incomingJson: string) => {
     return emittedSnapshotsRef.current.has(incomingJson);
   }, []);
+
+  const hostRevisionId = revisionId ?? (
+    value && typeof value === 'object' && 'revisionId' in value
+      ? (value as { revisionId?: string | number }).revisionId
+      : undefined
+  );
 
   const { parsedDoc, migrationError } = useMemo(() => {
     try {
@@ -403,7 +444,13 @@ export function VibressStudio({
               {showWordCount && <WordCountPlugin />}
               <EditorAccessibleNamePlugin />
               <EditorEditablePlugin readOnly={readOnly} />
-              <DocumentSyncPlugin document={parsedDoc} onError={onError} isStaleEcho={isStaleEcho} />
+              <DocumentSyncPlugin
+                document={parsedDoc}
+                revisionId={hostRevisionId}
+                onError={onError}
+                isStaleEcho={isStaleEcho}
+                onResetEmittedHistory={onResetEmittedHistory}
+              />
               {onEditorReady && <EditorReadyPlugin onReady={onEditorReady} />}
               {onChange && (
                 <OnChangePlugin

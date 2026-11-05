@@ -187,4 +187,121 @@ describe('HTML Import/Export Fidelity & Round-trip (Phase B)', () => {
     expect(imgCard.cardData.caption).toBe('Digital art by Studio');
     expect(imgCard.cardData.captionHtml).toBe('Digital art by <strong>Studio</strong>');
   });
+
+  describe('Toggle Card HTML Round-trip & Edge Cases', () => {
+    it('imports renderer-generated toggle HTML without content loss', () => {
+      const toggleHtml = '<details class="kg-card kg-toggle-card"><summary>FAQ Section</summary><div><p>Important answer with <strong>emphasis</strong> and <em>italics</em>.</p></div></details>';
+      const doc = htmlToStudioDocument(toggleHtml);
+
+      expect(doc.root.children).toHaveLength(1);
+      const card = doc.root.children[0] as { type: string; cardType: string; cardData: Record<string, unknown> };
+      expect(card.type).toBe('studio-card');
+      expect(card.cardType).toBe('toggle');
+      expect(card.cardData.heading).toBe('FAQ Section');
+      expect(card.cardData.content).toBe('<p>Important answer with <strong>emphasis</strong> and <em>italics</em>.</p>');
+
+      const reRendered = renderStudioDocumentToHtml(doc);
+      expect(reRendered).toBe(toggleHtml);
+    });
+
+    it('handles nested divs, paragraphs, and formatting within toggle body', () => {
+      const nestedHtml = '<details><summary>Detailed Explanation</summary><div><div class="inner-block"><p>First <strong>point</strong>.</p><p>Second <em>point</em>.</p></div></div></details>';
+      const doc = htmlToStudioDocument(nestedHtml);
+
+      const card = doc.root.children[0] as { cardType: string; cardData: Record<string, unknown> };
+      expect(card.cardType).toBe('toggle');
+      expect(card.cardData.heading).toBe('Detailed Explanation');
+      expect(card.cardData.content).toContain('First <strong>point</strong>.');
+      expect(card.cardData.content).toContain('Second <em>point</em>.');
+    });
+
+    it('handles multiple paragraphs without a wrapper div', () => {
+      const rawHtml = '<details><summary>Direct Children</summary><p>Paragraph 1</p><p>Paragraph 2</p></details>';
+      const doc = htmlToStudioDocument(rawHtml);
+
+      const card = doc.root.children[0] as { cardType: string; cardData: Record<string, unknown> };
+      expect(card.cardType).toBe('toggle');
+      expect(card.cardData.heading).toBe('Direct Children');
+      expect(card.cardData.content).toBe('<p>Paragraph 1</p><p>Paragraph 2</p>');
+    });
+
+    it('preserves Arabic RTL and mixed-direction toggle content', () => {
+      const rtlHtml = '<details class="kg-card kg-toggle-card"><summary>أسئلة شائعة</summary><div><p dir="rtl">إجابة وافية مع <strong>توضيح</strong> كامل.</p></div></details>';
+      const doc = htmlToStudioDocument(rtlHtml);
+
+      const card = doc.root.children[0] as { cardType: string; cardData: Record<string, unknown> };
+      expect(card.cardType).toBe('toggle');
+      expect(card.cardData.heading).toBe('أسئلة شائعة');
+      expect(card.cardData.content).toContain('dir="rtl"');
+      expect(card.cardData.content).toContain('إجابة وافية مع <strong>توضيح</strong> كامل.');
+
+      const rendered = renderStudioDocumentToHtml(doc);
+      expect(rendered).toContain('أسئلة شائعة');
+      expect(rendered).toContain('إجابة وافية مع <strong>توضيح</strong> كامل.');
+    });
+
+    it('handles empty toggle body gracefully without crashing', () => {
+      const emptyHtml = '<details><summary>Empty Toggle</summary></details>';
+      const doc = htmlToStudioDocument(emptyHtml);
+
+      const card = doc.root.children[0] as { cardType: string; cardData: Record<string, unknown> };
+      expect(card.cardType).toBe('toggle');
+      expect(card.cardData.heading).toBe('Empty Toggle');
+      expect(card.cardData.content).toBe('');
+
+      const rendered = renderStudioDocumentToHtml(doc);
+      expect(rendered).toContain('<summary>Empty Toggle</summary><div></div>');
+    });
+
+    it('sanitizes hostile script and event handler attributes in toggle card', () => {
+      const hostileHtml = '<details><summary><script>alert("xss1")</script>Secure Heading</summary><div><p onclick="alert(\'xss2\')">Payload</p><script>alert("xss3")</script></div></details>';
+      const doc = htmlToStudioDocument(hostileHtml);
+
+      const card = doc.root.children[0] as { cardType: string; cardData: Record<string, unknown> };
+      expect(card.cardType).toBe('toggle');
+      expect(card.cardData.heading).not.toContain('<script>');
+      expect(card.cardData.heading).toContain('Secure Heading');
+      expect(card.cardData.content).not.toContain('onclick');
+      expect(card.cardData.content).not.toContain('<script>');
+      expect(card.cardData.content).toContain('Payload');
+    });
+
+    it('performs clean round-trip StudioDocument -> HTML -> StudioDocument for toggle', () => {
+      const originalDoc: StudioDocument = {
+        schema: 'vibress-studio',
+        version: 1,
+        editor: { lexicalVersion: '0.13.1' },
+        root: {
+          type: 'root',
+          direction: null,
+          format: '',
+          indent: 0,
+          version: 1,
+          children: [
+            {
+              type: 'studio-card',
+              cardType: 'toggle',
+              cardData: {
+                heading: 'Can I cancel anytime?',
+                content: '<p>Yes, you can <strong>cancel</strong> your subscription anytime from account settings.</p>',
+              },
+              version: 1,
+            },
+          ],
+        },
+      };
+
+      const html = renderStudioDocumentToHtml(originalDoc);
+      const importedDoc = htmlToStudioDocument(html);
+
+      expect(importedDoc.root.children).toHaveLength(1);
+      const card = importedDoc.root.children[0] as { cardType: string; cardData: Record<string, unknown> };
+      expect(card.cardType).toBe('toggle');
+      expect(card.cardData.heading).toBe('Can I cancel anytime?');
+      expect(card.cardData.content).toBe('<p>Yes, you can <strong>cancel</strong> your subscription anytime from account settings.</p>');
+
+      const reRendered = renderStudioDocumentToHtml(importedDoc);
+      expect(reRendered).toBe(html);
+    });
+  });
 });
