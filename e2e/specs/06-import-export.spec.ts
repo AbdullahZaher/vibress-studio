@@ -19,6 +19,31 @@ test.describe('Import / export through the UI (E2E 6)', () => {
     await expect(preview.locator('a[href="https://example.com"]')).toHaveAttribute('href', 'https://example.com');
   });
 
+
+  test('explicit import replaces an edited draft and renders Toggle rich HTML safely', async ({ page }) => {
+    await openHarness(page);
+    await focusEditor(page);
+    await page.keyboard.type('Existing local draft');
+
+    await page.getByTestId('import-html-input').fill(
+      '<details class="kg-card kg-toggle-card"><summary>أسئلة شائعة</summary>' +
+      '<div><p dir="rtl">إجابة <strong>مهمة</strong></p></div></details>'
+    );
+    await page.getByTestId('import-html-btn').click();
+
+    const preview = page.locator('.vb-toggle-rich-preview');
+    await expect(preview.locator('strong')).toHaveText('مهمة');
+    await expect(preview.locator('[dir="rtl"]')).toContainText('إجابة');
+    await expect(page.getByRole('textbox', { name: 'Toggle HTML source' })).toHaveCount(0);
+    const document = await studio(page).getDoc();
+    expect(JSON.stringify(document.root)).toContain('أسئلة شائعة');
+
+    await page.getByRole('button', { name: 'Edit HTML source' }).click();
+    await expect(page.getByRole('textbox', { name: 'Toggle HTML source' })).toHaveValue(/<strong>مهمة<\/strong>/);
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await expect(preview.locator('strong')).toHaveText('مهمة');
+  });
+
   test('imports markdown with lists and headings', async ({ page }) => {
     await openHarness(page);
     await page.getByTestId('import-md-input').fill('# MD Heading\n\n- item one\n- item two');

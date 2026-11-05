@@ -16,6 +16,16 @@ export function hasToggleHtmlMarkup(content: string): boolean {
   return /<\/?[a-z][^>]*>/i.test(content);
 }
 
+/** Apply a rich-source edit only to the version the author inspected. */
+export function resolveToggleHtmlSourceEdit(
+  current: Record<string, unknown>,
+  originalContent: string,
+  draft: string,
+): Record<string, unknown> | null {
+  if (current.content !== originalContent) return null;
+  return { ...current, content: sanitizeHtml(draft) };
+}
+
 export function ToggleCardEditor({ nodeKey, cardData }: Props) {
   const [editor] = useLexicalComposerContext();
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
@@ -50,7 +60,6 @@ export function ToggleCardEditor({ nodeKey, cardData }: Props) {
   };
 
   const commitHtmlEdit = () => {
-    const sanitized = sanitizeHtml(htmlDraft);
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
       if (!(node instanceof StudioCardNode) || !node.isAttached()) {
@@ -58,11 +67,12 @@ export function ToggleCardEditor({ nodeKey, cardData }: Props) {
         return;
       }
       const current = node.getCardData();
-      if (current.content !== htmlBase) {
+      const update = resolveToggleHtmlSourceEdit(current, htmlBase, htmlDraft);
+      if (!update) {
         setSaveError('This toggle changed while you were editing. Copy your source and reopen the editor to avoid overwriting newer work.');
         return;
       }
-      node.setCardData({ ...current, content: sanitized });
+      node.setCardData(update);
       setEditingHtml(false);
       setSaveError('');
     });

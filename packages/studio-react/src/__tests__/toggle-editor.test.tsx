@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { ParagraphNode, TextNode } from 'lexical';
 import { StudioCardNode } from '@vibress/studio-cards';
-import { ToggleCardEditor, hasToggleHtmlMarkup } from '../components/cards/ToggleCardEditor';
+import { ToggleCardEditor, hasToggleHtmlMarkup, resolveToggleHtmlSourceEdit } from '../components/cards/ToggleCardEditor';
 
 const wrap = (cardData: { heading: string; content: string }) => render(
   <LexicalComposer initialConfig={{
@@ -50,6 +50,31 @@ describe('Toggle card rich content authoring', () => {
     expect(screen.queryByRole('button', { name: 'Edit HTML source' })).toBeNull();
     expect(hasToggleHtmlMarkup('3 < 5 and 8 > 6')).toBe(false);
     expect(hasToggleHtmlMarkup('<p>مرحبا <em>بالعالم</em></p>')).toBe(true);
+  });
+
+  it('sanitizes applied HTML source without dropping the latest unrelated card metadata', () => {
+    const current = {
+      content: '<p>Old</p>',
+      heading: 'Updated heading',
+      extraFutureMetadata: { keep: true },
+    };
+    const next = resolveToggleHtmlSourceEdit(
+      current,
+      '<p>Old</p>',
+      '<p>New <strong>answer</strong></p><img src="/a.jpg" onerror="alert(1)"><script>alert(2)</script>',
+    );
+    expect(next?.heading).toBe('Updated heading');
+    expect(next?.extraFutureMetadata).toEqual({ keep: true });
+    expect(next?.content).toContain('New <strong>answer</strong>');
+    expect(next?.content).not.toContain('onerror');
+    expect(next?.content).not.toContain('<script');
+    expect(current.content).toBe('<p>Old</p>');
+  });
+
+  it('rejects applying stale source drafts after a concurrent body edit', () => {
+    const current = { content: '<p>Newer content</p>', heading: 'Unchanged' };
+    expect(resolveToggleHtmlSourceEdit(current, '<p>Old content</p>', '<p>Author draft</p>')).toBeNull();
+    expect(current.content).toBe('<p>Newer content</p>');
   });
 
   it('keeps keyboard-operable disclosure controls with meaningful accessible names', () => {
