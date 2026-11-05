@@ -101,6 +101,8 @@ describe('VibressStudio external synchronization and stale echo protection (Phas
       expect($getRoot().getTextContent()).toBe('Hello world!');
     });
 
+    const genuineExternalDoc = createDefaultStudioDocument('Completely new external article');
+
     // No explicit replacement ID: protect local content.
     await act(async () => {
       rerender(<VibressStudio value={genuineExternalDoc} onChange={onChange}
