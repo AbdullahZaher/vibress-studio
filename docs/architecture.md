@@ -1,6 +1,6 @@
 # Vibress Studio — Architecture and Boundaries
 
-**Source-reviewed:** 2026-11-04 at standalone SHA `be7150d04aa31e53034e832e16726a69f2c9c6e7`. For active findings and design remediation see [source reassessment](audits/studio-source-reassessment-2026-11-04.md) and [roadmap §16](roadmaps/global-ux-quality-roadmap.md#16-current-authoritative-remediation-and-development-plan--2026-11-04).
+**Source-reviewed:** 2026-11-05, with PR #28 changes under active CI verification. Historical assessment baseline: `36445d0288bed112e84944b838bea7373589d5bc`. For active findings and design remediation see [source reassessment](audits/studio-source-reassessment-2026-11-04.md) and [roadmap §16](roadmaps/global-ux-quality-roadmap.md#16-current-authoritative-remediation-and-development-plan--2026-11-04).
 
 ## Canonical document envelope
 
@@ -68,7 +68,7 @@ Current embed allowlist supports YouTube and Vimeo. Treat all document, caption,
 ### External synchronization and revision management
 `studio-react` implements an explicit synchronization contract via `DocumentSyncPlugin`:
 - Distinguishes local `onChange` echoes from out-of-order autosave responses and genuine external updates.
-- Uses host-supplied `revisionId` (prop or document field) to authorize intentional restorations of previously emitted states.
+- Treats `revisionId` as informational host metadata. A new `replacementId` explicitly authorizes a deliberate restore or document switch after host-side conflict resolution.
 - Rejects stale echoes to guarantee newer local keystrokes are never overwritten by delayed autosave acknowledgments.
 - Preserves selection, caret position, and undo/redo stacks when content is unchanged.
 - Guarantees deterministic heading slug allocation between `studio-renderer` and `extractTableOfContentsFromDocument` via `HeadingSlugTracker`.
