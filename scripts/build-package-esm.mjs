@@ -37,6 +37,7 @@ await build({
         const names = Object.keys(exports).filter((name) =>
           /^[A-Za-z_$][\w$]*$/.test(name) && !forbidden.has(name));
         const shim = ['import cjs from ' + JSON.stringify(args.path) + ';',
+          'export default cjs.default ?? cjs;',
           ...names.map((name) => `export const ${name} = cjs[${JSON.stringify(name)}];`)];
         return { contents: shim.join('\n'), loader: 'js' };
       });
