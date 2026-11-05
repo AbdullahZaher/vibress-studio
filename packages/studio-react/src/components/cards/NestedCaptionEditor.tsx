@@ -114,6 +114,8 @@ export function NestedCaptionEditor({
         initialized = true;
       } catch (err) {
         invalidCaptionJsonRef.current = JSON.stringify(initialCaptionJSON);
+        // Do not briefly expose a writable DOM before the editable-state effect.
+        editor.setEditable(false);
         if (onError) {
           onError(err instanceof Error ? err : new Error(String(err)), initialCaptionJSON);
         }
