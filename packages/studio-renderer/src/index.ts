@@ -166,8 +166,11 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
         slug = slugifyHeading(rawText);
       }
       const idAttr = slug ? ` id="${escapeHtml(slug)}"` : '';
+      // A permalink is keyboard-focusable: never hide it from the accessibility tree.
+      // The label uses the visible heading text and remains safe for Arabic/mixed script.
+      const headingLabel = rawText.length > 120 ? `${rawText.slice(0, 120)}…` : rawText;
       const anchor = slug
-        ? `<a href="#${escapeHtml(slug)}" class="heading-anchor" aria-label="Link to section" aria-hidden="true">#</a>`
+        ? `<a href="#${escapeHtml(slug)}" class="heading-anchor" aria-label="Link to section: ${escapeHtml(headingLabel)}">#</a>`
         : '';
       return `<${level}${idAttr}${directionAttr}${styleAttr}>${childrenHtml}${anchor}</${level}>`;
     }
