@@ -59,6 +59,7 @@ interface StudioTestApi {
   syncHTML: (html: string) => void;
   setReadOnly: (value: boolean) => void;
   setAiEnabled: (value: boolean) => void;
+  setRtl: (value: boolean) => void;
   exportMarkdown: () => string;
 }
 
@@ -120,6 +121,7 @@ export function E2EHarness() {
     return { assetId: 'picker-mock', src: '/mock/assets/from-picker' };
   }, []);
   const [editor, setEditor] = useState<LexicalEditor | null>(null);
+  const [isRtl, setIsRtl] = useState(false);
   const [htmlInput, setHtmlInput] = useState('');
   const [mdInput, setMdInput] = useState('');
   const [mdOutput, setMdOutput] = useState('');
@@ -191,6 +193,7 @@ export function E2EHarness() {
       syncHTML: (html) => setDoc(htmlToStudioDocument(html)),
       setReadOnly,
       setAiEnabled,
+      setRtl: (rtl: boolean) => setIsRtl(rtl),
       exportMarkdown: () => {
         const out = studioDocumentToMarkdown(doc);
         setMdOutput(out);
@@ -218,7 +221,7 @@ export function E2EHarness() {
   const label = { fontSize: '12px', fontWeight: 600, color: '#374151', margin: '12px 0 4px', display: 'block' } as const;
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '24px' }}>
+    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '12px' }}>
       <h1 style={{ fontSize: '22px', margin: '0 0 4px', color: '#111827' }}>Vibress Studio E2E Harness</h1>
       <p style={{ fontSize: '14px', margin: '0 0 16px', color: '#4b5563' }}>
         Playwright test bed — controlled editor with mock upload adapter and import/export.
@@ -232,6 +235,14 @@ export function E2EHarness() {
         <button type="button" data-testid="fmt-number" style={btn} onClick={() => formatBlock('number')}>Numbered list</button>
         <button
           type="button"
+          data-testid="btn-toggle-rtl"
+          style={{ ...btn, background: '#4f46e5' }}
+          onClick={() => setIsRtl(!isRtl)}
+        >
+          {isRtl ? 'RTL Active' : 'Toggle RTL'}
+        </button>
+        <button
+          type="button"
           data-testid="btn-reset"
           style={{ ...btn, background: '#6b7280' }}
           onClick={() => replaceDoc(createEmptyStudioDocument())}
@@ -240,7 +251,7 @@ export function E2EHarness() {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
         <section>
           <h2 style={{ fontSize: '16px', margin: '0 0 8px', color: '#1f2937' }}>Editor</h2>
           <div data-testid="studio-editor" data-ai-enabled={aiEnabled}>
@@ -255,6 +266,7 @@ export function E2EHarness() {
               uploadMedia={uploadMedia}
               requestMedia={pickerEnabled ? requestMedia : undefined}
               onEditorReady={setEditor}
+              dir={isRtl ? 'rtl' : 'ltr'}
             />
           </div>
         </section>
@@ -311,7 +323,7 @@ export function E2EHarness() {
 
       <section style={{ marginTop: '24px' }}>
         <h2 style={{ fontSize: '16px', margin: '0 0 8px', color: '#1f2937' }}>Import / Export</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
           <div>
             <label style={label} htmlFor="import-html-input">HTML to import</label>
             <textarea
@@ -320,7 +332,7 @@ export function E2EHarness() {
               value={htmlInput}
               onChange={(e) => setHtmlInput(e.target.value)}
               rows={4}
-              style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: '4px', padding: '8px', fontSize: '12px', fontFamily: 'monospace' }}
+              style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #d1d5db', borderRadius: '4px', padding: '8px', fontSize: '12px', fontFamily: 'monospace' }}
             />
             <button
               type="button"
@@ -339,7 +351,7 @@ export function E2EHarness() {
               value={mdInput}
               onChange={(e) => setMdInput(e.target.value)}
               rows={4}
-              style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: '4px', padding: '8px', fontSize: '12px', fontFamily: 'monospace' }}
+              style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #d1d5db', borderRadius: '4px', padding: '8px', fontSize: '12px', fontFamily: 'monospace' }}
             />
             <button
               type="button"
@@ -370,7 +382,7 @@ export function E2EHarness() {
             readOnly
             value={mdOutput}
             rows={4}
-            style={{ width: '100%', marginTop: '8px', border: '1px solid #d1d5db', borderRadius: '4px', padding: '8px', fontSize: '12px', fontFamily: 'monospace' }}
+            style={{ width: '100%', boxSizing: 'border-box', marginTop: '8px', border: '1px solid #d1d5db', borderRadius: '4px', padding: '8px', fontSize: '12px', fontFamily: 'monospace' }}
           />
         </div>
       </section>

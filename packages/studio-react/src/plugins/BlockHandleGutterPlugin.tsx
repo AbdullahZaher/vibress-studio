@@ -286,10 +286,14 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
   const rootElement = editor.getRootElement();
   const isRtl = rootElement?.dir === 'rtl' || document.documentElement.dir === 'rtl';
 
-  const topPos = targetRect.top + window.scrollY;
+  const viewportWidth = window.visualViewport?.width || window.innerWidth;
+  const scrollX = window.visualViewport?.pageLeft ?? window.scrollX;
+  const scrollY = window.visualViewport?.pageTop ?? window.scrollY;
+
+  const topPos = targetRect.top + scrollY;
   const leftPos = isRtl
-    ? targetRect.right + 12
-    : Math.max(10, targetRect.left - 58);
+    ? Math.min(scrollX + viewportWidth - 68, targetRect.right + scrollX + 8)
+    : Math.max(scrollX + 8, targetRect.left + scrollX - 58);
 
   return createPortal(
     <div
@@ -345,6 +349,7 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
             left: isRtl ? 'auto' : '0px',
             right: isRtl ? '0px' : 'auto',
             width: '220px',
+            maxWidth: 'calc(100vw - 24px)',
             zIndex: 100,
             display: 'flex',
             flexDirection: 'column',

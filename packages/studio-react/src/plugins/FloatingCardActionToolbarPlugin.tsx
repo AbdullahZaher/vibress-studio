@@ -50,16 +50,33 @@ export function FloatingCardActionToolbarPlugin({ anchorElem = document.body }: 
     setSelectedNode(null);
   };
 
-  const topPos = cardRect ? cardRect.top + window.scrollY - 36 : 20;
-  const leftPos = cardRect ? cardRect.left + window.scrollX : 20;
+  const isRtl = editor.getRootElement()?.dir === 'rtl' || document.documentElement.dir === 'rtl';
+  const viewportWidth = window.visualViewport?.width || window.innerWidth;
+  const scrollX = window.visualViewport?.pageLeft ?? window.scrollX;
+  const scrollY = window.visualViewport?.pageTop ?? window.scrollY;
+
+  let topPos = cardRect ? cardRect.top + scrollY - 36 : scrollY + 20;
+  if (topPos < scrollY + 8 && cardRect) {
+    topPos = cardRect.bottom + scrollY + 8;
+  }
+
+  let leftPos = cardRect
+    ? (isRtl ? cardRect.right + scrollX - 220 : cardRect.left + scrollX)
+    : scrollX + 20;
+
+  const minLeft = scrollX + 8;
+  const maxLeft = scrollX + viewportWidth - 228;
+  if (leftPos > maxLeft) leftPos = maxLeft;
+  if (leftPos < minLeft) leftPos = minLeft;
 
   return createPortal(
     <div
       className="floating-card-action-popup studio-glassy-menu animate-in fade-in zoom-in-95 duration-150"
       style={{
         position: 'absolute',
-        top: `${Math.max(10, topPos)}px`,
-        left: `${Math.max(10, leftPos)}px`,
+        top: `${Math.round(topPos)}px`,
+        left: `${Math.round(leftPos)}px`,
+        maxWidth: 'calc(100vw - 16px)',
         backgroundColor: 'rgba(21, 23, 26, 0.85)',
         backdropFilter: 'blur(20px) saturate(180%)',
         WebkitBackdropFilter: 'blur(20px) saturate(180%)',

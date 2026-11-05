@@ -19,6 +19,13 @@
   box-sizing: inherit;
 }
 
+.vibress-studio-canvas {
+  position: relative;
+  min-height: 30vh;
+  padding-inline-start: 36px;
+  padding-inline-end: 16px;
+}
+
 /* Core Reading Measure Constraint (740px) */
 .vibress-studio-editor [contenteditable] > p,
 .vibress-studio-editor [contenteditable] > h1,
@@ -38,7 +45,8 @@
 .vibress-studio-placeholder {
   pointer-events: none;
   user-select: none;
-  color: var(--vb-studio-foreground-subtle);
+  /* Readable on light and dark surfaces; the subtle token fails AA on white. */
+  color: var(--vb-studio-foreground-muted, #475569);
   font-size: var(--vb-studio-text-lg);
   line-height: var(--vb-studio-leading-relaxed);
   max-width: var(--vb-studio-measure-reading, 740px);
@@ -215,7 +223,7 @@ html[dir="rtl"] .studio-h3 {
   color: var(--vb-studio-foreground);
 }
 
-/* Code Blocks */
+/* Code Blocks (Enforce LTR direction and alignment for syntax safety in all bidi contexts) */
 .studio-code-block {
   background-color: #0f172a;
   color: #f8fafc;
@@ -227,6 +235,16 @@ html[dir="rtl"] .studio-h3 {
   overflow-x: auto;
   margin: 1.5rem auto;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: isolate;
+}
+
+.studio-code-block pre,
+.studio-code-block code {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: isolate;
 }
 
 .dark .studio-code-block {
@@ -242,6 +260,9 @@ html[dir="rtl"] .studio-h3 {
   font-size: 0.875em;
   font-family: var(--vb-studio-font-mono);
   border: 1px solid var(--vb-studio-border);
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: isolate;
 }
 
 /* Inline text formatting */
@@ -1053,11 +1074,28 @@ html[dir="rtl"] .studio-word-count-dock {
   background-color: var(--vb-studio-surface-muted);
 }
 
+/* Mobile responsive slash insertion and touch targets */
+@media (max-width: 640px) {
+  .notion-slash-menu {
+    width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 24px) !important;
+  }
+
+  .studio-slash-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 /* Mobile Responsive Optimization */
 @media (max-width: 768px) {
-  .vibress-studio-editor [contenteditable] {
+  .vibress-studio-canvas {
     padding-inline-start: 12px !important;
     padding-inline-end: 12px !important;
+  }
+
+  .vibress-studio-editor [contenteditable] {
+    padding-inline-start: 0 !important;
+    padding-inline-end: 0 !important;
   }
 
   .studio-paragraph {
@@ -1076,14 +1114,34 @@ html[dir="rtl"] .studio-word-count-dock {
     margin-top: 1.25rem;
   }
 
+  /* WCAG 2.5.8 Touch Target Compliance on Mobile */
   .notion-block-handle-btn {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
   }
 
   .notion-format-btn {
-    min-width: 34px;
-    height: 34px;
+    min-width: 36px;
+    height: 36px;
   }
+
+  .studio-slash-item {
+    min-height: 38px;
+    padding: 8px 10px;
+  }
+}
+
+/* RTL Table Direction */
+[dir="rtl"] .studio-table,
+html[dir="rtl"] .studio-table {
+  direction: rtl;
+  text-align: right;
+}
+
+[dir="rtl"] .studio-table th,
+[dir="rtl"] .studio-table td,
+html[dir="rtl"] .studio-table th,
+html[dir="rtl"] .studio-table td {
+  text-align: right;
 }
 
