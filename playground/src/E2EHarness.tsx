@@ -61,6 +61,8 @@ interface StudioTestApi {
   /** Fault-inject raw host input while keeping the last valid preview document. */
   syncValue: (value: unknown) => void;
   benchmarkReadyMs: () => number | null;
+  beginBenchmarkTyping: () => void;
+  benchmarkTypingSamples: () => number[];
   setRecoveryLocale: (locale: 'en' | 'ar') => void;
   setReadOnly: (value: boolean) => void;
   setAiEnabled: (value: boolean) => void;
@@ -146,6 +148,27 @@ export function E2EHarness() {
     return { assetId: 'picker-mock', src: '/mock/assets/from-picker' };
   }, []);
   const [editor, setEditor] = useState<LexicalEditor | null>(null);
+  const typingMeasurement = useRef<{ samples: number[]; stop: () => void }>({ samples: [], stop: () => {} });
+  const beginBenchmarkTyping = useCallback(() => {
+    typingMeasurement.current.stop();
+    const root = editor?.getRootElement();
+    if (!editor || !root) throw new Error('Editor must be ready before measuring typing');
+    const samples: number[] = [];
+    let pending: number | null = null;
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === 'x' && !event.isComposing && !event.ctrlKey && !event.metaKey && !event.altKey) pending = performance.now();
+    };
+    root.addEventListener('keydown', keydown, true);
+    const unregister = editor.registerUpdateListener(({ dirtyElements, dirtyLeaves }) => {
+      if (pending === null || (!dirtyElements.size && !dirtyLeaves.size)) return;
+      samples.push(performance.now() - pending);
+      pending = null;
+    });
+    typingMeasurement.current = { samples, stop: () => {
+      root.removeEventListener('keydown', keydown, true); unregister();
+    } };
+  }, [editor]);
+  useEffect(() => () => typingMeasurement.current.stop(), [editor]);
   const handleEditorReady = useCallback((instance: LexicalEditor | null) => {
     setEditor(instance);
     if (!instance) {
@@ -231,6 +254,8 @@ export function E2EHarness() {
       syncHTML: (html) => setDoc(htmlToStudioDocument(html)),
       syncValue: (value) => setExternalValue({ value }),
       benchmarkReadyMs: () => readyMs.current,
+      beginBenchmarkTyping,
+      benchmarkTypingSamples: () => [...typingMeasurement.current.samples],
       setRecoveryLocale,
       setReadOnly,
       setAiEnabled,
@@ -241,7 +266,7 @@ export function E2EHarness() {
         return out;
       },
     }),
-    [doc, formatBlock, replaceDoc, setCardField]
+    [doc, formatBlock, replaceDoc, setCardField, beginBenchmarkTyping]
   );
 
   useEffect(() => {

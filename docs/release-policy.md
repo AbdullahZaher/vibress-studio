@@ -15,8 +15,8 @@ reader or plugin API version without a documented deprecation and migration.
 Every candidate needs a changelog, immutable source SHA, frozen lockfile,
 package checksums, CI results, security disposition and gate approvals. Test
 tarballs in a consumer outside the workspace. Workspace import smoke checks are
-useful but insufficient. The strict packed-consumer declaration check currently
-fails; see [ADR-0003](adr/0003-lexical-maintenance-investigation.md).
+useful but insufficient. Both strict packed-consumer declaration modes now
+pass locally and are mandatory in CI; see [ADR-0003](adr/0003-lexical-maintenance-investigation.md).
 
 ## Reproducible package verification
 
@@ -26,10 +26,12 @@ pnpm build
 pnpm verify:package-exports
 pnpm verify:consumer-imports
 pnpm verify:packed-consumer
+pnpm verify:packed-consumer --strict-nodenext
+pnpm verify:lexical
 ```
 
-The last command checks installed declarations without suppressing dependency
-errors. Until the known failure is resolved, the distribution gate stays open.
+The two packed-consumer modes check installed declarations without suppressing
+dependency errors. A passing package gate does not approve public distribution.
 Runtime-only evidence can be collected separately:
 
 ```sh
