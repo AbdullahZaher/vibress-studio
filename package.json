@@ -9,6 +9,8 @@
     "test": "vitest run",
     "verify:explicit-any": "node scripts/count-explicit-any.mjs --max 50",
     "verify:package-exports": "node scripts/verify-package-exports.mjs",
+    "verify:consumer-imports": "node scripts/verify-consumer-imports.mjs",
+    "benchmark:document": "node scripts/benchmark-document-pipeline.mjs",
     "test:security": "vitest run packages/studio-testing/security",
     "test:a11y": "vitest run packages/studio-testing/a11y",
     "test:roundtrip": "vitest run packages/studio-testing/security/roundtrip.test.ts packages/studio-testing/roundtrip",
