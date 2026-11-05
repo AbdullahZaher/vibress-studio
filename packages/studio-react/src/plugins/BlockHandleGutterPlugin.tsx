@@ -2,6 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   $getNodeByKey,
+  $getSelection,
+  $isRangeSelection,
+  SELECTION_CHANGE_COMMAND,
+  COMMAND_PRIORITY_LOW,
   $getNearestNodeFromDOMNode,
   $createParagraphNode,
   $isRootOrShadowRoot,
@@ -97,6 +101,30 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
       document.removeEventListener('mousemove', handleMouseMove);
     };
   }, [handleMouseMove]);
+
+  // A selection-based fallback keeps the block handle discoverable for
+  // keyboard users and when DOM pointer events originate from nested editor
+  // decorations. This uses only the supported public Lexical APIs.
+  useEffect(() => editor.registerCommand(
+    SELECTION_CHANGE_COMMAND,
+    () => {
+      if (showMenu) return false;
+      const selection = $getSelection();
+      if (!$isRangeSelection(selection)) return false;
+      let node: LexicalNode = selection.anchor.getNode();
+      while (node.getParent() && !$isRootOrShadowRoot(node.getParent())) {
+        const parent = node.getParent();
+        if (parent) node = parent;
+      }
+      const element = editor.getElementByKey(node.getKey());
+      if (element && editor.getRootElement()?.contains(element)) {
+        setHoveredNodeKey(node.getKey());
+        setTargetRect(element.getBoundingClientRect());
+      }
+      return false;
+    },
+    COMMAND_PRIORITY_LOW,
+  ), [editor, showMenu]);
 
   // Click outside to close menu
   useEffect(() => {
