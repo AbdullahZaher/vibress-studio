@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createEditor, $createTextNode, $getRoot } from 'lexical';
+import { createEditor, $createParagraphNode, $createTextNode, $getRoot } from 'lexical';
 import { $createQuoteNode } from '@lexical/rich-text';
 import { $createListNode, $createListItemNode } from '@lexical/list';
 import { STUDIO_CORE_NODES } from '@vibress/studio-nodes';
@@ -12,7 +12,7 @@ describe('Public registerStudioTransforms contract', () => {
     editor.update(() => {
       const outer = $createQuoteNode();
       const inner = $createQuoteNode();
-      inner.append($createTextNode('Nested quote content'));
+      inner.append($createParagraphNode().append($createTextNode('Nested quote content')));
       outer.append(inner);
       $getRoot().append(outer);
     }, { discrete: true });
