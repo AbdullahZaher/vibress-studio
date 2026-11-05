@@ -5,6 +5,7 @@ import { NodeKey, $getNodeByKey } from 'lexical';
 import { ImageCardData, StudioCardNode } from '@vibress/studio-cards';
 
 import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
@@ -118,8 +119,7 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
           node.setCardData({
             ...currentData,
             alt: data.alt,
-            caption: data.caption,
-            captionHtml: data.caption,
+            ...captionMetadataPatch(node.getCardData(), data.caption),
             href: data.href,
           });
         }
@@ -264,19 +264,21 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
         alt={cardData.alt || ''}
         className="w-full rounded-xl overflow-hidden shadow-sm"
       />
-      {captionStr ? (
-        <figcaption className="mt-2 text-center text-xs text-muted-foreground">
-          {captionStr}
-        </figcaption>
-      ) : (
-        <NestedCaptionEditor
-          initialCaptionJSON={
-            typeof cardData.caption === 'object' ? cardData.caption : undefined
-          }
-          onChange={onCaptionChange}
-          placeholder="Type caption for image (optional)"
-        />
-      )}
+      <NestedCaptionEditor
+        initialCaptionJSON={
+          typeof cardData.caption === 'object' && cardData.caption !== null
+            ? (cardData.caption as Record<string, unknown>)
+            : undefined
+        }
+        initialCaptionText={captionStr}
+        captionHtml={
+          typeof cardData.captionHtml === 'string'
+            ? cardData.captionHtml
+            : undefined
+        }
+        onChange={onCaptionChange}
+        placeholder="Type caption for image (optional)"
+      />
     </figure>
   );
 }

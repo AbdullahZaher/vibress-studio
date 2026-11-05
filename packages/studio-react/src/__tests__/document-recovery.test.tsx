@@ -66,6 +66,23 @@ describe('VibressStudio safe document migration and recovery (STU-R01)', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it('does not autosave serialized invalid Studio JSON as legacy text', () => {
+    const onError = vi.fn();
+    const onChange = vi.fn();
+    const raw = JSON.stringify({ schema: 'vibress-studio', version: 1, root: null });
+
+    render(<VibressStudio value={raw} onError={onError} onChange={onChange} />);
+
+    expect(screen.getByRole('alert')).not.toBeNull();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onChange).not.toHaveBeenCalled();
+    const error = onError.mock.calls[0]?.[0];
+    expect(isStudioMigrationError(error)).toBe(true);
+    if (isStudioMigrationError(error)) {
+      expect(error.rawDocument).toBe(raw);
+    }
+  });
+
   it('preserves newer document versions without emitting a downgraded v1 snapshot', () => {
     const onChange = vi.fn();
     const onError = vi.fn();
