@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { ParagraphNode, TextNode } from 'lexical';
 import { StudioCardNode } from '@vibress/studio-cards';
@@ -154,6 +154,37 @@ describe('Stable Media Caption Editing (STU-R03, STU-R11)', () => {
     const editableEl = screen.getByRole('textbox', { name: 'Caption...' });
     expect(editableEl).not.toBeNull();
     expect(editableEl.textContent).toBe('Recovered fallback text');
+  });
+
+  it('never overwrites malformed persisted caption JSON before explicit author recovery', async () => {
+    const onChange = vi.fn();
+    const onError = vi.fn();
+    const raw = {
+      root: { type: 'root', version: 1, children: 'not-an-array' },
+      customMetadata: { mustRemain: 'untouched' },
+    };
+    const { container } = render(
+      <TestWrapper editable={true}>
+        <NestedCaptionEditor
+          initialCaptionJSON={raw}
+          initialCaptionText="Visible recovered text"
+          onChange={onChange}
+          onError={onError}
+        />
+      </TestWrapper>
+    );
+
+    expect(onError).toHaveBeenCalled();
+    expect(screen.getByRole('alert').textContent).toContain('original is preserved');
+    expect(container.querySelector('.vibress-caption-editor [contenteditable]')?.getAttribute('contenteditable'))
+      .toBe('false');
+    await act(async () => {});
+    expect(onChange).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use recovered text' }));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.calls[0]?.[1]).toContain('Visible recovered text');
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('synchronizes when initialCaptionText is updated externally', async () => {
