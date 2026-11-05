@@ -70,27 +70,23 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
         return;
       }
 
-      // Find top-level block element under editor root
-      let blockElem: HTMLElement | null = target;
-      while (blockElem && blockElem.parentElement && blockElem.parentElement !== rootElement) {
-        blockElem = blockElem.parentElement;
-      }
-
-      if (blockElem && blockElem.parentElement === rootElement) {
-        editor.getEditorState().read(() => {
-          if (!blockElem) return;
-          const node = $getNearestNodeFromDOMNode(blockElem);
-          if (node) {
-            let topNode: LexicalNode = node;
-            while (topNode.getParent() && !$isRootOrShadowRoot(topNode.getParent())) {
-              const parent = topNode.getParent();
-              if (parent) topNode = parent;
-            }
-            setHoveredNodeKey(topNode.getKey());
-            setTargetRect(blockElem.getBoundingClientRect());
-          }
-        });
-      }
+      // Resolve the nearest Lexical node from the actual hover target.
+      // A paragraph can be nested under a block decorator, so relying on
+      // the first direct DOM child of root is not sufficient.
+      editor.getEditorState().read(() => {
+        const node = $getNearestNodeFromDOMNode(target);
+        if (!node) return;
+        let topNode: LexicalNode = node;
+        while (topNode.getParent() && !$isRootOrShadowRoot(topNode.getParent())) {
+          const parent = topNode.getParent();
+          if (parent) topNode = parent;
+        }
+        const blockElement = editor.getElementByKey(topNode.getKey());
+        if (blockElement) {
+          setHoveredNodeKey(topNode.getKey());
+          setTargetRect(blockElement.getBoundingClientRect());
+        }
+      });
     },
     [editor, showMenu]
   );
