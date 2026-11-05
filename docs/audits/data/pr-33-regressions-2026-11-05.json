@@ -112,5 +112,24 @@
         "status": "pass"
       }
     ]
+  },
+  "initialCI": {
+    "head": "9163197e72052f1c06821ba1c5442bb1e98e2970",
+    "url": "https://github.com/AbdullahZaher/vibress-studio/actions/runs/42093812986",
+    "browserPassed": 255,
+    "browserFlaky": 1,
+    "flakyTest": "Chromium slash-menu keyboard navigation",
+    "correction": "Keep pointer outside keyboard-only menu test and await exact committed selected/unselected option attributes; no timeout increase or weakened assertions"
+  },
+  "keyboardStressVerification": {
+    "command": "pnpm exec playwright test --config e2e/playwright.config.ts e2e/specs/07-keyboard-nav.spec.ts --grep \"slash menu opens\" --repeat-each 15 --retries 0",
+    "passed": 45,
+    "retries": 0,
+    "skipped": 0,
+    "engines": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ]
   }
 }

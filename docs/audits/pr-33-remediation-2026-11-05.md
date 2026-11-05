@@ -113,10 +113,19 @@ SHA are recorded in PR #33 after the final push.
 | `pnpm benchmark:document` | Pass / CPU document pipeline; not browser INP or physical-device latency |
 | `node --test scripts/compare-editor-benchmarks.node-test.mjs` | 3 passed, 0 skipped |
 | `pnpm docs:build` | Pass |
+| Keyboard test stress: `playwright test ... --grep "slash menu opens" --repeat-each 15 --retries 0` | 45 passed across all three engines; no retries/skips |
 | `pnpm test:e2e` | 256 passed across Chromium/Firefox/WebKit (3.1m), 0 retries/skips; Lighthouse is intentionally Chromium-only |
 | `pnpm audit --prod` | Pass / no known advisories |
 | `pnpm audit --json` | 25 development-tool advisories: 7 high, 16 moderate, 2 low |
 | Immutable host fixture comparison | **Blocked** / 7 pass, 2 differ at host `05446c782ab37db60d4cf6082184c2233934c2bc` |
+
+The first CI browser run for `9163197` reported **255 passed and 1 flaky**
+(Chromium slash-menu keyboard navigation, passed on retry), not a clean first-attempt
+run. Its test took immediate React selection snapshots with the pointer potentially
+hovering options. The correction keeps the pointer outside the menu and awaits exact
+selected/unselected option attributes after each key; it strengthens the keyboard
+assertions without adding sleeps, weakening expectations or increasing timeouts.
+Final CI conclusions are recorded in the PR description after the follow-up push.
 
 The host verifier originally failed to resolve a new host-relative import.
 It now reads the entire core source tree at the specified immutable commit,

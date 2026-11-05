@@ -5,6 +5,9 @@ test.describe('Keyboard navigation and focus (E2E 7)', () => {
   test('slash menu opens, arrow keys navigate, Escape closes, focus returns to editor', async ({ page }) => {
     await openHarness(page);
     await focusEditor(page);
+    // Keep the pointer away from options: opening the menu beneath the last
+    // editor click can legitimately change selection through onMouseEnter.
+    await page.mouse.move(0, 0);
     await page.keyboard.type('/');
 
     const listbox = page.getByRole('listbox', { name: 'Insert card' });
@@ -13,16 +16,16 @@ test.describe('Keyboard navigation and focus (E2E 7)', () => {
     const firstCount = await options.count();
     expect(firstCount).toBeGreaterThan(5);
 
-    // ArrowDown moves selection from option 0 to option 1.
-    const initialSelected = await page.locator('[role="option"][aria-selected="true"]').textContent();
+    // Assert each committed selection before the next key. Immediate textContent
+    // snapshots can observe React's preceding render on a busy CI browser.
+    await expect(options.first()).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('ArrowDown');
-    const afterDown = await page.locator('[role="option"][aria-selected="true"]').textContent();
-    expect(afterDown).not.toBe(initialSelected);
+    await expect(options.nth(1)).toHaveAttribute('aria-selected', 'true');
+    await expect(options.first()).toHaveAttribute('aria-selected', 'false');
 
-    // ArrowUp returns to the first option.
     await page.keyboard.press('ArrowUp');
-    const afterUp = await page.locator('[role="option"][aria-selected="true"]').textContent();
-    expect(afterUp).toBe(initialSelected);
+    await expect(options.first()).toHaveAttribute('aria-selected', 'true');
+    await expect(options.nth(1)).toHaveAttribute('aria-selected', 'false');
 
     // Escape closes the menu and focus returns to the editor.
     await page.keyboard.press('Escape');
