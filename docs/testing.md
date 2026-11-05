@@ -1,112 +1,85 @@
-# Vibress Studio — Testing
+# Vibress Studio — Test Inventory and Evidence
 
-How the suite is organized and how to run it.
+**Source-reviewed:** 2026-11-04. Run all tests against the exact commit you intend to release. See [AGENT.md §15](https://github.com/AbdullahZaher/vibress-studio/blob/main/AGENT.md#15-verification-and-definition-of-done) and [roadmap §16](roadmaps/global-ux-quality-roadmap.md#16-current-authoritative-remediation-and-development-plan--2026-11-04).
 
-## Commands
+## Supported commands from root package.json
 
 ```bash
-pnpm test                # full suite (vitest, jsdom)
-pnpm test:security       # security/XSS regression suites
-pnpm test:a11y           # axe accessibility smoke tests
-pnpm test:roundtrip      # import/export roundtrip tests
-pnpm test:e2e            # browser E2E (Playwright + Chromium + Lighthouse)
-pnpm test:e2e:lighthouse # Lighthouse-only E2E run
-pnpm test:e2e:install    # install the Playwright Chromium browser
-pnpm verify:package-exports
-pnpm verify:explicit-any
-pnpm lint
-pnpm typecheck
+pnpm install --frozen-lockfile
 pnpm build
+pnpm lint
+pnpm verify:explicit-any
+pnpm typecheck
+pnpm test
+pnpm verify:package-exports
+pnpm test:security
+pnpm test:a11y
+pnpm test:roundtrip
+pnpm test:e2e
 pnpm audit --prod
 ```
 
-## Browser E2E (Playwright)
+Packages resolve via `dist`, so build before typecheck/test on a clean checkout. CI uses `pnpm audit --prod --audit-level high`; local `pnpm audit --prod` is a distinct, stricter requested check. The explicit-any script currently uses a tolerance of `--max 50`, so a green result must not be called “zero explicit any”.
 
-The `e2e/` directory contains a Playwright harness that runs against the
-playground's dedicated test page (`playground/e2e.html`, built by
-`E2EHarness.tsx`). The harness mounts the editor with a mock upload adapter
-and import/export controls, and exposes `window.__studio` for assertions.
+## Browser E2E suite (actual paths)
 
-| Spec | Covers |
-|---|---|
-| `01-editor-editing.spec.ts` | editor loads, typing paragraphs, bold, heading/list conversion via UI |
-| `02-slash-menu-cards.spec.ts` | slash menu inserts every built-in card; placeholders render |
-| `03-card-edit-remove-retry.spec.ts` | bookmark URL validation, html/button card edits, keyboard removal |
-| `04-upload-adapter.spec.ts` | mock upload success, error overlay, retry, dismiss, video upload |
-| `05-html-card-xss.spec.ts` | XSS payloads typed into the HTML card never execute in preview |
-| `06-import-export.spec.ts` | HTML/markdown import + export through the UI, malicious input sanitized |
-| `07-keyboard-nav.spec.ts` | slash menu arrow/escape navigation, tab order, focus retention |
-| `08-lighthouse.spec.ts` | Lighthouse accessibility with real-browser color-contrast |
+The Playwright harness is in `playground/e2e.html` with `E2EHarness.tsx` and `e2e/specs/`.
 
-### What the E2E suite caught
+| File | Existing focus |
+| --- | --- |
+| `01-editor-editing.spec.ts` | Typing and basic formatting |
+| `02-slash-menu-cards.spec.ts` | Slash insertion and cards |
+| `03-card-edit-remove-retry.spec.ts` | Bookmark/HTML/button edits and keyboard removal |
+| `04-upload-adapter.spec.ts` | Mock media adapters, retry and async cases |
+| `05-html-card-xss.spec.ts` | HTML card malicious-content boundaries |
+| `06-import-export.spec.ts` | HTML/Markdown import/export, tables and RTL |
+| `07-keyboard-nav.spec.ts` | Slash menu focus and keyboard paths |
+| `08-lighthouse.spec.ts` | Browser Lighthouse accessibility smoke |
 
-The browser harness found and verified fixes for several real editor bugs
-that jsdom tests could not:
+## Unit / targeted paths present (18 suites, 126 tests)
 
-1. `ReactStudioCardNode` lacked `exportJSON`/`importJSON` (serialization
-   errors on every card insert).
-2. `DecoratorNode.isInline()` defaults to `true` — cards were inserted
-   *inside* paragraphs instead of as top-level blocks. Cards now override
-   `isInline()` to `false`.
-3. Clicking a card (a `contenteditable="false"` region) made Lexical null the
-   node selection — keyboard deletion of cards was broken. Card selection is
-   now re-asserted (`assertCardSelection`) so Delete/Backspace works.
-4. The editor contenteditable used `aria-label` instead of Lexical's
-   `ariaLabel` prop — the accessible name was missing.
-5. A form `type="url" required` input blocks submission for non-URL values
-   via native browser validation before the app's validation runs (the
-   placeholder now documents this; tests use a URL-shaped unsafe value).
-6. `verify:package-exports` now also verifies dist is Node-ESM-runnable
-   (explicit `.js` extensions).
+- `packages/studio-core/src/__tests__/migrate.test.ts`
+- `packages/studio-core/src/__tests__/normalize.test.ts`
+- `packages/studio-react/src/__tests__/clone-node.test.ts`
+- `packages/studio-react/src/__tests__/color-persistence.test.ts`
+- `packages/studio-react/src/__tests__/document-recovery.test.tsx`
+- `packages/studio-react/src/__tests__/image-upload-concurrent.test.tsx`
+- `packages/studio-react/src/__tests__/link-normalization.test.ts`
+- `packages/studio-react/src/__tests__/slash-menu-filter.test.ts`
+- `packages/studio-react/src/__tests__/word-count.test.ts`
+- `packages/studio-renderer/src/__tests__/renderer.test.ts`
+- `packages/studio-testing/a11y/semantics.test.ts`
+- `packages/studio-testing/security/content-security.test.ts`
+- `packages/studio-testing/security/markdown-security.test.ts`
+- `packages/studio-testing/security/roundtrip.test.ts`
+- `packages/studio-utils/src/__tests__/sanitize.test.ts`
+- `tests/html-import-regressions.test.ts`
+- `tests/studio-plugin-registry.test.ts`
+- `tests/studio.test.ts`
 
-## Suites
+Prior documentation named historical or proposed tests (e.g. `packages/studio-testing/security/renderer-cards.test.ts`). Only the 18 active suites listed above are part of the verified test suite.
 
-| Location | Covers |
-|---|---|
-| `packages/studio-testing/security/xss-payloads.test.ts` | canonical XSS payloads × escape/URL layers |
-| `packages/studio-testing/security/sanitize.test.ts` | allowlist policy, all 10 matrix payloads, entity obfuscation |
-| `packages/studio-testing/security/renderer-cards.test.ts` | every built-in card renderer safe by default, DOM-level assertions |
-| `packages/studio-testing/security/safe-html.test.tsx` | React `SafeHtml` boundary, branded type, embed iframe gating |
-| `packages/studio-testing/security/editor-robustness.test.tsx` | slash menu regex safety, bookmark malformed URLs, card error boundary |
-| `packages/studio-testing/security/media-upload.test.tsx` | adapter contract, validation, progress/error/retry, object URL revocation |
-| `packages/studio-testing/security/roundtrip.test.ts` | HTML/markdown import-export roundtrips + malicious input |
-| `packages/studio-testing/security/plugin-safety.test.ts` | plugin capability model, host sanitization |
-| `packages/studio-testing/a11y/accessibility.test.tsx` | axe WCAG 2 A/AA smoke (color-contrast excluded under jsdom), labels, keyboard |
-| `packages/studio-testing/package-exports.test.ts` | dist exports, no server React/Lexical |
-| `packages/studio-testing/suites/migration-recovery.test.ts` | migration compatibility, malformed document recovery, serializer |
-| `packages/studio-testing/suites/performance.test.ts` | large-document benchmark-style tests (report timings, generous ceilings) |
+## Automated documentation drift verification
 
-## Security testing approach
+Documentation accuracy is enforced by `tests/docs-drift.test.ts` which automatically validates that:
+- Every test file referenced in `docs/testing.md` exists on disk.
+- Every workspace package in `docs/architecture.md` exists in `packages/`.
+- Deprecated or removed functions (`sanitizeHtmlFragment`, `HTML_SANITIZE_POLICY`) are not present in active code or docs.
 
-- **Payloads** come from `docs/security/xss-regression-matrix.md`.
-- **DOM-level assertions**: renderer output is parsed with `DOMParser` and
-  checked for live dangerous elements/attributes — escaped text content is
-  not falsely flagged.
-- **Idempotence**: rendered output must be stable under re-sanitization.
-- **Escape-layer vs sanitizer-layer**: tests distinguish what escaping
-  guarantees (text) from what the sanitizer guarantees (HTML fragments).
+## Remediation regression matrix status
 
-## Accessibility testing
+All planned regression test suites from the remediation roadmap have been implemented and verified:
+- **STU-R01 (Safe migration & recovery):** `packages/studio-core/src/__tests__/migrate.test.ts`, `packages/studio-react/src/__tests__/document-recovery.test.tsx`
+- **STU-R02 (Concurrent media uploads):** `packages/studio-react/src/__tests__/image-upload-concurrent.test.tsx`, `e2e/specs/04-upload-adapter.spec.ts`
+- **STU-R03/R11 (Caption stability & recovery):** `e2e/specs/04-upload-adapter.spec.ts`
+- **STU-R04 (Color & formatting fidelity):** `packages/studio-react/src/__tests__/color-persistence.test.ts`, `packages/studio-renderer/src/__tests__/renderer.test.ts`
+- **STU-R05 (Secure Markdown export):** `packages/studio-testing/security/markdown-security.test.ts`
+- **STU-R06/R10 (Scoped CSS & design system):** `e2e/specs/08-lighthouse.spec.ts`
+- **STU-R07/R08/R09/R17 (Functional editor controls):** `e2e/specs/01-editor-editing.spec.ts`, `e2e/specs/03-card-edit-remove-retry.spec.ts`
+- **STU-R12 (Markdown Loss Matrix & GFM fallbacks):** `docs/import-export-matrix.md`, `tests/studio.test.ts`
+- **STU-R13 (Plugin SDK boundaries & registry):** `tests/studio-plugin-registry.test.ts`, `docs/plugin-sdk.md`
+- **STU-R14 (Arabic RTL & mobile viewports):** `packages/studio-react/src/__tests__/slash-menu-filter.test.ts`
+- **STU-R15 (Documentation alignment & drift):** `tests/docs-drift.test.ts`
+- **STU-R16 (WordCountPlugin performance & efficiency):** `packages/studio-react/src/__tests__/word-count.test.ts`
 
-`axe-core` runs against rendered components (WCAG 2 A/AA). `color-contrast`
-is disabled because it requires a real browser paint engine; run the
-playground + Lighthouse in a browser for visual contrast verification.
-
-## Performance testing
-
-Benchmark-style tests in `suites/performance.test.ts`:
-
-- render 1,000 paragraphs
-- render 500 cards
-- import large HTML (800 paragraphs)
-- export large markdown (500 paragraphs)
-- import large markdown (300 paragraphs)
-- plain-text render 1,000 paragraphs
-
-Each prints its timing (`[perf] ...`) and asserts a generous ceiling so
-regressions fail CI without flaking on slow machines.
-
-## CI
-
-`.github/workflows/ci.yml` runs lint, explicit-any guard, typecheck, tests,
-build, and `pnpm audit --prod`.
+Use controlled promises for async cases and deterministic fixtures. Capture before/after results, command output, exact SHA, and screenshots/interaction traces for visual work. When not tested, say: `Not verified: [item]. How to verify: [command]`.

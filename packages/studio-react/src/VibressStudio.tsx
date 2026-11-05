@@ -22,10 +22,57 @@ import { WordCountPlugin } from './plugins/WordCountPlugin';
 import { STUDIO_CORE_NODES } from '@vibress/studio-nodes';
 import { StudioCardNode } from '@vibress/studio-cards';
 import { ReactStudioCardNode } from './nodes/ReactStudioCardNode';
-import { StudioDocument, migrateDocument } from '@vibress/studio-core';
+import { StudioDocument, migrateDocument, CURRENT_STUDIO_VERSION, StudioMigrationError } from '@vibress/studio-core';
 import { serializeStudioDocument } from '@vibress/studio-serializer';
 import { StudioUploadContext, StudioUploadApi } from './upload-context';
 import { StudioMediaContext, StudioMediaApi, StudioMediaRequest } from './media-context';
+
+// Lexical can only serialize nodes for which it has registered node classes.
+// Preserve forward-compatible documents by refusing to edit unsupported trees
+// instead of loading a partial tree and publishing a lossy onChange snapshot.
+const EDITABLE_STUDIO_NODE_TYPES = new Set([
+  'root', 'paragraph', 'text', 'linebreak', 'tab',
+  'heading', 'quote', 'list', 'listitem',
+  'link', 'autolink', 'code', 'code-highlight',
+  'table', 'tablerow', 'tablecell',
+  'studio-card', 'react-studio-card',
+]);
+
+function findUnsupportedEditorNode(node: unknown): string | null {
+  if (!node || typeof node !== 'object' || Array.isArray(node)) {
+    return 'invalid node';
+  }
+  const entry = node as { type?: unknown; children?: unknown };
+  if (typeof entry.type !== 'string' || !EDITABLE_STUDIO_NODE_TYPES.has(entry.type)) {
+    return typeof entry.type === 'string' ? entry.type : 'missing node type';
+  }
+  if (entry.children !== undefined) {
+    if (!Array.isArray(entry.children)) return entry.type + ' (invalid children)';
+    for (const child of entry.children) {
+      const unsupported = findUnsupportedEditorNode(child);
+      if (unsupported) return unsupported;
+    }
+  }
+  return null;
+}
+
+function assertEditorCanPreserveDocument(document: StudioDocument, rawDocument: unknown): void {
+  if (document.version !== CURRENT_STUDIO_VERSION) {
+    throw new StudioMigrationError(
+      `Cannot edit Studio document version ${document.version} with a version ${CURRENT_STUDIO_VERSION} editor. Open it with a compatible editor instead.`,
+      rawDocument,
+      'UNSUPPORTED_DOCUMENT'
+    );
+  }
+  const unsupportedNode = findUnsupportedEditorNode(document.root);
+  if (unsupportedNode) {
+    throw new StudioMigrationError(
+      `Cannot safely edit unsupported Lexical node type: ${unsupportedNode}.`,
+      rawDocument,
+      'UNSUPPORTED_DOCUMENT'
+    );
+  }
+}
 
 export interface VibressStudioProps {
   value?: unknown;
@@ -151,7 +198,22 @@ export function VibressStudio({
   showWordCount = true,
   className = '',
 }: VibressStudioProps) {
-  const parsedDoc = useMemo(() => migrateDocument(value), [value]);
+  const { parsedDoc, migrationError } = useMemo(() => {
+    try {
+      const doc = migrateDocument(value);
+      assertEditorCanPreserveDocument(doc, value);
+      return { parsedDoc: doc, migrationError: null };
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      return { parsedDoc: null, migrationError: error };
+    }
+  }, [value]);
+
+  useEffect(() => {
+    if (migrationError && onError) {
+      onError(migrationError);
+    }
+  }, [migrationError, onError]);
 
   const initialConfig = useMemo(
     () => ({
@@ -217,6 +279,50 @@ export function VibressStudio({
     }),
     [uploadMedia, requestMedia, allowUnsplash]
   );
+
+  if (migrationError || !parsedDoc) {
+    return (
+      <div
+        role="alert"
+        aria-live="assertive"
+        className={`vibress-studio-editor studio-migration-error ${className || ''}`}
+        style={{
+          padding: '1.5rem',
+          border: '1px solid #ef4444',
+          borderRadius: '0.5rem',
+          background: '#fef2f2',
+          color: '#991b1b',
+          fontFamily: 'inherit',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+          <strong style={{ fontSize: '1rem' }}>Studio Document Recovery</strong>
+          <span style={{ fontSize: '0.8125rem', padding: '2px 8px', borderRadius: '9999px', background: '#fee2e2' }}>
+            Content Preserved
+          </span>
+        </div>
+        <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.875rem', lineHeight: '1.5' }}>
+          The document could not be loaded because the persisted format is unsupported or invalid.
+          The original content has been retained without overwriting.
+        </p>
+        <pre
+          style={{
+            margin: '0',
+            padding: '0.75rem',
+            background: '#ffffff',
+            border: '1px solid #fca5a5',
+            borderRadius: '0.375rem',
+            fontSize: '0.8125rem',
+            overflowX: 'auto',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-all',
+          }}
+        >
+          {migrationError?.message || 'Unsupported persisted document'}
+        </pre>
+      </div>
+    );
+  }
 
   return (
     <StudioErrorBoundary onError={onError}>

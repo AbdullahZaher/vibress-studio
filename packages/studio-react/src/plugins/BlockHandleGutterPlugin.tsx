@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   $getNodeByKey,
+  $getNearestNodeFromDOMNode,
   $createParagraphNode,
   $isRootOrShadowRoot,
   $isElementNode,
@@ -69,35 +70,24 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
         return;
       }
 
-      // Walk up to find nearest DOM node with Lexical key attached
-      let dom: HTMLElement | null = target;
-      let foundKey: string | null = null;
-      const lexicalKeyProp = `__lexicalKey_${editor.getKey()}`;
-
-      while (dom && dom !== rootElement) {
-        const key = (dom as unknown as Record<string, unknown>)[lexicalKeyProp];
-        if (typeof key === 'string') {
-          foundKey = key;
-          break;
-        }
-        dom = dom.parentElement;
+      // Find top-level block element under editor root
+      let blockElem: HTMLElement | null = target;
+      while (blockElem && blockElem.parentElement && blockElem.parentElement !== rootElement) {
+        blockElem = blockElem.parentElement;
       }
 
-      if (foundKey) {
+      if (blockElem && blockElem.parentElement === rootElement) {
         editor.getEditorState().read(() => {
-          const node = $getNodeByKey(foundKey);
+          if (!blockElem) return;
+          const node = $getNearestNodeFromDOMNode(blockElem);
           if (node) {
             let topNode: LexicalNode = node;
             while (topNode.getParent() && !$isRootOrShadowRoot(topNode.getParent())) {
               const parent = topNode.getParent();
               if (parent) topNode = parent;
             }
-            const topKey = topNode.getKey();
-            const topElem = editor.getElementByKey(topKey);
-            if (topElem) {
-              setHoveredNodeKey(topKey);
-              setTargetRect(topElem.getBoundingClientRect());
-            }
+            setHoveredNodeKey(topNode.getKey());
+            setTargetRect(blockElem.getBoundingClientRect());
           }
         });
       }

@@ -1,5 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import '@vibress/studio-react/styles.css';
 import { E2EHarness } from './E2EHarness';
 
 const root = document.getElementById('root');
