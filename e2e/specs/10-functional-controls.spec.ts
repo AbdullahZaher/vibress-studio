@@ -6,11 +6,11 @@ test.describe('Functional editor controls, preview continuity, and truthful inte
     await page.goto('/');
     await page.evaluate(() => localStorage.clear());
     await page.reload();
-    await expect(page.locator('.vibress-studio-editor [contenteditable="true"]')).toBeVisible();
+    await expect(page.locator('.vibress-studio-editor [contenteditable="true"][aria-label="Editor content"]')).toBeVisible();
   });
 
   test('block inserter drawer performs real block insertion (STU-R07)', async ({ page }) => {
-    const editor = page.locator('.vibress-studio-editor [contenteditable="true"]');
+    const editor = page.locator('.vibress-studio-editor [contenteditable="true"][aria-label="Editor content"]');
     await editor.click();
     await page.keyboard.press('ControlOrMeta+a');
     await page.keyboard.press('Backspace');
@@ -38,7 +38,7 @@ test.describe('Functional editor controls, preview continuity, and truthful inte
   });
 
   test('preview mode preserves editor selection and history without unmounting (STU-R08)', async ({ page }) => {
-    const editor = page.locator('.vibress-studio-editor [contenteditable="true"]');
+    const editor = page.locator('.vibress-studio-editor [contenteditable="true"][aria-label="Editor content"]');
     await editor.click();
     await page.keyboard.type('Persistent authoring content before preview.');
 
@@ -93,7 +93,7 @@ test.describe('Functional editor controls, preview continuity, and truthful inte
   });
 
   test('block handle gutter shows truthful actions label and pointer cursor (STU-R09)', async ({ page }) => {
-    const editor = page.locator('.vibress-studio-editor [contenteditable="true"]');
+    const editor = page.locator('.vibress-studio-editor [contenteditable="true"][aria-label="Editor content"]');
     await editor.click();
 
     const paragraph = editor.locator('p').first();
