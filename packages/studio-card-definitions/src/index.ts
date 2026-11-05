@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { escapeHtml, sanitizeHtml, sanitizeUrl, stripHtml, getEmbedProvider, parseMarkdownToHtml } from '@vibress/studio-utils';
+import { escapeHtml, sanitizeHtml, sanitizeUrl, stripHtml, resolveStudioEmbedDestination, parseMarkdownToHtml } from '@vibress/studio-utils';
 
 export interface StudioCardDefinition<TData = Record<string, unknown>> {
   type: string;
@@ -242,13 +242,16 @@ export const EmbedCardDefinition: StudioCardDefinition<EmbedCardData> = {
     // Only approved providers produce an iframe; everything else becomes a
     // safe external link. Arbitrary user-supplied iframe markup is never
     // trusted — the final output sanitizer enforces this a second time.
-    const provider = getEmbedProvider(data.url);
+    const destination = resolveStudioEmbedDestination(data.url);
     const caption = safeMediaCaption(data);
     const captionHtml = caption ? `<figcaption>${caption}</figcaption>` : '';
-    if (provider) {
-      return `<figure class="kg-card kg-embed-card"><iframe src="${escapeHtml(provider.embedUrl)}" title="${escapeHtml(data.url)}" loading="lazy" allowfullscreen></iframe>${captionHtml}</figure>`;
+    if (destination.kind === 'iframe') {
+      return `<figure class="kg-card kg-embed-card"><iframe src="${escapeHtml(destination.url)}" title="${escapeHtml(data.url)}" loading="lazy" allowfullscreen></iframe>${captionHtml}</figure>`;
     }
-    return `<figure class="kg-card kg-embed-card"><a href="${sanitizeUrl(data.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(data.url)}</a>${captionHtml}</figure>`;
+    if (destination.kind === 'external-link') {
+      return `<figure class="kg-card kg-embed-card"><a href="${escapeHtml(destination.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(data.url)}</a>${captionHtml}</figure>`;
+    }
+    return `<figure class="kg-card kg-embed-card"><span class="studio-embed-invalid">Unsupported or unsafe embed URL.</span>${captionHtml}</figure>`;
   },
   renderPlainText: (data) => {
     const caption = stripHtml(safeMediaCaption(data));
