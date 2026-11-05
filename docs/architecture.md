@@ -79,6 +79,21 @@ Current embed allowlist supports YouTube and Vimeo. Treat all document, caption,
 
 ## Visual CSS contract and accessibility
 
-Public CSS tokens and styles are exported by `studio-react`, but portions of interactive cards use unbundled Tailwind-like utility classes, and some global selectors leak beyond Studio. A clean consuming app without host/Tailwind CSS must be used to verify the component contract before presenting the standalone design as self-contained.
+Public CSS tokens and scoped styles are exported by `studio-react`; the
+standalone branch includes explicit fallbacks for legacy Tailwind-like utility
+classes and direction-aware layouts. The host must verify these against its
+actual theme and bundler, including light/dark and editor/public rendering.
+Chromium CI provides automated checks, not a manual Safari/Firefox,
+screen-reader or full host-release certification.
 
-All editing and display features require RTL, LTR, mixed bidi, light/dark, narrow viewport, keyboard and touch evidence; see roadmap §16.4.
+
+## Synchronization contract under PR #28 review (2026-11-05)
+
+An autosave acknowledgment is not an external replacement command. Changes to
+`revisionId` are metadata; deliberate revision restorations or authoritative
+remote replacements require a unique `replacementId` after host-side conflict
+resolution. Studio protects locally edited content from ambiguous incoming
+`value` changes regardless of history length. See
+[vibress integration](vibress-integration.md#external-value-synchronization-and-explicit-document-replacement).
+Do not claim host autosave or Yjs parity until tested against a named host SHA
+(`b33fb1ab597bfabb8861516132cf8bad567f0bf1`).

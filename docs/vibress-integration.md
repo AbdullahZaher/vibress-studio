@@ -1,6 +1,6 @@
 # Vibress Studio — Host Integration Contract
 
-**Source reviewed:** standalone `main` at `ff283b03a023f90d33e96543e2d408b3287bdc75` (2026-11-05). Read [ADR-0001](adr/0001-studio-canonical-runtime.md) and [architecture](architecture.md) before integrating with the separately maintained Vibress CMS.
+**Source reviewed:** standalone baseline `main` at `bac22c542c31c5edcd96229de9d4cf47bcce0c42` and additive synchronization changes proposed in PR #28 (2026-11-05). Read [ADR-0001](adr/0001-studio-canonical-runtime.md) and [architecture](architecture.md) before integrating with the separately maintained Vibress CMS.
 
 Studio is a **reusable editor library**, not the CMS. The host owns identity, publication permissions, persistence, autosave, version-conflict handling, durable media, AI authorization and collaboration lifecycle.
 
@@ -49,14 +49,34 @@ export function AdminEditor({
 
 **Important:** `onChange` emits editor snapshots; it is **not** a verified durable save. The host must debounce/queue saves, enforce permission checks, maintain expected revision numbers, handle version conflicts, and show truthful persistence status. An echo of an older autosave response must not overwrite newer unsaved edits. Do not remount the editor on every save. Exercise the host's actual save/reload workflow and crash recovery before release.
 
-### External Value Synchronization and Revision Management
+### External value synchronization and explicit document replacement
 
-When integrating `VibressStudio` with host persistence or autosave lifecycles, observe the following synchronization contract:
+The editor owns the live Lexical draft. The host owns revisions, autosave ordering,
+conflict resolution, persistence and authorization. The `value` prop alone cannot
+distinguish a delayed autosave response from an intentional document restore.
 
-1. **Local `onChange` Echoes:** When the host holds editor state in React state and passes it back to `value`, Studio detects that the incoming snapshot matches the current editor state. Studio will **not** re-parse or reset editor state, preserving user selection, caret position, and undo/redo history without triggering `onChange` loops.
-2. **Stale Autosave Acknowledgments:** Studio maintains an internal bounded history (up to 50 snapshots) of locally emitted states. If an incoming `value` matches an earlier emitted snapshot while local edits have since occurred, Studio ignores the stale echo to prevent older autosave acknowledgments from overwriting newer unsaved edits.
-3. **Intentional Revision Restorations:** When the host deliberately restores an earlier revision (e.g. user selects "Restore Revision A" from history), the host should pass an explicit `revisionId` prop (e.g. `<VibressStudio value={earlierDoc} revisionId={revisionId} />`) or include `revisionId` in the document envelope. When `revisionId` changes, Studio honors the replacement, applies the earlier revision, and resets the emitted snapshot history.
-4. **Genuinely New Documents:** Incoming documents whose root structure does not match previously emitted snapshots are applied immediately.
+1. **Local drafts:** `onChange` emits snapshots, not durable saves. Once the author
+   changes content, a different incoming `value` is **not automatically installed**:
+   it could be a stale echo. This holds even after thousands of edits, without a
+   size-limited snapshot cache. Identical echoes are no-ops that preserve selection/undo.
+2. **Persistence revision:** `revisionId` is optional host metadata; incrementing it
+   on any successful autosave **does not** authorize replacing a live draft. The
+   optional `document.revisionId` metadata behaves the same way.
+3. **Explicit replacement:** Change `replacementId` only after a deliberate host
+   action such as switching documents, restoring a revision, or applying an authorized
+   remote update after resolving local changes:
+   `<VibressStudio value={restoredDocument} replacementId={restoreOperationId} />`.
+   Use a new unique token per operation. This may replace unsaved local content;
+   obtain author confirmation or resolve conflicts in the host first.
+4. **Initial/external loading:** Before any local edit, a genuinely new incoming
+   `value` can load normally. After local edits, a host-controlled external change
+   needs a new `replacementId`. Normal rerenders and save acknowledgments must
+   not change that token.
+5. **Host integration:** Retain the original saved document on load/migration errors,
+   keep local drafts separate from server acknowledgments, and use durable
+   `expectedVersion`/revision-conflict checks. Neither token implements server-side
+   versioning or collaboration. Test A → B with delayed A, arbitrary out-of-order
+   acknowledgments, and explicit restoration of A before shipping.
 
 `uploadMedia(file, cardType)` and `requestMedia({ cardType, source })` are host callbacks, returning durable `{ assetId, src, ... }` asset references or `null` for cancellation. Only the host can guarantee persistence and authorization. Never store `blob:` object URLs or temporary previews. Mock adapters are for tests and the playground only.
 
@@ -97,7 +117,7 @@ const markdownExport = studioDocumentToMarkdown(importedHtml);
 
 ## Plugins and host parity
 
-The `StudioPluginRegistry` supports registration, collision checks, Zod validation and sanitized `renderCardHtml`. On the reviewed `main`, the React editor does **not** accept a plugin registry prop or automatically expose registered card editors in the slash menu. This integration remains proposed in [PR #17](https://github.com/AbdullahZaher/vibress-studio/pull/17).
+The `StudioPluginRegistry` supports registration, collision checks, Zod validation and sanitized `renderCardHtml`. The React editor now accepts `pluginRegistry` and exposes registered cards through the slash menu. Plugins execute in-process and **are not security sandboxes**; only load authorized/trusted plugin code and sanitize every output boundary.
 
 The Vibress host has Yjs collaboration exports and host-driven session lifecycle that standalone does not currently expose. **ADR-0001 remains Proposed**. Name and compare the exact host/standalone SHAs, v1 fixtures, and public exports before synchronizing.
 

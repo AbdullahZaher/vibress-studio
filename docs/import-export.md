@@ -91,3 +91,15 @@ The import and export conversions are verified in the following automated test s
 - `tests/html-roundtrip.test.ts`: Bidirectional round-trip fidelity between HTML and StudioDocument across all card types and rich captions.
 - `packages/studio-renderer/src/__tests__/renderer.test.ts`: HTML and plain-text output, deterministic heading IDs matching Table of Contents, and structured plain-text formatting for tables and lists.
 - `e2e/specs/06-import-export.spec.ts`: End-to-end browser import/export round-trip workflows.
+
+### Toggle rich HTML card
+
+`ToggleCardData.content` remains a string containing plain text or safe HTML,
+not a new Lexical nested-document schema. Imported rich markup is displayed in
+the card editor as **sanitized formatted content** rather than literal HTML
+inside a textarea. Authors can explicitly choose **Edit HTML source**, review
+changes, then apply sanitized markup; concurrent card-body changes block the
+apply action instead of being silently overwritten. Plain-text Toggle bodies
+retain ordinary text editing. The host still owns document saving and
+revision conflicts. Import/export of unsupported formatting is not guaranteed
+lossless.
