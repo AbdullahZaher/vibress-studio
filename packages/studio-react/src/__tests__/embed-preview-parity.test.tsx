@@ -14,7 +14,7 @@ function preview(cardData: { url: string; html?: string }) {
   };
   return render(
     <LexicalComposer initialConfig={config}>
-      <EmbedCardEditor nodeKey="embed-preview" cardData={{ ...cardData, caption: '' }} />
+      <EmbedCardEditor nodeKey="embed-preview" cardData={{ embedType: 'video', ...cardData, caption: '' }} />
     </LexicalComposer>
   );
 }
