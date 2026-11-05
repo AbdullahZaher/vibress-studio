@@ -1,47 +1,55 @@
 #!/usr/bin/env node
 /**
- * Smoke public built consumer entrypoints through both Node require and ESM
- * import. Run after pnpm build. This is NOT an independent installed-package
- * or browser accessibility/performance certification.
+ * Smoke the built package artifacts as Node ESM and CommonJS consumers.
+ * The workspace root intentionally has no direct @vibress/studio-* dependency,
+ * so resolve each package's public entry from its own package directory.
+ * Run after pnpm build and verify:package-exports.
  */
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
-const require = createRequire(import.meta.url);
 
-const coreCjs = require('@vibress/studio-core');
-const coreEsm = await import('@vibress/studio-core');
-const rendererCjs = require('@vibress/studio-renderer');
-const rendererEsm = await import('@vibress/studio-renderer');
-const serializerCjs = require('@vibress/studio-serializer');
-const serializerEsm = await import('@vibress/studio-serializer');
-const reactCjs = require('@vibress/studio-react');
-const reactEsm = await import('@vibress/studio-react');
+async function packageEntries(name) {
+  const base = new URL(`../packages/${name}/`, import.meta.url);
+  const requireFromPackage = createRequire(new URL('package.json', base));
+  // Resolve through the *declared public self-reference* (exports map).
+  const cjs = requireFromPackage(`@vibress/${name}`);
+  const esm = await import(new URL('dist/index.mjs', base).href);
+  return { cjs, esm };
+}
 
-for (const [name, pkg, symbol] of [
-  ['core CJS', coreCjs, 'createEmptyStudioDocument'],
-  ['core ESM', coreEsm, 'createEmptyStudioDocument'],
-  ['renderer CJS', rendererCjs, 'renderStudioDocumentToHtml'],
-  ['renderer ESM', rendererEsm, 'renderStudioDocumentToHtml'],
-  ['serializer CJS', serializerCjs, 'serializeStudioDocument'],
-  ['serializer ESM', serializerEsm, 'serializeStudioDocument'],
-  ['react CJS', reactCjs, 'VibressStudio'],
-  ['react ESM', reactEsm, 'VibressStudio'],
+const core = await packageEntries('studio-core');
+const renderer = await packageEntries('studio-renderer');
+const serializer = await packageEntries('studio-serializer');
+const react = await packageEntries('studio-react');
+
+for (const [name, entries, symbol] of [
+  ['core', core, 'createEmptyStudioDocument'],
+  ['renderer', renderer, 'renderStudioDocumentToHtml'],
+  ['serializer', serializer, 'serializeStudioDocument'],
+  ['react', react, 'VibressStudio'],
 ]) {
-  assert.equal(typeof pkg[symbol], 'function', `${name}: missing ${symbol}`);
+  for (const [format, pkg] of Object.entries(entries)) {
+    assert.equal(typeof pkg[symbol], 'function', `${name} ${format}: missing ${symbol}`);
+  }
 }
-const doc = coreCjs.createDefaultStudioDocument('مرحبا English');
-const accepted = serializerCjs.serializeStudioDocument(doc.root);
+const document = core.cjs.createDefaultStudioDocument('مرحبا English');
+const accepted = serializer.cjs.serializeStudioDocument(document.root);
 assert.equal(accepted.schema, 'vibress-studio');
-assert.deepEqual(serializerEsm.serializeStudioDocument(doc.root).root, accepted.root);
-assert.ok(rendererCjs.renderStudioDocumentToHtml(accepted).includes('مرحبا English'));
-assert.equal(rendererEsm.renderStudioDocumentToHtml(accepted),
-  rendererCjs.renderStudioDocumentToHtml(accepted));
-for (const entry of ['@vibress/studio-react/styles.css', '@vibress/studio-react/tokens.css']) {
-  assert.ok(existsSync(require.resolve(entry)), `CSS public export unavailable: ${entry}`);
+assert.deepEqual(serializer.esm.serializeStudioDocument(document.root).root, accepted.root);
+assert.ok(renderer.cjs.renderStudioDocumentToHtml(accepted).includes('مرحبا English'));
+assert.equal(renderer.esm.renderStudioDocumentToHtml(accepted),
+  renderer.cjs.renderStudioDocumentToHtml(accepted));
+
+for (const name of ['styles.css', 'tokens.css']) {
+  const requireFromReact = createRequire(new URL('../packages/studio-react/package.json', import.meta.url));
+  const entry = requireFromReact.resolve(`@vibress/studio-react/${name}`);
+  assert.ok(existsSync(entry), `CSS public export unavailable: ${name}`);
+  assert.ok(fileURLToPath(new URL(`../packages/studio-react/dist/styles/${name === 'styles.css' ? 'studio.css' : name}`, import.meta.url)),
+    'CSS artifact path must be a valid file path');
 }
-assert.equal(typeof globalThis.document, 'undefined',
-  'Server-side consumer test must not rely on browser document');
-assert.equal(typeof globalThis.window, 'undefined',
-  'Server-side consumer test must not rely on browser window');
-console.log('PASS: built ESM/CJS imports, public editor exports, SSR renderer and CSS paths');
+
+assert.equal(typeof globalThis.document, 'undefined');
+assert.equal(typeof globalThis.window, 'undefined');
+console.log('PASS: ESM/CJS package entries, server-safe rendering and CSS public exports');
