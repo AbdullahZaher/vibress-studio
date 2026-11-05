@@ -178,7 +178,7 @@ function DocumentSyncPlugin({
   hasLocalEdits,
   onExternalApplied,
 }: {
-  document: StudioDocument;
+  document: StudioDocument | null;
   replacementId?: string | number;
   onError?: (error: Error) => void;
   hasLocalEdits: () => boolean;
@@ -189,6 +189,9 @@ function DocumentSyncPlugin({
   const lastReplacementId = useRef<string | number | undefined>(replacementId);
 
   useEffect(() => {
+    // Keep this plugin mounted during recovery so rejected replacements do
+    // not consume a token or reset the existing synchronization history.
+    if (!document) return;
     const incoming = JSON.stringify(document.root);
     const isExplicitReplacement =
       replacementId !== undefined && replacementId !== lastReplacementId.current;
@@ -259,6 +262,7 @@ export function VibressStudio({
   const hasLocalEditsRef = useRef(false);
   const lastObservedEditorRootRef = useRef<string | null>(null);
   const [snapshotError, setSnapshotError] = useState<Error | null>(null);
+  const [hasLoadedDocument, setHasLoadedDocument] = useState(false);
 
   const hasLocalEdits = useCallback(() => hasLocalEditsRef.current, []);
   const onExternalApplied = useCallback((rootJson: string) => {
@@ -282,10 +286,16 @@ export function VibressStudio({
   }, [value, resourceLimits]);
 
   useEffect(() => {
+    if (parsedDoc) setHasLoadedDocument(true);
+  }, [parsedDoc]);
+
+  useEffect(() => {
     if (migrationError && onError) {
       onError(migrationError);
     }
   }, [migrationError, onError]);
+
+  const editingPaused = readOnly || Boolean(migrationError);
 
   const initialConfig = useMemo(
     () => ({
@@ -304,7 +314,7 @@ export function VibressStudio({
           },
         },
       ],
-      editable: !readOnly,
+      editable: !editingPaused,
       onError: (error: Error) => {
         if (onError) onError(error);
       },
@@ -340,7 +350,7 @@ export function VibressStudio({
         },
       },
     }),
-    [readOnly, onError]
+    [editingPaused, onError]
   );
 
   const mediaContextValue = useMemo<StudioMediaApi>(
@@ -352,7 +362,7 @@ export function VibressStudio({
     [uploadMedia, requestMedia, allowUnsplash]
   );
 
-  if (migrationError || !parsedDoc) {
+  if (!parsedDoc && !hasLoadedDocument) {
     return (
       <div
         role="alert"
@@ -402,13 +412,20 @@ export function VibressStudio({
       <StudioUploadContext.Provider value={{ uploadMedia }}>
         <StudioMediaContext.Provider value={mediaContextValue}>
         <div className={`vibress-studio-editor ${className || ''}`} dir={dir}>
+          {migrationError && (
+            <div role="alert" aria-live="assertive" className="studio-snapshot-error">
+              <strong>Editing paused:</strong> The incoming document could not be loaded safely.
+              {' '}The current draft remains in the editor.
+              <p>{migrationError.message}</p>
+            </div>
+          )}
           {snapshotError && (
             <div role="alert" aria-live="polite" className="studio-snapshot-error">
               <strong>Document not saved:</strong> {snapshotError.message}
               {' '}The current draft remains in the editor. Reduce its size before saving.
             </div>
           )}
-          <fieldset disabled={readOnly} style={{ minWidth: 0, margin: 0, padding: 0, border: 0 }}>
+          <fieldset disabled={editingPaused} style={{ minWidth: 0, margin: 0, padding: 0, border: 0 }}>
           <LexicalComposer initialConfig={initialConfig}>
             <div className="vibress-studio-canvas" style={{ position: 'relative', minHeight: '30vh' }}>
               <RichTextPlugin
@@ -444,16 +461,16 @@ export function VibressStudio({
               <ListPlugin />
               <CheckListPlugin />
               <TablePlugin hasCellMerge hasCellBackgroundColor hasTabHandler />
-              {!readOnly && <MarkdownShortcutPlugin transformers={TRANSFORMERS} />}
+              {!editingPaused && <MarkdownShortcutPlugin transformers={TRANSFORMERS} />}
               <LinkPlugin />
-              {!readOnly && <SlashMenuPlugin requestMedia={requestMedia} />}
-              {!readOnly && <FloatingFormatToolbarPlugin />}
-              {!readOnly && <FloatingCardActionToolbarPlugin />}
-              {!readOnly && <BlockHandleGutterPlugin />}
-              {!readOnly && enableAi && onAiGenerate && <InlineAIPlugin onGenerate={onAiGenerate} />}
+              {!editingPaused && <SlashMenuPlugin requestMedia={requestMedia} />}
+              {!editingPaused && <FloatingFormatToolbarPlugin />}
+              {!editingPaused && <FloatingCardActionToolbarPlugin />}
+              {!editingPaused && <BlockHandleGutterPlugin />}
+              {!editingPaused && enableAi && onAiGenerate && <InlineAIPlugin onGenerate={onAiGenerate} />}
               {showWordCount && <WordCountPlugin />}
               <EditorAccessibleNamePlugin />
-              <EditorEditablePlugin readOnly={readOnly} />
+              <EditorEditablePlugin readOnly={editingPaused} />
               <DocumentSyncPlugin
                 document={parsedDoc}
                 replacementId={replacementId}
@@ -465,6 +482,12 @@ export function VibressStudio({
               <OnChangePlugin
                 onChange={(editorState, _editor, tags) => {
                   if (tags.has(STUDIO_EXTERNAL_SYNC_TAG)) return;
+                  if (migrationError) {
+                    // Pending uploads may still finish while editing is paused.
+                    // Keep their changes local; never autosave over rejected data.
+                    hasLocalEditsRef.current = true;
+                    return;
+                  }
                   // A rejected snapshot must never be emitted to host autosave,
                   // and the active Lexical editor state must never be reset.
                   try {

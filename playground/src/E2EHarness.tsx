@@ -57,6 +57,8 @@ interface StudioTestApi {
   importMarkdown: (md: string) => void;
   /** Update value without remounting Lexical, to exercise controlled props. */
   syncHTML: (html: string) => void;
+  /** Fault-inject raw host input while keeping the last valid preview document. */
+  syncValue: (value: unknown) => void;
   setReadOnly: (value: boolean) => void;
   setAiEnabled: (value: boolean) => void;
   setRtl: (value: boolean) => void;
@@ -101,6 +103,7 @@ class MockUploadAdapter {
 
 export function E2EHarness() {
   const [doc, setDoc] = useState<StudioDocument>(createEmptyStudioDocument());
+  const [externalValue, setExternalValue] = useState<{ value: unknown } | null>(null);
   const [replacementId, setReplacementId] = useState(0);
   const [readOnly, setReadOnly] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
@@ -110,6 +113,7 @@ export function E2EHarness() {
     // Explicit import/reset: replace the live document without destroying the
     // mounted Lexical editor or its host callback subscriptions.
     setDoc(next);
+    setExternalValue(null);
     setReplacementId((value) => value + 1);
   }, []);
   const uploadMedia = useCallback((file: File, cardType: string) =>
@@ -193,6 +197,7 @@ export function E2EHarness() {
       importHTML: (html) => replaceDoc(htmlToStudioDocument(html)),
       importMarkdown: (md) => replaceDoc(htmlToStudioDocument(parseMarkdownToHtml(md))),
       syncHTML: (html) => setDoc(htmlToStudioDocument(html)),
+      syncValue: (value) => setExternalValue({ value }),
       setReadOnly,
       setAiEnabled,
       setRtl: (rtl: boolean) => setIsRtl(rtl),
@@ -258,7 +263,7 @@ export function E2EHarness() {
           <h2 style={{ fontSize: '16px', margin: '0 0 8px', color: '#1f2937' }}>Editor</h2>
           <div data-testid="studio-editor" data-ai-enabled={aiEnabled}>
             <VibressStudio
-              value={doc}
+              value={externalValue ? externalValue.value : doc}
               replacementId={replacementId}
               onChange={(d) => setDoc(d)}
               readOnly={readOnly}

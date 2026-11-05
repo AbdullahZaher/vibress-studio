@@ -8,6 +8,11 @@
 
 This is the current readiness record. Historical reports describing the project as “production ready”, “fully secure”, “zero data loss” or “9.82/10 certified” are historical assertions, **not independently validated release evidence**. See the [source audit](audits/studio-source-reassessment-2026-11-04.md), the [current authoritative PRD & Engineering Execution Plan](roadmaps/product-quality-engineering-execution-plan-2026-11-05.md), and [remediation roadmap §16](roadmaps/global-ux-quality-roadmap.md#16-current-authoritative-remediation-and-development-plan--2026-11-04).
 
+**Local recovery checkpoint, 2026-11-05:** See the [active-draft recovery report](audits/studio-draft-recovery-2026-11-05.md)
+for a reproduced STU-205/STU-302 defect, its fix and current local verification.
+The automated table below records earlier observations; neither it nor this
+local checkpoint constitutes final-candidate CI or release sign-off.
+
 > [!IMPORTANT]
 > Green CI passes demonstrate automated regression checks on covered cases only; **they do not independently certify production-readiness or justify claiming target quality (9.2+/10)**. The 12-week Product Quality & Engineering Execution Plan is currently active in Phase 1 execution, and is not completed.
 
@@ -66,4 +71,3 @@ Passing tests demonstrate their *covered cases only*. They do **not** certify ab
 - F01 host-only work is in [Vibress PR #124](https://github.com/AbdullahZaher/vibress/pull/124). The active host remains a separate runtime; no parity or Yjs interoperability is asserted.
 - F02 gallery addition, F03 shared admission limits, F04 accessible heading permalinks, F05 embed parity, and F08 transforms contract changes are in standalone PR #28 awaiting final CI and review.
 - F07 manual WCAG 2.2 AA checks, F10 external package installation and rollback, and F11 measured editor performance remain independent release gates. No numerical quality improvement or production certification follows from patches alone.
-

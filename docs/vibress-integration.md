@@ -77,6 +77,17 @@ distinguish a delayed autosave response from an intentional document restore.
    `expectedVersion`/revision-conflict checks. Neither token implements server-side
    versioning or collaboration. Test A → B with delayed A, arbitrary out-of-order
    acknowledgments, and explicit restoration of A before shipping.
+6. **Recovery during an active session:** An invalid, unsupported, or over-limit
+   incoming `value` pauses editing without unmounting the existing editor. The
+   live draft, selection and undo history stay in that editor. `onChange` is
+   suppressed during recovery, including pending asynchronous card updates;
+   `onError` receives the rejected original input through `StudioMigrationError`.
+   A rejected input does not consume its `replacementId`. Supplying valid input
+   resumes the same editor under the usual stale-echo rules; an explicit valid
+   replacement may still replace the draft. An initially invalid document opens
+   the recovery screen without creating an editor. The host must retain both
+   the rejected source and any recoverable local draft, and manage in-flight
+   saves: editor recovery does not cancel requests or confirm durable storage.
 
 `uploadMedia(file, cardType)` and `requestMedia({ cardType, source })` are host callbacks, returning durable `{ assetId, src, ... }` asset references or `null` for cancellation. Only the host can guarantee persistence and authorization. Never store `blob:` object URLs or temporary previews. Mock adapters are for tests and the playground only.
 

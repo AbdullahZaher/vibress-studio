@@ -35,14 +35,16 @@ The Playwright harness is in `playground/e2e.html` with `E2EHarness.tsx` and `e2
 | `06-import-export.spec.ts` | HTML/Markdown import/export, tables and RTL |
 | `07-keyboard-nav.spec.ts` | Slash menu focus and keyboard paths |
 | `08-lighthouse.spec.ts` | Browser Lighthouse accessibility smoke |
+| `11-document-recovery.spec.ts` | Invalid host input pauses editing while retaining the active draft |
 
-## Unit / targeted paths present (18 suites, 126 tests)
+## Referenced unit / targeted paths (partial inventory)
 
 - `packages/studio-core/src/__tests__/migrate.test.ts`
 - `packages/studio-core/src/__tests__/normalize.test.ts`
 - `packages/studio-react/src/__tests__/clone-node.test.ts`
 - `packages/studio-react/src/__tests__/color-persistence.test.ts`
 - `packages/studio-react/src/__tests__/document-recovery.test.tsx`
+- `packages/studio-react/src/__tests__/external-recovery-draft.test.tsx`
 - `packages/studio-react/src/__tests__/image-upload-concurrent.test.tsx`
 - `packages/studio-react/src/__tests__/link-normalization.test.ts`
 - `packages/studio-react/src/__tests__/slash-menu-filter.test.ts`
@@ -57,7 +59,7 @@ The Playwright harness is in `playground/e2e.html` with `E2EHarness.tsx` and `e2
 - `tests/studio-plugin-registry.test.ts`
 - `tests/studio.test.ts`
 
-Prior documentation named historical or proposed tests (e.g. `packages/studio-testing/security/renderer-cards.test.ts`). Only the 18 active suites listed above are part of the verified test suite.
+Prior documentation named historical or proposed tests (e.g. `packages/studio-testing/security/renderer-cards.test.ts`). The list above is a partial inventory, not the full suite count. Run `pnpm test` for the current inventory; the [2026-11-05 recovery checkpoint](audits/studio-draft-recovery-2026-11-05.md) records the latest local results and their source baseline.
 
 ## Automated documentation drift verification
 
