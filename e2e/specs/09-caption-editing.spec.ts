@@ -72,6 +72,9 @@ test.describe('Stable Media Caption Editing (E2E 9)', () => {
 
     // Focus and append text
     await captionEditor.click();
+    // Clicking an existing caption places the caret at the click position.
+    // Move it to the end before testing the explicit append workflow.
+    await captionEditor.press('End');
     await page.keyboard.type(' - appended note');
 
     await expect(captionEditor).toContainText('Loaded from disk - appended note');
