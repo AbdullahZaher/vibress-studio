@@ -109,7 +109,7 @@ export const StudioMediaFloatingToolbar: React.FC<
       data-studio-toolbar="true"
       data-visible={isForcedVisible ? "true" : "false"}
       onKeyDown={handleKeyDown}
-      className={`studio-glassy-menu absolute top-3 end-3 flex items-center gap-1.5 p-1.5 rounded-xl bg-background/85 dark:bg-card/90 backdrop-blur-md border border-border/80 shadow-lg select-none z-40 transition-opacity duration-200 ${
+      className={`vb-media-floating-toolbar studio-glassy-menu absolute top-3 end-3 flex items-center gap-1.5 p-1.5 rounded-xl bg-background/85 dark:bg-card/90 backdrop-blur-md border border-border/80 shadow-lg select-none z-40 transition-opacity duration-200 ${
         isForcedVisible
           ? "opacity-100 pointer-events-auto"
           : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto"

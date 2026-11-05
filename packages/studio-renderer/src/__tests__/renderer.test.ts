@@ -377,3 +377,144 @@ describe('renderStudioDocumentToPlainText', () => {
     expect(toc[2]).toEqual({ id: 'first-section-1', text: 'First Section', level: 2 });
   });
 });
+
+describe('editor-to-public rendering fidelity (STU-R04)', () => {
+  it('renders text color and highlight styles to safe inline span style', () => {
+    const html = renderStudioDocumentToHtml(doc([
+      {
+        type: 'paragraph',
+        children: [
+          {
+            type: 'text',
+            text: 'Colored and highlighted',
+            format: 0,
+            style: 'color: #1d4ed8; background-color: #dbeafe',
+            mode: 'normal',
+            version: 1,
+          },
+        ],
+        version: 1,
+      },
+    ]));
+    expect(html).toContain('<span style="color: #1d4ed8; background-color: #dbeafe">Colored and highlighted</span>');
+  });
+
+  it('renders subscript and superscript text formats', () => {
+    const html = renderStudioDocumentToHtml(doc([
+      {
+        type: 'paragraph',
+        children: [
+          { type: 'text', text: 'H', format: 0, mode: 'normal', version: 1 },
+          { type: 'text', text: '2', format: 32, mode: 'normal', version: 1 },
+          { type: 'text', text: 'O and E=mc', format: 0, mode: 'normal', version: 1 },
+          { type: 'text', text: '2', format: 64, mode: 'normal', version: 1 },
+        ],
+        version: 1,
+      },
+    ]));
+    expect(html).toContain('<sub>2</sub>');
+    expect(html).toContain('<sup>2</sup>');
+  });
+
+  it('renders paragraph and heading alignment safely', () => {
+    const html = renderStudioDocumentToHtml(doc([
+      {
+        type: 'paragraph',
+        style: 'text-align: center',
+        direction: 'rtl',
+        children: [{ type: 'text', text: 'نص في الوسط', format: 0, mode: 'normal', version: 1 }],
+        version: 1,
+      },
+      {
+        type: 'heading',
+        tag: 'h3',
+        style: 'text-align: right',
+        children: [{ type: 'text', text: 'عنوان فرعي', format: 0, mode: 'normal', version: 1 }],
+        version: 1,
+      },
+    ]));
+    expect(html).toContain('<p dir="rtl" style="text-align: center">نص في الوسط</p>');
+    expect(html).toContain('style="text-align: right"');
+  });
+
+  it('sanitizes and strips dangerous CSS from paragraph and heading styles', () => {
+    const html = renderStudioDocumentToHtml(doc([
+      {
+        type: 'paragraph',
+        style: 'position: fixed; top: 0; background: url(javascript:alert(1)); text-align: center',
+        children: [{ type: 'text', text: 'Safe text', format: 0, mode: 'normal', version: 1 }],
+        version: 1,
+      },
+    ]));
+    expect(html).not.toContain('position: fixed');
+    expect(html).not.toContain('background: url');
+    expect(html).not.toContain('javascript:');
+    expect(html).toContain('style="text-align: center"');
+  });
+
+  it('renders table cell background colors and cell styles safely', () => {
+    const tableDoc = doc([
+      {
+        type: 'table',
+        children: [
+          {
+            type: 'tablerow',
+            children: [
+              {
+                type: 'tablecell',
+                backgroundColor: '#fef3c7',
+                children: [{ type: 'text', text: 'Yellow cell', format: 0 }],
+              },
+              {
+                type: 'tablecell',
+                backgroundColor: 'red; position: fixed', // Malicious/invalid color injection
+                children: [{ type: 'text', text: 'Clean cell', format: 0 }],
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    const html = renderStudioDocumentToHtml(tableDoc);
+    expect(html).toContain('<td style="background-color: #fef3c7">Yellow cell</td>');
+    expect(html).not.toContain('position: fixed');
+    expect(html).toContain('<td>Clean cell</td>');
+  });
+
+  it('renders captions from Lexical JSON objects when captionHtml is omitted', () => {
+    const jsonCaption = {
+      root: {
+        children: [
+          {
+            type: 'paragraph',
+            children: [
+              { type: 'text', text: 'Recovered from Lexical JSON caption' },
+            ],
+          },
+        ],
+      },
+    };
+
+    const html = renderStudioDocumentToHtml(doc([
+      card('image', {
+        src: '/test.png',
+        alt: 'Test',
+        caption: jsonCaption,
+      }),
+      card('gallery', {
+        images: [{ src: '/g.png', alt: 'G' }],
+        caption: jsonCaption,
+      }),
+      card('video', {
+        src: '/v.mp4',
+        caption: jsonCaption,
+      }),
+      card('embed', {
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        caption: jsonCaption,
+      }),
+    ]));
+
+    expect(html).toContain('<figcaption>Recovered from Lexical JSON caption</figcaption>');
+  });
+});

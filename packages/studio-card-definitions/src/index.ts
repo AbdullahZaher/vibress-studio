@@ -9,10 +9,37 @@ export interface StudioCardDefinition<TData = Record<string, unknown>> {
   renderPlainText(data: TData): string;
 }
 
-/** Prefer the editor's rich caption HTML; never trust it as raw markup. */
-function safeMediaCaption(data: { caption: string | Record<string, unknown>; captionHtml?: string }): string {
-  const source = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
-  return source ? sanitizeHtml(source) : '';
+function extractTextFromCaption(caption: unknown): string {
+  if (typeof caption === 'string') return caption;
+  if (!caption || typeof caption !== 'object') return '';
+  const obj = caption as { root?: unknown; text?: unknown; children?: unknown[] };
+  if (obj.root && typeof obj.root === 'object') {
+    return extractTextFromCaption(obj.root);
+  }
+  let out = typeof obj.text === 'string' ? obj.text : '';
+  if (Array.isArray(obj.children)) {
+    out += obj.children.map(extractTextFromCaption).join('');
+  }
+  return out;
+}
+
+function resolveCaption(data: { caption?: unknown; captionHtml?: string }): string {
+  if (typeof data.captionHtml === 'string' && data.captionHtml.trim()) {
+    return data.captionHtml;
+  }
+  if (typeof data.caption === 'string' && data.caption.trim()) {
+    return data.caption;
+  }
+  if (data.caption && typeof data.caption === 'object') {
+    return extractTextFromCaption(data.caption);
+  }
+  return '';
+}
+
+/** Render rich captions through the same public HTML allowlist as other cards. */
+function safeMediaCaption(data: { caption?: unknown; captionHtml?: string }): string {
+  const caption = resolveCaption(data);
+  return caption ? sanitizeHtml(caption) : '';
 }
 
 // 1. Image Card
@@ -39,7 +66,7 @@ export const ImageCardDefinition: StudioCardDefinition<ImageCardData> = {
   renderHtml: (data) => {
     const src = sanitizeUrl(data.src);
     const alt = escapeHtml(data.alt || '');
-    const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+    const capStr = resolveCaption(data);
     const caption = capStr ? `<figcaption>${sanitizeHtml(capStr)}</figcaption>` : '';
     // Numeric width/height (pixel dimensions from the media asset) are emitted
     // as intrinsic attributes to reduce CLS; the layout enum drives kg-width-*.
@@ -55,7 +82,7 @@ export const ImageCardDefinition: StudioCardDefinition<ImageCardData> = {
     return `<figure class="kg-card kg-image-card${layout}">${img}${caption}</figure>`;
   },
   renderPlainText: (data) => {
-    const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+    const capStr = resolveCaption(data);
     return data.alt || capStr || data.src || '';
   },
 };
@@ -77,7 +104,7 @@ export const GalleryCardDefinition: StudioCardDefinition<GalleryCardData> = {
     const imgs = data.images
       .map((img) => `<img src="${sanitizeUrl(img.src)}" alt="${escapeHtml(img.alt || '')}" />`)
       .join('');
-    const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+    const capStr = resolveCaption(data);
     const caption = capStr ? `<figcaption>${sanitizeHtml(capStr)}</figcaption>` : '';
     const layoutClass = data.width && data.width !== 'regular' ? ` kg-width-${data.width}` : '';
     return `<figure class="kg-card kg-gallery-card${layoutClass}">${imgs}${caption}</figure>`;
@@ -105,13 +132,13 @@ export const VideoCardDefinition: StudioCardDefinition<VideoCardData> = {
   renderHtml: (data) => {
     const src = sanitizeUrl(data.src);
     const posterAttr = data.poster ? ` poster="${sanitizeUrl(data.poster)}"` : '';
-    const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+    const capStr = resolveCaption(data);
     const caption = capStr ? `<figcaption>${sanitizeHtml(capStr)}</figcaption>` : '';
     const layoutClass = data.width && data.width !== 'regular' ? ` kg-width-${data.width}` : '';
     return `<figure class="kg-card kg-video-card${layoutClass}"><video src="${src}" controls${posterAttr}></video>${caption}</figure>`;
   },
   renderPlainText: (data) => {
-    const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+    const capStr = resolveCaption(data);
     return capStr || data.src || '';
   },
 };
