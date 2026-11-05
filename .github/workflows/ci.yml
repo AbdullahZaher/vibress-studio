@@ -56,6 +56,19 @@ jobs:
       - name: Verify package exports
         run: pnpm verify:package-exports
 
+      - name: Smoke ESM/CJS consumers, SSR and CSS export paths
+        run: pnpm verify:consumer-imports
+
+      - name: Measure document pipeline (not browser INP)
+        run: pnpm benchmark:document | tee document-pipeline-benchmark.json
+
+      - name: Upload document pipeline baseline
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-document-pipeline-${{ github.sha }}
+          path: document-pipeline-benchmark.json
+          retention-days: 14
+
       - name: Security regression tests
         run: pnpm test:security
 

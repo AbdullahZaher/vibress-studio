@@ -76,9 +76,8 @@ apply the appropriate sanitization/escaping layer before emitting HTML.
 ### 4.2 React preview / editor rendering
 
 - input source: card `cardData` from the live document.
-- boundary: `SafeHtml` component accepts only `SanitizedHtml` (branded type
-  created exclusively by the sanitizer). No raw `dangerouslySetInnerHTML`.
-- embedding: embed iframe rendered only for provider-allowlisted URLs.
+- boundary: Studio's HTML-bearing React card paths call the shared `sanitizeStudioHtml` allowlist; there is no branded `SafeHtml` component in this revision. Never render untrusted card HTML without sanitization.
+- embedding: preview and server card rendering use `resolveStudioEmbedDestination` (YouTube/Vimeo iframe or safe external link). Legacy raw embed HTML is not published.
 
 ### 4.3 HTML import (`htmlToStudioDocument`)
 
@@ -90,21 +89,19 @@ apply the appropriate sanitization/escaping layer before emitting HTML.
 ### 4.4 Markdown import/export
 
 - import: `markdown-it` with `html: false`; links sanitized after conversion.
-- export: document → markdown; unsupported cards emitted as a deterministic
-  structured fallback (`::vibress-card` fence).
+- export: document → Markdown; unsupported cards use the readable `[Card: cardType]` fallback. Format conversion is intentionally lossy for unsupported layout and card fields.
 
 ### 4.5 Plugin-provided cards
 
-- host sanitizes plugin `renderHtml` output unless the plugin declares
-  `raw-html` capability (disabled by default).
+- `StudioPluginRegistry.renderCardHtml` sanitizes plugin HTML through the shared allowlist. There is no trusted `raw-html` bypass or plugin execution sandbox.
 
 ## 5. Deny list (never allowed through any renderer)
 
-- `<script>`, `<iframe>` (except embed allowlist), `<object>`, `<embed>`,
-  `<form>`, `<input>`, `<svg>`, `<math>`, `<style>`, `<link>`, `<meta>`,
-  `<base>`, `<template>`, `<frameset>`, `<frame>`.
+- `<script>`, `<iframe>` (except validated provider URLs), `<object>`, `<embed>`,
+  `<form>`, `<svg>`, `<math>`, `<style>`, `<link>`, `<meta>`,
+  `<base>`, `<template>`, `<frameset>`, `<frame>`. Checkbox `input` and inert `button` elements are allowed with restricted attributes.
 - event handler attributes (`on*`).
-- `srcdoc`, `style` attributes, `background` attributes.
+- `srcdoc` and `background` attributes. The `style` attribute is accepted only after strict allowlisted property/value sanitization.
 - protocols: `javascript:`, `vbscript:`, `data:text/html`,
   `data:image/svg+xml`, `file:`.
 - CSS `url()` with dangerous protocols (stripped via style removal).

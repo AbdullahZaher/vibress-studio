@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { renderStudioDocumentToHtml, renderStudioDocumentToPlainText, extractTableOfContentsFromDocument } from '../index';
+import {
+  renderStudioDocumentToHtml,
+  renderStudioDocumentToPlainText,
+  extractTableOfContentsFromDocument,
+  HeadingSlugTracker,
+} from '../index';
 import { XSS_TEST_PAYLOADS } from '@vibress/studio-testing';
 
 function doc(children: unknown[]): unknown {
@@ -24,6 +29,37 @@ describe('renderStudioDocumentToHtml — all Studio cards', () => {
     expect(html).toContain('class="heading-anchor"');
     expect(html).toContain('<li>item</li>');
     expect(html).toContain('<a href="https://example.com">link</a>');
+  });
+
+  it('enforces rel="noopener noreferrer" on target="_blank" links (STU-401)', () => {
+    const html1 = renderStudioDocumentToHtml(doc([
+      { type: 'link', url: 'https://example.com', target: '_blank', children: [{ type: 'text', text: 'External' }] },
+    ]));
+    expect(html1).toContain('target="_blank"');
+    expect(html1).toContain('rel="noopener noreferrer"');
+
+    // Combines with existing rel attributes safely
+    const html2 = renderStudioDocumentToHtml(doc([
+      { type: 'link', url: 'https://example.com', target: '_blank', rel: 'nofollow', children: [{ type: 'text', text: 'External Nofollow' }] },
+    ]));
+    expect(html2).toContain('target="_blank"');
+    expect(html2).toContain('rel="nofollow noopener noreferrer"');
+
+    // Standard links without target="_blank" do not get forced rel
+    const html3 = renderStudioDocumentToHtml(doc([
+      { type: 'link', url: 'https://example.com', children: [{ type: 'text', text: 'Internal' }] },
+    ]));
+    expect(html3).not.toContain('target="_blank"');
+    expect(html3).not.toContain('rel=');
+  });
+
+  it('sanitizes code block language identifiers against attribute breakout (STU-202)', () => {
+    const html = renderStudioDocumentToHtml(doc([
+      { type: 'code', language: 'typescript"><script>alert(1)</script>', children: [{ type: 'text', text: 'const x = 1;' }] },
+    ]));
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('data-language="typescriptscriptalert1script"');
+    expect(html).toContain('const x = 1;');
   });
 
   it('renders image card', () => {
@@ -141,6 +177,32 @@ describe('renderStudioDocumentToHtml — all Studio cards', () => {
     ]));
     expect(evil).not.toContain('iframe');
     expect(evil).toContain('https://evil.example/embed/x');
+  });
+
+  it('uses the same safe embed policy for approved, unknown, invalid and legacy HTML data', () => {
+    const provider = renderStudioDocumentToHtml(doc([
+      card('embed', {
+        url: 'https://vimeo.com/12345',
+        html: '<iframe src="https://untrusted.example/embed"></iframe>',
+        caption: 'Approved video',
+      }),
+    ]));
+    expect(provider).toContain('https://player.vimeo.com/video/12345');
+    expect(provider).not.toContain('untrusted.example');
+
+    const external = renderStudioDocumentToHtml(doc([
+      card('embed', { url: 'https://example.org/watch', html: '<script>alert(1)</script>' }),
+    ]));
+    expect(external).toContain('href="https://example.org/watch"');
+    expect(external).not.toContain('<iframe');
+    expect(external).not.toContain('<script');
+
+    const invalid = renderStudioDocumentToHtml(doc([
+      card('embed', { url: 'javascript:alert(1)', html: '<iframe src="https://vimeo.com/12345"></iframe>' }),
+    ]));
+    expect(invalid).toContain('Unsupported or unsafe embed URL.');
+    expect(invalid).not.toContain('<iframe');
+    expect(invalid).not.toContain('href="javascript:');
   });
 
   it('renders button card as a link', () => {
@@ -376,6 +438,237 @@ describe('renderStudioDocumentToPlainText', () => {
     expect(toc[1]).toEqual({ id: 'sub-section', text: 'Sub section', level: 3 });
     expect(toc[2]).toEqual({ id: 'first-section-1', text: 'First Section', level: 2 });
   });
+
+  it('renders discoverable bilingual heading permalinks without hiding focusable links', () => {
+    const article = doc([
+      { type: 'heading', tag: 'h2', direction: 'rtl',
+        children: [{ type: 'text', text: 'عنوان عربي English' }] },
+    ]);
+    const html = renderStudioDocumentToHtml(article);
+    const container = document.createElement('article');
+    container.innerHTML = html;
+    const heading = container.querySelector('h2');
+    const link = heading?.querySelector('a.heading-anchor');
+    expect(heading?.getAttribute('id')).toBe('عنوان-عربي-english');
+    expect(link?.getAttribute('href')).toBe('#عنوان-عربي-english');
+    expect(link?.hasAttribute('aria-hidden')).toBe(false);
+    expect(link?.getAttribute('aria-label')).toBe('Link to section: عنوان عربي English');
+    expect(link?.getAttribute('tabindex')).toBeNull(); // Native keyboard-focusable link.
+  });
+
+  it('renders unique sequential heading IDs matching table of contents anchors (Phase D)', () => {
+    const document = doc([
+      { type: 'heading', tag: 'h2', children: [{ type: 'text', text: 'First Section' }] },
+      { type: 'paragraph', children: [{ type: 'text', text: 'Body paragraph' }] },
+      { type: 'heading', tag: 'h3', children: [{ type: 'text', text: 'Sub section' }] },
+      { type: 'heading', tag: 'h2', children: [{ type: 'text', text: 'First Section' }] }, // duplicate
+      { type: 'heading', tag: 'h2', children: [{ type: 'text', text: 'مقدمة' }] },
+      { type: 'heading', tag: 'h2', children: [{ type: 'text', text: 'مقدمة' }] }, // duplicate Arabic
+    ]);
+
+    const toc = extractTableOfContentsFromDocument(document);
+    const html = renderStudioDocumentToHtml(document);
+
+    // Verify HTML contains matching id and anchor for each TOC entry
+    for (const item of toc) {
+      expect(html).toContain(`id="${item.id}"`);
+      expect(html).toContain(`href="#${item.id}"`);
+    }
+
+    expect(html).toContain('<h2 id="first-section">');
+    expect(html).toContain('<h2 id="first-section-1">');
+    expect(html).toContain('<h2 id="مقدمة">');
+    expect(html).toContain('<h2 id="مقدمة-1">');
+  });
+
+  it('unifies heading slug allocation across H1-H6 so TOC targets match HTML exactly (Finding 3)', () => {
+    // Sibling H1 and H2 with identical titles:
+    // H1 gets "overview", H2 gets "overview-1".
+    // TOC only includes H2/H3, but its ID must be "overview-1", NOT "overview".
+    const document = doc([
+      { type: 'heading', tag: 'h1', children: [{ type: 'text', text: 'Overview' }] },
+      { type: 'paragraph', children: [{ type: 'text', text: 'Intro paragraph' }] },
+      { type: 'heading', tag: 'h2', children: [{ type: 'text', text: 'Overview' }] },
+      { type: 'heading', tag: 'h4', children: [{ type: 'text', text: 'Deep Dive' }] },
+      { type: 'heading', tag: 'h3', children: [{ type: 'text', text: 'Deep Dive' }] },
+      { type: 'heading', tag: 'h1', children: [{ type: 'text', text: 'مقدمة' }] },
+      { type: 'heading', tag: 'h2', children: [{ type: 'text', text: 'مقدمة' }] },
+    ]);
+
+    const toc = extractTableOfContentsFromDocument(document);
+    const html = renderStudioDocumentToHtml(document);
+
+    // Verify TOC contents
+    expect(toc).toHaveLength(3);
+    // H2 "Overview" must have slug "overview-1" because H1 took "overview"
+    expect(toc[0]).toEqual({ id: 'overview-1', text: 'Overview', level: 2 });
+    // H3 "Deep Dive" must have slug "deep-dive-1" because H4 took "deep-dive"
+    expect(toc[1]).toEqual({ id: 'deep-dive-1', text: 'Deep Dive', level: 3 });
+    // H2 "مقدمة" must have slug "مقدمة-1" because H1 took "مقدمة"
+    expect(toc[2]).toEqual({ id: 'مقدمة-1', text: 'مقدمة', level: 2 });
+
+    // Verify HTML has matching IDs and anchors
+    expect(html).toContain('<h1 id="overview">Overview<a href="#overview" class="heading-anchor"');
+    expect(html).toContain('<h2 id="overview-1">Overview<a href="#overview-1" class="heading-anchor"');
+    expect(html).toContain('<h4 id="deep-dive">Deep Dive<a href="#deep-dive" class="heading-anchor"');
+    expect(html).toContain('<h3 id="deep-dive-1">Deep Dive<a href="#deep-dive-1" class="heading-anchor"');
+    expect(html).toContain('<h1 id="مقدمة">مقدمة<a href="#مقدمة" class="heading-anchor"');
+    expect(html).toContain('<h2 id="مقدمة-1">مقدمة<a href="#مقدمة-1" class="heading-anchor"');
+
+    // Every TOC item must match an anchor in the HTML
+    for (const item of toc) {
+      expect(html).toContain(`id="${item.id}"`);
+      expect(html).toContain(`href="#${item.id}"`);
+    }
+  });
+
+  it('handles empty and punctuation-only headings without collision or invalid anchors', () => {
+    const document = doc([
+      { type: 'heading', tag: 'h2', children: [{ type: 'text', text: '???' }] },
+      { type: 'heading', tag: 'h2', children: [{ type: 'text', text: '!!!' }] },
+      { type: 'heading', tag: 'h2', children: [{ type: 'text', text: '   ' }] },
+      { type: 'heading', tag: 'h2', children: [] },
+    ]);
+
+    const toc = extractTableOfContentsFromDocument(document);
+    const html = renderStudioDocumentToHtml(document);
+
+    expect(toc).toHaveLength(2);
+    expect(toc[0]).toEqual({ id: 'heading', text: '???', level: 2 });
+    expect(toc[1]).toEqual({ id: 'heading-1', text: '!!!', level: 2 });
+
+    expect(html).toContain('<h2 id="heading">???<a href="#heading"');
+    expect(html).toContain('<h2 id="heading-1">!!!<a href="#heading-1"');
+    // Whitespace only heading gets no ID or anchor
+    expect(html).toContain('<h2>   </h2>');
+    expect(html).toContain('<h2></h2>');
+  });
+
+  it('HeadingSlugTracker correctly tracks, allocates, and resets slug state', () => {
+    const tracker = new HeadingSlugTracker();
+    expect(tracker.allocate('Getting Started')).toBe('getting-started');
+    expect(tracker.allocate('Getting Started')).toBe('getting-started-1');
+    expect(tracker.allocate('Getting Started')).toBe('getting-started-2');
+    expect(tracker.allocate('   ')).toBe('');
+    expect(tracker.allocate('***')).toBe('heading');
+    expect(tracker.allocate('***')).toBe('heading-1');
+
+    tracker.reset();
+    expect(tracker.allocate('Getting Started')).toBe('getting-started');
+  });
+
+  it('never emits duplicate IDs for explicit suffixed titles and repeated base titles', () => {
+    const headings = ['foo', 'foo-1', 'foo', 'foo-2', 'foo', 'foo-1', 'مقدمة', 'مقدمة-1', 'مقدمة'];
+    const input = doc(headings.map((text, index) => ({
+      type: 'heading',
+      tag: index % 2 === 0 ? 'h2' : 'h1',
+      children: [{ type: 'text', text }],
+    })));
+    const tracker = new HeadingSlugTracker();
+    const allocated = headings.map((text) => tracker.allocate(text));
+    expect(allocated).toEqual([
+      'foo', 'foo-1', 'foo-2', 'foo-2-1', 'foo-3', 'foo-1-1',
+      'مقدمة', 'مقدمة-1', 'مقدمة-2',
+    ]);
+    expect(new Set(allocated).size).toBe(allocated.length);
+
+    const rendered = renderStudioDocumentToHtml(input);
+    const matches = [...rendered.matchAll(/<h[1-6] id="([^"]+)"/g)];
+    const ids = matches.map((match) => match[1]);
+    expect(ids).toEqual(allocated);
+    const toc = extractTableOfContentsFromDocument(input);
+    for (const item of toc) {
+      expect(ids).toContain(item.id);
+      expect(rendered).toContain(`href="#${item.id}"`);
+    }
+    tracker.reset();
+    expect(tracker.allocate('foo')).toBe('foo');
+  });
+
+  it('renders structured plain text for lists, checklists and tables (Phase D)', () => {
+    const document = doc([
+      {
+        type: 'list',
+        listType: 'bullet',
+        children: [
+          { type: 'listitem', children: [{ type: 'text', text: 'Apple' }] },
+          { type: 'listitem', children: [{ type: 'text', text: 'Banana' }] },
+        ],
+      },
+      {
+        type: 'list',
+        listType: 'number',
+        start: 1,
+        children: [
+          { type: 'listitem', children: [{ type: 'text', text: 'Step 1' }] },
+          { type: 'listitem', children: [{ type: 'text', text: 'Step 2' }] },
+        ],
+      },
+      {
+        type: 'list',
+        listType: 'check',
+        children: [
+          { type: 'listitem', checked: true, children: [{ type: 'text', text: 'Done' }] },
+          { type: 'listitem', checked: false, children: [{ type: 'text', text: 'Todo' }] },
+        ],
+      },
+      {
+        type: 'table',
+        children: [
+          {
+            type: 'tablerow',
+            children: [
+              { type: 'tablecell', children: [{ type: 'text', text: 'Col 1' }] },
+              { type: 'tablecell', children: [{ type: 'text', text: 'Col 2' }] },
+            ],
+          },
+          {
+            type: 'tablerow',
+            children: [
+              { type: 'tablecell', children: [{ type: 'text', text: 'Val 1' }] },
+              { type: 'tablecell', children: [{ type: 'text', text: 'Val 2' }] },
+            ],
+          },
+        ],
+      },
+    ]);
+
+    const plain = renderStudioDocumentToPlainText(document);
+    expect(plain).toContain('• Apple\n• Banana');
+    expect(plain).toContain('1. Step 1\n2. Step 2');
+    expect(plain).toContain('[x] Done\n[ ] Todo');
+    expect(plain).toContain('Col 1\tCol 2\nVal 1\tVal 2');
+  });
+
+  it('renders table cell direction attribute on th and td (Phase D)', () => {
+    const tableDoc = doc([
+      {
+        type: 'table',
+        children: [
+          {
+            type: 'tablerow',
+            children: [
+              {
+                type: 'tablecell',
+                headerState: 1,
+                direction: 'rtl',
+                children: [{ type: 'text', text: 'رأس الجدول' }],
+              },
+              {
+                type: 'tablecell',
+                direction: 'rtl',
+                children: [{ type: 'text', text: 'بيانات' }],
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+
+    const html = renderStudioDocumentToHtml(tableDoc);
+    expect(html).toContain('<th dir="rtl">');
+    expect(html).toContain('<td dir="rtl">');
+  });
 });
 
 describe('editor-to-public rendering fidelity (STU-R04)', () => {
@@ -555,4 +848,79 @@ describe('code block interactive controls (STU-R17)', () => {
     expect(html).toContain('<button type="button" class="studio-code-copy-btn" aria-label="Copy code">Copy</button>');
     expect(html).toContain('<code>print("hello")</code>');
   });
+
+  describe('Malformed known node handling and safe fallbacks (STU-201, STU-202)', () => {
+    it('safely renders headings with non-string or unknown tags without throwing', () => {
+      const html1 = renderStudioDocumentToHtml(doc([
+        { type: 'heading', tag: 42, children: [{ type: 'text', text: 'Numeric Tag' }] },
+      ]));
+      expect(html1).toContain('<h2 id="numeric-tag">Numeric Tag');
+
+      const html2 = renderStudioDocumentToHtml(doc([
+        { type: 'heading', tag: 'h99', children: [{ type: 'text', text: 'Unsupported Tag' }] },
+      ]));
+      expect(html2).toContain('<h2 id="unsupported-tag">Unsupported Tag');
+    });
+
+    it('safely renders text nodes with null or non-string text', () => {
+      const html = renderStudioDocumentToHtml(doc([
+        { type: 'paragraph', children: [{ type: 'text', text: null }, { type: 'text', text: 42 }, { type: 'text', text: 'Safe' }] },
+      ]));
+      expect(html).toContain('<p>42Safe</p>');
+    });
+
+    it('safely renders links with non-string url or invalid target', () => {
+      const html = renderStudioDocumentToHtml(doc([
+        { type: 'link', url: 123, target: 'untrusted_window', children: [{ type: 'text', text: 'Link Text' }] },
+      ]));
+      expect(html).toContain('<a href="#">Link Text</a>');
+      expect(html).not.toContain('target="untrusted_window"');
+    });
+
+    it('safely renders paragraphs and tables with malformed or non-array children', () => {
+      const html = renderStudioDocumentToHtml(doc([
+        { type: 'paragraph', children: 'invalid' },
+        { type: 'table', children: null },
+      ]));
+      expect(html).toContain('<p></p>');
+      expect(html).toContain('<table class="studio-table"><tbody></tbody></table>');
+    });
+
+    it('safely extracts table of contents from documents with malformed heading tags', () => {
+      const toc = extractTableOfContentsFromDocument(doc([
+        { type: 'heading', tag: 42, children: [{ type: 'text', text: 'Overview' }] },
+        { type: 'heading', tag: 'h3', children: [{ type: 'text', text: 'Details' }] },
+      ]));
+      expect(toc.length).toBe(2);
+      expect(toc[0]?.id).toBe('overview');
+      expect(toc[0]?.level).toBe(2);
+      expect(toc[1]?.id).toBe('details');
+      expect(toc[1]?.level).toBe(3);
+    });
+
+    it('safely renders plain text from documents with malformed nodes', () => {
+      const plain = renderStudioDocumentToPlainText(doc([
+        { type: 'heading', tag: 42, children: [{ type: 'text', text: 'Overview' }] },
+        { type: 'paragraph', children: [{ type: 'text', text: null }, { type: 'text', text: 42 }] },
+        { type: 'studio-card', cardType: 123, cardData: null },
+      ]));
+      expect(plain).toContain('Overview');
+      expect(plain).toContain('42');
+    });
+  });
+
+  it('preserves positive ordered-list start attributes without emitting unsafe values', () => {
+    const makeList = (start?: unknown, listType = 'number') => ({
+      type: 'list',
+      listType,
+      ...(start !== undefined ? { start } : {}),
+      children: [{ type: 'listitem', children: [{ type: 'text', text: 'Item' }] }],
+    });
+    expect(renderStudioDocumentToHtml(doc([makeList(5)]))).toContain('<ol start="5"><li>Item</li></ol>');
+    expect(renderStudioDocumentToHtml(doc([makeList(1)]))).toContain('<ol><li>Item</li></ol>');
+    expect(renderStudioDocumentToHtml(doc([makeList('5')]))).toContain('<ol><li>Item</li></ol>');
+    expect(renderStudioDocumentToHtml(doc([makeList(-5)]))).toContain('<ol><li>Item</li></ol>');
+    expect(renderStudioDocumentToHtml(doc([makeList(5, 'bullet')]))).toContain('<ul><li>Item</li></ul>');
+  });
+
 });

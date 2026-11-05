@@ -222,4 +222,99 @@ describe('studioDocumentToMarkdown — GFM Tables, Checklists, Code and Cards (S
     expect(md).not.toContain('onerror=evil()><');
   });
 
+  it('dynamically expands code fences when code text contains backticks', () => {
+    const md = studioDocumentToMarkdown(
+      doc([
+        {
+          type: 'code',
+          language: 'markdown',
+          children: [{ type: 'text', text: '```js\nconsole.log("nested");\n```' }],
+        },
+      ])
+    );
+
+    // Because the code contains 3 backticks, the fence must expand to 4 backticks
+    expect(md).toBe('````markdown\n```js\nconsole.log("nested");\n```\n````');
+  });
+
+  it('sanitizes code block language identifier against injection', () => {
+    const md = studioDocumentToMarkdown(
+      doc([
+        {
+          type: 'code',
+          language: 'python; dangerous \n payload',
+          children: [{ type: 'text', text: 'print("clean")' }],
+        },
+      ])
+    );
+
+    expect(md).toBe('```pythondangerouspayload\nprint("clean")\n```');
+  });
+
+  it('exports linked images as [![alt](src)](href) with optional caption', () => {
+    const md = studioDocumentToMarkdown(
+      doc([
+        card('image', {
+          src: 'https://example.com/photo.jpg',
+          alt: 'Landscape',
+          href: 'https://example.com/gallery',
+          caption: 'Beautiful sunset in the desert',
+        }),
+      ])
+    );
+
+    expect(md).toBe('[![Landscape](https://example.com/photo.jpg)](https://example.com/gallery)\n*Beautiful sunset in the desert*');
+  });
+
+  it('sanitizes raw HTML embedded inside markdown cards', () => {
+    const md = studioDocumentToMarkdown(
+      doc([
+        card('markdown', {
+          markdown: '# Section Heading\n\nSome text with <script>alert(1)</script> and <img src=x onerror=alert(2)> and **bold** formatting',
+        }),
+      ])
+    );
+
+    expect(md).toContain('# Section Heading');
+    expect(md).toContain('**bold**');
+    expect(md).not.toContain('<script');
+    expect(md).not.toContain('onerror');
+  });
+
+  it('uses a safe h2 fallback for malformed heading tags and preserves h4-h6 levels', () => {
+    const md = studioDocumentToMarkdown(doc([
+      { type: 'heading', tag: 42, children: [{ type: 'text', text: 'Malformed numeric tag' }] },
+      { type: 'heading', tag: { invalid: true }, children: [{ type: 'text', text: 'Malformed object tag' }] },
+      { type: 'heading', tag: 'h99', children: [{ type: 'text', text: 'Unsupported tag' }] },
+      { type: 'heading', tag: 'h4', children: [{ type: 'text', text: 'Fourth' }] },
+      { type: 'heading', tag: 'h5', children: [{ type: 'text', text: 'Fifth' }] },
+      { type: 'heading', tag: 'h6', children: [{ type: 'text', text: 'Sixth' }] },
+    ]));
+    expect(md).toBe([
+      '## Malformed numeric tag',
+      '## Malformed object tag',
+      '## Unsupported tag',
+      '#### Fourth',
+      '##### Fifth',
+      '###### Sixth',
+    ].join('\n\n'));
+  });
+
+  it('retains numbered-list start and defaults malformed or absent starts to one', () => {
+    const list = (start?: unknown) => ({
+      type: 'list',
+      listType: 'number',
+      ...(start !== undefined ? { start } : {}),
+      children: [
+        { type: 'listitem', children: [{ type: 'text', text: 'First' }] },
+        { type: 'listitem', children: [{ type: 'text', text: 'Second' }] },
+      ],
+    });
+    expect(studioDocumentToMarkdown(doc([list(5)]))).toBe('5. First\n6. Second');
+    expect(studioDocumentToMarkdown(doc([list(1)]))).toBe('1. First\n2. Second');
+    expect(studioDocumentToMarkdown(doc([list('broken')]))).toBe('1. First\n2. Second');
+    expect(studioDocumentToMarkdown(doc([list(-9)]))).toBe('1. First\n2. Second');
+    expect(studioDocumentToMarkdown(doc([list()]))).toBe('1. First\n2. Second');
+  });
+
 });

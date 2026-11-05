@@ -59,9 +59,42 @@ describe('sanitizeStudioHtml — allowlist sanitizer', () => {
     }
   });
 
-  it('adds rel noopener for target=_blank links', () => {
-    const out = sanitizeStudioHtml('<a href="https://x.com" target="_blank">x</a>');
-    expect(out).toContain('rel="noopener noreferrer"');
+  it('enforces rel noopener noreferrer for target=_blank links and preserves allowed rel tokens', () => {
+    // 1. target="_blank" without existing rel receives noopener noreferrer
+    const out1 = sanitizeStudioHtml('<a href="https://example.com" target="_blank">Link</a>');
+    expect(out1).toContain('target="_blank"');
+    expect(out1).toContain('rel="noopener noreferrer"');
+
+    // 2. target="_blank" with rel="nofollow" preserves nofollow and adds noopener noreferrer
+    const out2 = sanitizeStudioHtml('<a href="https://example.com" target="_blank" rel="nofollow">Link</a>');
+    expect(out2).toContain('target="_blank"');
+    expect(out2).toContain('rel="nofollow noopener noreferrer"');
+
+    // 3. target="_blank" with multiple allowed tokens preserves ugc and sponsored
+    const out3 = sanitizeStudioHtml('<a href="https://example.com" target="_blank" rel="ugc sponsored">Link</a>');
+    expect(out3).toContain('target="_blank"');
+    expect(out3).toContain('rel="ugc sponsored noopener noreferrer"');
+
+    // 4. target="_blank" with partial rel="noopener" safely ensures noreferrer
+    const out4 = sanitizeStudioHtml('<a href="https://example.com" target="_blank" rel="noopener">Link</a>');
+    expect(out4).toContain('target="_blank"');
+    expect(out4).toContain('rel="noopener noreferrer"');
+
+    // 5. Normalizes whitespace, uppercase casing, and eliminates duplicate tokens
+    const out5 = sanitizeStudioHtml('<a href="https://example.com" target="_BLANK" rel="  NOFOLLOW   noopener   NOFOLLOW  ">Link</a>');
+    expect(out5).toContain('target="_blank"');
+    expect(out5).toContain('rel="nofollow noopener noreferrer"');
+
+    // 6. Drops untrusted target attributes
+    const out6 = sanitizeStudioHtml('<a href="https://example.com" target="malicious_frame">Link</a>');
+    expect(out6).not.toContain('target=');
+    expect(out6).toContain('<a href="https://example.com">Link</a>');
+
+    // 7. Strips unsafe link destinations while preserving readable link text
+    const out7 = sanitizeStudioHtml('<a href="javascript:alert(1)" target="_blank">Safe Text</a>');
+    expect(out7).not.toContain('<a');
+    expect(out7).not.toContain('javascript');
+    expect(out7).toContain('Safe Text');
   });
 
   it('handles malformed HTML without throwing', () => {

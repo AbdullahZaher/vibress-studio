@@ -1,6 +1,6 @@
 # Vibress Studio — Architecture and Boundaries
 
-**Source-reviewed:** 2026-11-04 at standalone SHA `be7150d04aa31e53034e832e16726a69f2c9c6e7`. For active findings and design remediation see [source reassessment](audits/studio-source-reassessment-2026-11-04.md) and [roadmap §16](roadmaps/global-ux-quality-roadmap.md#16-current-authoritative-remediation-and-development-plan--2026-11-04).
+**Source-reviewed:** 2026-11-05, with PR #28 changes under active CI verification. Historical assessment baseline: `36445d0288bed112e84944b838bea7373589d5bc`. For active findings and design remediation see [source reassessment](audits/studio-source-reassessment-2026-11-04.md) and [roadmap §16](roadmaps/global-ux-quality-roadmap.md#16-current-authoritative-remediation-and-development-plan--2026-11-04).
 
 ## Canonical document envelope
 
@@ -65,12 +65,35 @@ Current embed allowlist supports YouTube and Vimeo. Treat all document, caption,
 - **Host:** auth, autosave, publication context, revision conflicts, durable asset storage, collaboration provider lifecycle and AI gateway.
 - **Do not** add a Studio backend, persistence store or Yjs service for parity. Scope such integrations in the host and test via public APIs.
 
+### External synchronization and revision management
+`studio-react` implements an explicit synchronization contract via `DocumentSyncPlugin`:
+- Distinguishes local `onChange` echoes from out-of-order autosave responses and genuine external updates.
+- Treats `revisionId` as informational host metadata. A new `replacementId` explicitly authorizes a deliberate restore or document switch after host-side conflict resolution.
+- Rejects stale echoes to guarantee newer local keystrokes are never overwritten by delayed autosave acknowledgments.
+- Preserves selection, caret position, and undo/redo stacks when content is unchanged.
+- Guarantees deterministic heading slug allocation between `studio-renderer` and `extractTableOfContentsFromDocument` via `HeadingSlugTracker`.
+
 ## Canonical runtime proposal
 
 `docs/adr/0001-studio-canonical-runtime.md` says **Proposed**. Its intended direction uses `AbdullahZaher/vibress` as the reference for the currently shipped runtime and standalone as a downstream distribution target. The source review observed host SHA `b33fb1ab597bfabb8861516132cf8bad567f0bf1`. Host collaboration exports are missing from standalone, so **do not assume parity or copy host files blindly**. Obtain explicit ADR approval and compare named SHAs and v1 fixtures before syncing.
 
 ## Visual CSS contract and accessibility
 
-Public CSS tokens and styles are exported by `studio-react`, but portions of interactive cards use unbundled Tailwind-like utility classes, and some global selectors leak beyond Studio. A clean consuming app without host/Tailwind CSS must be used to verify the component contract before presenting the standalone design as self-contained.
+Public CSS tokens and scoped styles are exported by `studio-react`; the
+standalone branch includes explicit fallbacks for legacy Tailwind-like utility
+classes and direction-aware layouts. The host must verify these against its
+actual theme and bundler, including light/dark and editor/public rendering.
+Chromium CI provides automated checks, not a manual Safari/Firefox,
+screen-reader or full host-release certification.
 
-All editing and display features require RTL, LTR, mixed bidi, light/dark, narrow viewport, keyboard and touch evidence; see roadmap §16.4.
+
+## Synchronization contract under PR #28 review (2026-11-05)
+
+An autosave acknowledgment is not an external replacement command. Changes to
+`revisionId` are metadata; deliberate revision restorations or authoritative
+remote replacements require a unique `replacementId` after host-side conflict
+resolution. Studio protects locally edited content from ambiguous incoming
+`value` changes regardless of history length. See
+[vibress integration](vibress-integration.md#external-value-synchronization-and-explicit-document-replacement).
+Do not claim host autosave or Yjs parity until tested against a named host SHA
+(`b33fb1ab597bfabb8861516132cf8bad567f0bf1`).

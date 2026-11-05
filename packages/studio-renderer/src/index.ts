@@ -1,4 +1,4 @@
-import { StudioDocument, validateStudioDocument, migrateDocument } from '@vibress/studio-core';
+import { migrateDocument } from '@vibress/studio-core';
 import { STUDIO_CARD_DEFINITIONS, type StudioCardDefinition } from '@vibress/studio-card-definitions';
 import { escapeHtml, sanitizeUrl, sanitizeStudioHtml, sanitizeInlineStyle, isSafeCssColor } from '@vibress/studio-utils';
 
@@ -10,6 +10,35 @@ export interface RenderOptions {
   interactiveControls?: boolean;
 }
 
+export class HeadingSlugTracker {
+  private nextSuffix = new Map<string, number>();
+  private usedIds = new Set<string>();
+
+  allocate(rawText: string): string {
+    const trimmed = rawText.trim();
+    let baseSlug = slugifyHeading(trimmed);
+    if (!baseSlug && trimmed) baseSlug = 'heading';
+    if (!baseSlug) return '';
+
+    // An explicit heading "foo-1" can collide with a repeated "foo".
+    // Reserve every emitted id, not just counters per normalized title.
+    let suffix = this.nextSuffix.get(baseSlug) ?? 0;
+    let candidate = suffix === 0 ? baseSlug : `${baseSlug}-${suffix}`;
+    while (this.usedIds.has(candidate)) {
+      suffix += 1;
+      candidate = `${baseSlug}-${suffix}`;
+    }
+    this.nextSuffix.set(baseSlug, suffix + 1);
+    this.usedIds.add(candidate);
+    return candidate;
+  }
+
+  reset(): void {
+    this.nextSuffix.clear();
+    this.usedIds.clear();
+  }
+}
+
 export function renderStudioDocumentToHtml(docInput: unknown, options: RenderOptions = {}): string {
   // migrateDocument applies the canonical normalization layer
   // (react-studio-card → studio-card) plus legacy migration.
@@ -18,7 +47,8 @@ export function renderStudioDocumentToHtml(docInput: unknown, options: RenderOpt
     return '';
   }
 
-  const raw = doc.root.children.map((node) => renderNodeToHtml(node, options)).join('');
+  const slugTracker = new HeadingSlugTracker();
+  const raw = doc.root.children.map((node) => renderNodeToHtml(node, options, slugTracker)).join('');
 
   // FINAL security boundary: every Studio card's rendered markup passes
   // through the shared allowlist sanitizer before leaving the server.
@@ -50,7 +80,7 @@ function firstChildDirection(node: unknown): 'ltr' | 'rtl' | null {
   return null;
 }
 
-function renderNodeToHtml(node: unknown, options: RenderOptions): string {
+function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: HeadingSlugTracker | Map<string, number>): string {
   if (!node || typeof node !== 'object') return '';
   const n = node as { type?: string; text?: string; format?: number; children?: unknown[]; tag?: string; listType?: string; url?: string; src?: string; alt?: string; cardType?: string; caption?: string; rel?: string; target?: string; cardData?: Record<string, unknown>; } & Record<string, unknown>;
 
@@ -61,8 +91,9 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
 
   // Handle TextNode
   if (type === 'text') {
-    let text = escapeHtml(n.text || '');
-    const format = typeof n.format === 'number' ? n.format : 0;
+    const rawText = typeof n.text === 'string' ? n.text : (n.text != null && typeof n.text !== 'object' ? String(n.text) : '');
+    let text = escapeHtml(rawText);
+    const format = typeof n.format === 'number' && Number.isFinite(n.format) ? n.format : 0;
 
     // Lexical format bitmask: 1=Bold, 2=Italic, 4=Strikethrough, 8=Underline, 16=Code, 32=Subscript, 64=Superscript
     if (format & 16) text = `<code>${text}</code>`;
@@ -86,7 +117,7 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
   // Render children helper
   const renderChildren = () => {
     if (Array.isArray(n.children)) {
-      return n.children.map((child: unknown) => renderNodeToHtml(child, options)).join('');
+      return n.children.map((child: unknown) => renderNodeToHtml(child, options, slugTracker)).join('');
     }
     return '';
   };
@@ -112,18 +143,34 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
     }
 
     case 'heading': {
-      const tag = n.tag || 'h2';
-      const level = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag.toLowerCase())
-        ? tag.toLowerCase()
+      const rawTag = typeof n.tag === 'string' ? n.tag.toLowerCase().trim() : '';
+      const level = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(rawTag)
+        ? rawTag
         : 'h2';
       const safeStyle = typeof n.style === 'string' && n.style.trim() ? sanitizeInlineStyle(n.style) : '';
       const styleAttr = safeStyle ? ` style="${escapeHtml(safeStyle)}"` : '';
       const childrenHtml = renderChildren();
-      const rawText = extractNodeText(n);
-      const slug = slugifyHeading(rawText);
+      const rawText = extractNodeText(n).trim();
+      let slug = '';
+      if (slugTracker instanceof HeadingSlugTracker) {
+        slug = slugTracker.allocate(rawText);
+      } else if (slugTracker instanceof Map) {
+        let baseSlug = slugifyHeading(rawText);
+        if (!baseSlug && rawText) baseSlug = 'heading';
+        if (baseSlug) {
+          const count = slugTracker.get(baseSlug) || 0;
+          slugTracker.set(baseSlug, count + 1);
+          slug = count > 0 ? `${baseSlug}-${count}` : baseSlug;
+        }
+      } else {
+        slug = slugifyHeading(rawText);
+      }
       const idAttr = slug ? ` id="${escapeHtml(slug)}"` : '';
+      // A permalink is keyboard-focusable: never hide it from the accessibility tree.
+      // The label uses the visible heading text and remains safe for Arabic/mixed script.
+      const headingLabel = rawText.length > 120 ? `${rawText.slice(0, 120)}…` : rawText;
       const anchor = slug
-        ? `<a href="#${escapeHtml(slug)}" class="heading-anchor" aria-label="Link to section" aria-hidden="true">#</a>`
+        ? `<a href="#${escapeHtml(slug)}" class="heading-anchor" aria-label="Link to section: ${escapeHtml(headingLabel)}">#</a>`
         : '';
       return `<${level}${idAttr}${directionAttr}${styleAttr}>${childrenHtml}${anchor}</${level}>`;
     }
@@ -136,7 +183,9 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
         return `<ul class="studio-checklist"${directionAttr}>${renderChildren()}</ul>`;
       }
       const listType = n.listType === 'number' ? 'ol' : 'ul';
-      return `<${listType}${directionAttr}>${renderChildren()}</${listType}>`;
+      const startAttr = listType === 'ol' && typeof n.start === 'number' && Number.isSafeInteger(n.start) && n.start > 1
+        ? ` start="${n.start}"` : '';
+      return `<${listType}${startAttr}${directionAttr}>${renderChildren()}</${listType}>`;
     }
 
     case 'listitem': {
@@ -159,10 +208,16 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
       return `<tr>${renderChildren()}</tr>`;
 
     case 'tablecell': {
-      const isHeader = n.headerState && n.headerState !== 0;
+      const isHeader = Boolean(n.headerState && n.headerState !== 0);
       const tag = isHeader ? 'th' : 'td';
-      const colSpan = n.colSpan && Number(n.colSpan) > 1 ? ` colspan="${n.colSpan}"` : '';
-      const rowSpan = n.rowSpan && Number(n.rowSpan) > 1 ? ` rowspan="${n.rowSpan}"` : '';
+      const colSpanVal = typeof n.colSpan === 'number' && Number.isInteger(n.colSpan) && n.colSpan > 1
+        ? n.colSpan
+        : (typeof n.colSpan === 'string' && /^\d+$/.test(n.colSpan) && parseInt(n.colSpan, 10) > 1 ? parseInt(n.colSpan, 10) : null);
+      const rowSpanVal = typeof n.rowSpan === 'number' && Number.isInteger(n.rowSpan) && n.rowSpan > 1
+        ? n.rowSpan
+        : (typeof n.rowSpan === 'string' && /^\d+$/.test(n.rowSpan) && parseInt(n.rowSpan, 10) > 1 ? parseInt(n.rowSpan, 10) : null);
+      const colSpan = colSpanVal ? ` colspan="${colSpanVal}"` : '';
+      const rowSpan = rowSpanVal ? ` rowspan="${rowSpanVal}"` : '';
       let style = '';
       if (typeof n.backgroundColor === 'string' && isSafeCssColor(n.backgroundColor)) {
         style = `background-color: ${n.backgroundColor}`;
@@ -174,30 +229,42 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
         }
       }
       const bg = style ? ` style="${escapeHtml(style)}"` : '';
-      return `<${tag}${colSpan}${rowSpan}${bg}>${renderChildren()}</${tag}>`;
+      return `<${tag}${colSpan}${rowSpan}${bg}${directionAttr}>${renderChildren()}</${tag}>`;
     }
 
     case 'link': {
-      const url = sanitizeUrl(n.url || '#');
-      const relAttr = n.rel ? ` rel="${escapeHtml(n.rel)}"` : '';
-      const targetAttr = n.target ? ` target="${escapeHtml(n.target)}"` : '';
+      const rawUrl = typeof n.url === 'string' ? n.url : '#';
+      const url = sanitizeUrl(rawUrl);
+      const target = typeof n.target === 'string' && n.target.trim() ? n.target.trim().toLowerCase() : '';
+      let rel = typeof n.rel === 'string' && n.rel.trim() ? n.rel.trim() : '';
+      if (target === '_blank') {
+        const tokens = new Set(rel.toLowerCase().split(/\s+/).filter(Boolean));
+        tokens.add('noopener');
+        tokens.add('noreferrer');
+        rel = Array.from(tokens).join(' ');
+      }
+      const relAttr = rel ? ` rel="${escapeHtml(rel)}"` : '';
+      const targetAttr = target ? ` target="${escapeHtml(target)}"` : '';
       return `<a href="${url}"${relAttr}${targetAttr}>${renderChildren()}</a>`;
     }
 
     case 'code': {
-      const lang = typeof n.language === 'string' && n.language ? escapeHtml(n.language) : '';
-      const langAttr = lang ? ` data-language="${lang}"` : '';
+      const rawLang = typeof n.language === 'string' ? n.language.trim() : '';
+      const safeLang = rawLang.replace(/[^a-zA-Z0-9_#-]/g, '');
+      const langAttr = safeLang ? ` data-language="${escapeHtml(safeLang)}"` : '';
       const codeHtml = renderChildren();
       const copyBtn = options.interactiveControls
         ? '<button type="button" class="studio-code-copy-btn" aria-label="Copy code">Copy</button>'
         : '';
-      return `<div class="studio-code-block"${langAttr}><div class="studio-code-header"><span class="studio-code-lang">${lang || 'code'}</span>${copyBtn}</div><pre><code>${codeHtml}</code></pre></div>`;
+      return `<div class="studio-code-block"${langAttr}><div class="studio-code-header"><span class="studio-code-lang">${escapeHtml(safeLang || 'code')}</span>${copyBtn}</div><pre><code>${codeHtml}</code></pre></div>`;
     }
 
     // Handle Studio Card Nodes (canonical type after normalization)
     case 'studio-card': {
-      const cardType = n.cardType;
-      const cardData = n.cardData || {};
+      const cardType = typeof n.cardType === 'string' ? n.cardType : '';
+      const cardData = typeof n.cardData === 'object' && n.cardData !== null && !Array.isArray(n.cardData)
+        ? (n.cardData as Record<string, unknown>)
+        : {};
       // A blob: URL only exists for the current browser session and can never
       // be published; skip the card rather than emit a broken/leaky reference.
       if (hasTransientMedia(cardData)) {
@@ -247,15 +314,34 @@ function hasTransientMedia(cardData: Record<string, unknown>): boolean {
 
 function renderNodeToPlainText(node: unknown, options: RenderOptions = {}): string {
   if (!node || typeof node !== 'object') return '';
-  const n = node as { type?: string; text?: string; format?: number; children?: unknown[]; tag?: string; listType?: string; url?: string; src?: string; alt?: string; cardType?: string; caption?: string; rel?: string; target?: string; cardData?: Record<string, unknown>; } & Record<string, unknown>;
+  const n = node as {
+    type?: string;
+    text?: string;
+    format?: number;
+    children?: unknown[];
+    tag?: string;
+    listType?: string;
+    url?: string;
+    src?: string;
+    alt?: string;
+    cardType?: string;
+    caption?: string;
+    rel?: string;
+    target?: string;
+    cardData?: Record<string, unknown>;
+    checked?: boolean;
+    start?: number;
+  } & Record<string, unknown>;
 
   if (n.type === 'text') {
-    return n.text || '';
+    return typeof n.text === 'string' ? n.text : (n.text != null && typeof n.text !== 'object' ? String(n.text) : '');
   }
 
   if (n.type === 'studio-card') {
-    const cardType = n.cardType;
-    const cardData = n.cardData || {};
+    const cardType = typeof n.cardType === 'string' ? n.cardType : '';
+    const cardData = typeof n.cardData === 'object' && n.cardData !== null && !Array.isArray(n.cardData)
+      ? (n.cardData as Record<string, unknown>)
+      : {};
     // Transient blob: media must never surface in excerpts/search text.
     if (hasTransientMedia(cardData)) {
       return '';
@@ -272,6 +358,72 @@ function renderNodeToPlainText(node: unknown, options: RenderOptions = {}): stri
     return '';
   }
 
+  if (n.type === 'list') {
+    const isNumbered = n.listType === 'number';
+    const isCheck = n.listType === 'check';
+    const start = typeof n.start === 'number' && Number.isSafeInteger(n.start) && n.start > 0 ? n.start : 1;
+    if (Array.isArray(n.children)) {
+      return n.children
+        .map((child, idx) => {
+          const itemText = renderNodeToPlainText(child, options).trim();
+          if (!itemText) return '';
+          const prefix = isNumbered ? `${start + idx}. ` : (isCheck ? '' : '• ');
+          return `${prefix}${itemText}`;
+        })
+        .filter(Boolean)
+        .join('\n');
+    }
+    return '';
+  }
+
+  if (n.type === 'listitem') {
+    const content = Array.isArray(n.children)
+      ? n.children.map((c) => renderNodeToPlainText(c, options)).join('')
+      : '';
+    if (typeof n.checked === 'boolean') {
+      const check = n.checked ? '[x] ' : '[ ] ';
+      return `${check}${content.trim()}`;
+    }
+    return content;
+  }
+
+  if (n.type === 'table') {
+    if (Array.isArray(n.children)) {
+      return n.children
+        .map((row) => renderNodeToPlainText(row, options).trim())
+        .filter(Boolean)
+        .join('\n');
+    }
+    return '';
+  }
+
+  if (n.type === 'tablerow') {
+    if (Array.isArray(n.children)) {
+      return n.children
+        .map((cell) => renderNodeToPlainText(cell, options).trim())
+        .filter(Boolean)
+        .join('\t');
+    }
+    return '';
+  }
+
+  if (n.type === 'tablecell') {
+    if (Array.isArray(n.children)) {
+      return n.children
+        .map((c) => renderNodeToPlainText(c, options).trim())
+        .filter(Boolean)
+        .join(' ');
+    }
+    return '';
+  }
+
+  if (n.type === 'quote') {
+    const text = Array.isArray(n.children)
+      ? n.children.map((c) => renderNodeToPlainText(c, options)).join('')
+      : '';
+    return text.trim();
+  }
+
   if (Array.isArray(n.children)) {
     return n.children.map((child: unknown) => renderNodeToPlainText(child, options)).join('');
   }
@@ -281,8 +433,10 @@ function renderNodeToPlainText(node: unknown, options: RenderOptions = {}): stri
 
 export function extractNodeText(node: unknown): string {
   if (!node || typeof node !== 'object') return '';
-  const n = node as { type?: string; text?: string; children?: unknown[] };
-  if (n.type === 'text') return n.text || '';
+  const n = node as { type?: unknown; text?: unknown; children?: unknown };
+  if (n.type === 'text') {
+    return typeof n.text === 'string' ? n.text : (n.text != null && typeof n.text !== 'object' ? String(n.text) : '');
+  }
   if (Array.isArray(n.children)) {
     return n.children.map(extractNodeText).join('');
   }
@@ -290,6 +444,7 @@ export function extractNodeText(node: unknown): string {
 }
 
 export function slugifyHeading(text: string): string {
+  if (typeof text !== 'string') return '';
   return text
     .toLowerCase()
     .replace(/<[^>]*>?/gm, '')
@@ -311,29 +466,34 @@ export function extractTableOfContentsFromDocument(docInput: unknown): TableOfCo
   }
 
   const items: TableOfContentsItem[] = [];
-  const seenSlugs = new Map<string, number>();
+  const slugTracker = new HeadingSlugTracker();
 
-  for (const node of doc.root.children) {
-    if (!node || typeof node !== 'object') continue;
-    const n = node as { type?: string; tag?: string; children?: unknown[] };
+  function walk(node: unknown): void {
+    if (!node || typeof node !== 'object') return;
+    const n = node as { type?: unknown; tag?: unknown; children?: unknown };
     if (n.type === 'heading') {
-      const tag = (n.tag || 'h2').toLowerCase();
-      if (['h2', 'h3'].includes(tag)) {
-        const text = extractNodeText(n).trim();
-        if (text) {
-          let baseSlug = slugifyHeading(text);
-          if (!baseSlug) baseSlug = 'heading';
-          const count = seenSlugs.get(baseSlug) || 0;
-          seenSlugs.set(baseSlug, count + 1);
-          const slug = count > 0 ? `${baseSlug}-${count}` : baseSlug;
-          items.push({
-            id: slug,
-            text,
-            level: tag === 'h2' ? 2 : 3,
-          });
-        }
+      const rawTag = typeof n.tag === 'string' ? n.tag.toLowerCase().trim() : 'h2';
+      const tag = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(rawTag) ? rawTag : 'h2';
+      const rawText = extractNodeText(n).trim();
+      const slug = slugTracker.allocate(rawText);
+      if (['h2', 'h3'].includes(tag) && rawText && slug) {
+        items.push({
+          id: slug,
+          text: rawText,
+          level: tag === 'h2' ? 2 : 3,
+        });
+      }
+      return;
+    }
+    if (Array.isArray(n.children)) {
+      for (const child of n.children) {
+        walk(child);
       }
     }
+  }
+
+  for (const child of doc.root.children) {
+    walk(child);
   }
 
   return items;

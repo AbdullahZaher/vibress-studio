@@ -101,14 +101,16 @@ class MockUploadAdapter {
 
 export function E2EHarness() {
   const [doc, setDoc] = useState<StudioDocument>(createEmptyStudioDocument());
-  const [editorEpoch, setEditorEpoch] = useState(0);
+  const [replacementId, setReplacementId] = useState(0);
   const [readOnly, setReadOnly] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [pickerEnabled, setPickerEnabled] = useState(false);
   const pickerFailNextRef = useRef(false);
   const replaceDoc = useCallback((next: StudioDocument) => {
+    // Explicit import/reset: replace the live document without destroying the
+    // mounted Lexical editor or its host callback subscriptions.
     setDoc(next);
-    setEditorEpoch((value) => value + 1);
+    setReplacementId((value) => value + 1);
   }, []);
   const uploadMedia = useCallback((file: File, cardType: string) =>
     adapterRef.current?.upload(file, cardType) ?? Promise.resolve(null), []);
@@ -256,8 +258,8 @@ export function E2EHarness() {
           <h2 style={{ fontSize: '16px', margin: '0 0 8px', color: '#1f2937' }}>Editor</h2>
           <div data-testid="studio-editor" data-ai-enabled={aiEnabled}>
             <VibressStudio
-              key={editorEpoch}
               value={doc}
+              replacementId={replacementId}
               onChange={(d) => setDoc(d)}
               readOnly={readOnly}
               enableAi={aiEnabled}

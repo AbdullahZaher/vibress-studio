@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, Component, ErrorInfo, ReactNode } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback, Component, ErrorInfo, ReactNode } from 'react';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
@@ -22,7 +22,7 @@ import { WordCountPlugin } from './plugins/WordCountPlugin';
 import { STUDIO_CORE_NODES } from '@vibress/studio-nodes';
 import { StudioCardNode } from '@vibress/studio-cards';
 import { ReactStudioCardNode } from './nodes/ReactStudioCardNode';
-import { StudioDocument, migrateDocument, CURRENT_STUDIO_VERSION, StudioMigrationError } from '@vibress/studio-core';
+import { StudioDocument, migrateDocument, CURRENT_STUDIO_VERSION, StudioMigrationError, type DocumentResourceLimits } from '@vibress/studio-core';
 import { serializeStudioDocument } from '@vibress/studio-serializer';
 import type { StudioPluginRegistry } from '@vibress/studio-plugin-sdk';
 import { StudioPluginContext } from './plugin-context';
@@ -78,6 +78,15 @@ function assertEditorCanPreserveDocument(document: StudioDocument, rawDocument: 
 
 export interface VibressStudioProps {
   value?: unknown;
+  /** Optional shared input/output resource policy; defaults to 5 MiB/50k nodes/depth 64. */
+  resourceLimits?: DocumentResourceLimits;
+  /** Host persistence revision metadata. An autosave revision increment never
+   * authorizes replacing newer local edits. */
+  revisionId?: string | number;
+  /** Explicit host command to replace the editor document (revision restore,
+   * document switch, authorized remote update). Change this token only for an
+   * intentional replacement, never for autosave acknowledgments. */
+  replacementId?: string | number;
   onChange?: (doc: StudioDocument) => void;
   /** Optional host integration for editor-specific commands; null on cleanup. */
   onEditorReady?: (editor: LexicalEditor | null) => void;
@@ -153,29 +162,68 @@ function EditorAccessibleNamePlugin() {
  * selection/undo stack) when the parent merely echoes an onChange snapshot.
  * The current document is preserved if incoming content cannot be parsed.
  */
-function DocumentSyncPlugin({ document, onError }: {
+const STUDIO_EXTERNAL_SYNC_TAG = 'studio-external-sync';
+
+/**
+ * Once local content has changed, an unversioned incoming value is ambiguous:
+ * it might be an old autosave response or a legitimate external replacement.
+ * Preserve the author's live draft in either case. Hosts must change
+ * replacementId to explicitly authorize switching/reloading this document.
+ * revisionId is informational only; incrementing it must not lose draft edits.
+ */
+function DocumentSyncPlugin({
+  document,
+  replacementId,
+  onError,
+  hasLocalEdits,
+  onExternalApplied,
+}: {
   document: StudioDocument;
+  replacementId?: string | number;
   onError?: (error: Error) => void;
+  hasLocalEdits: () => boolean;
+  onExternalApplied: (rootJson: string) => void;
 }) {
   const [editor] = useLexicalComposerContext();
-  const lastApplied = useRef<string | null>(null);
+  const lastObservedIncoming = useRef<string | null>(null);
+  const lastReplacementId = useRef<string | number | undefined>(replacementId);
 
   useEffect(() => {
     const incoming = JSON.stringify(document.root);
-    if (incoming === lastApplied.current) return;
+    const isExplicitReplacement =
+      replacementId !== undefined && replacementId !== lastReplacementId.current;
+
+    if (incoming === lastObservedIncoming.current && !isExplicitReplacement) return;
+
     try {
       const current = serializeStudioDocument(editor.getEditorState().toJSON().root);
-      if (JSON.stringify(current.root) !== incoming) {
+      const currentJson = JSON.stringify(current.root);
+
+      if (currentJson !== incoming) {
+        if (!isExplicitReplacement && hasLocalEdits()) {
+          // Never infer "new external document" from unseen JSON: an old echo
+          // can arrive after arbitrary numbers of newer local edits.
+          lastObservedIncoming.current = incoming;
+          lastReplacementId.current = replacementId;
+          return;
+        }
+
         const next = editor.parseEditorState(JSON.stringify({
           root: { ...document.root, version: 1 },
         }));
-        editor.setEditorState(next);
+        editor.setEditorState(next, { tag: STUDIO_EXTERNAL_SYNC_TAG });
       }
-      lastApplied.current = incoming;
+
+      lastObservedIncoming.current = incoming;
+      lastReplacementId.current = replacementId;
+      if (isExplicitReplacement || currentJson !== incoming) {
+        onExternalApplied(incoming);
+      }
     } catch (error) {
       onError?.(error instanceof Error ? error : new Error('Unable to load Studio document'));
     }
-  }, [editor, document, onError]);
+  }, [editor, document, replacementId, onError, hasLocalEdits, onExternalApplied]);
+
   return null;
 }
 
@@ -190,6 +238,9 @@ function EditorEditablePlugin({ readOnly }: { readOnly: boolean }) {
 
 export function VibressStudio({
   value,
+  resourceLimits,
+  revisionId,
+  replacementId,
   onChange,
   onEditorReady,
   readOnly = false,
@@ -205,16 +256,30 @@ export function VibressStudio({
   dir,
   className = '',
 }: VibressStudioProps) {
+  const hasLocalEditsRef = useRef(false);
+  const lastObservedEditorRootRef = useRef<string | null>(null);
+  const [snapshotError, setSnapshotError] = useState<Error | null>(null);
+
+  const hasLocalEdits = useCallback(() => hasLocalEditsRef.current, []);
+  const onExternalApplied = useCallback((rootJson: string) => {
+    lastObservedEditorRootRef.current = rootJson;
+    hasLocalEditsRef.current = false;
+  }, []);
+
+  // revisionId is an acknowledgment/revision label for the host. It is never
+  // interpreted as an authorized replacement. See replacementId above.
+  void revisionId;
+
   const { parsedDoc, migrationError } = useMemo(() => {
     try {
-      const doc = migrateDocument(value);
+      const doc = migrateDocument(value, resourceLimits);
       assertEditorCanPreserveDocument(doc, value);
       return { parsedDoc: doc, migrationError: null };
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       return { parsedDoc: null, migrationError: error };
     }
-  }, [value]);
+  }, [value, resourceLimits]);
 
   useEffect(() => {
     if (migrationError && onError) {
@@ -337,6 +402,12 @@ export function VibressStudio({
       <StudioUploadContext.Provider value={{ uploadMedia }}>
         <StudioMediaContext.Provider value={mediaContextValue}>
         <div className={`vibress-studio-editor ${className || ''}`} dir={dir}>
+          {snapshotError && (
+            <div role="alert" aria-live="polite" className="studio-snapshot-error">
+              <strong>Document not saved:</strong> {snapshotError.message}
+              {' '}The current draft remains in the editor. Reduce its size before saving.
+            </div>
+          )}
           <fieldset disabled={readOnly} style={{ minWidth: 0, margin: 0, padding: 0, border: 0 }}>
           <LexicalComposer initialConfig={initialConfig}>
             <div className="vibress-studio-canvas" style={{ position: 'relative', minHeight: '30vh' }}>
@@ -383,17 +454,35 @@ export function VibressStudio({
               {showWordCount && <WordCountPlugin />}
               <EditorAccessibleNamePlugin />
               <EditorEditablePlugin readOnly={readOnly} />
-              <DocumentSyncPlugin document={parsedDoc} onError={onError} />
+              <DocumentSyncPlugin
+                document={parsedDoc}
+                replacementId={replacementId}
+                onError={onError}
+                hasLocalEdits={hasLocalEdits}
+                onExternalApplied={onExternalApplied}
+              />
               {onEditorReady && <EditorReadyPlugin onReady={onEditorReady} />}
-              {onChange && (
-                <OnChangePlugin
-                  onChange={(editorState) => {
-                    const rootNode = editorState.toJSON().root;
-                    const studioDoc = serializeStudioDocument(rootNode);
-                    onChange(studioDoc);
-                  }}
-                />
-              )}
+              <OnChangePlugin
+                onChange={(editorState, _editor, tags) => {
+                  if (tags.has(STUDIO_EXTERNAL_SYNC_TAG)) return;
+                  // A rejected snapshot must never be emitted to host autosave,
+                  // and the active Lexical editor state must never be reset.
+                  try {
+                    const studioDoc = serializeStudioDocument(editorState.toJSON().root, resourceLimits);
+                    const rootJson = JSON.stringify(studioDoc.root);
+                    if (rootJson === lastObservedEditorRootRef.current) return;
+                    lastObservedEditorRootRef.current = rootJson;
+                    hasLocalEditsRef.current = true;
+                    setSnapshotError(null);
+                    onChange?.(studioDoc);
+                  } catch (error) {
+                    const recoverable = error instanceof Error ? error : new Error(String(error));
+                    hasLocalEditsRef.current = true;
+                    setSnapshotError(recoverable);
+                    onError?.(recoverable);
+                  }
+                }}
+              />
             </div>
           </LexicalComposer>
           </fieldset>

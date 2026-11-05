@@ -30,6 +30,498 @@ export const StudioDocumentSchema = z.object({
   }).passthrough(),
 });
 
+// ============================================================================
+// STU-201: Typed Node Schemas & Type Guards
+// ============================================================================
+
+export const StudioTextNodeSchema = z.object({
+  type: z.literal('text'),
+  text: z.string(),
+  format: z.number().int().optional(),
+  detail: z.number().int().optional(),
+  mode: z.string().optional(),
+  style: z.string().optional(),
+  version: z.number().optional(),
+}).passthrough();
+export type StudioTextNode = z.infer<typeof StudioTextNodeSchema>;
+
+export const StudioParagraphNodeSchema = z.object({
+  type: z.literal('paragraph'),
+  children: z.array(z.unknown()),
+  direction: z.enum(['ltr', 'rtl']).nullable().optional(),
+  format: z.union([z.string(), z.number()]).optional(),
+  indent: z.number().optional(),
+  version: z.number().optional(),
+}).passthrough();
+export type StudioParagraphNode = z.infer<typeof StudioParagraphNodeSchema>;
+
+export const StudioHeadingTagSchema = z.enum(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
+export type StudioHeadingTag = z.infer<typeof StudioHeadingTagSchema>;
+
+export const StudioHeadingNodeSchema = z.object({
+  type: z.literal('heading'),
+  tag: StudioHeadingTagSchema,
+  children: z.array(z.unknown()),
+  direction: z.enum(['ltr', 'rtl']).nullable().optional(),
+  format: z.union([z.string(), z.number()]).optional(),
+  indent: z.number().optional(),
+  version: z.number().optional(),
+}).passthrough();
+export type StudioHeadingNode = z.infer<typeof StudioHeadingNodeSchema>;
+
+export const StudioLinkNodeSchema = z.object({
+  type: z.literal('link'),
+  url: z.string(),
+  children: z.array(z.unknown()),
+  target: z.string().optional(),
+  rel: z.string().optional(),
+  version: z.number().optional(),
+}).passthrough();
+export type StudioLinkNode = z.infer<typeof StudioLinkNodeSchema>;
+
+export const StudioListNodeSchema = z.object({
+  type: z.literal('list'),
+  listType: z.enum(['bullet', 'number', 'check']),
+  children: z.array(z.unknown()),
+  start: z.number().optional(),
+  tag: z.string().optional(),
+  version: z.number().optional(),
+}).passthrough();
+export type StudioListNode = z.infer<typeof StudioListNodeSchema>;
+
+export const StudioListItemNodeSchema = z.object({
+  type: z.literal('listitem'),
+  children: z.array(z.unknown()),
+  checked: z.boolean().optional(),
+  value: z.number().optional(),
+  version: z.number().optional(),
+}).passthrough();
+export type StudioListItemNode = z.infer<typeof StudioListItemNodeSchema>;
+
+export const StudioCodeNodeSchema = z.object({
+  type: z.literal('code'),
+  children: z.array(z.unknown()),
+  language: z.string().optional(),
+  version: z.number().optional(),
+}).passthrough();
+export type StudioCodeNode = z.infer<typeof StudioCodeNodeSchema>;
+
+export const StudioTableCellNodeSchema = z.object({
+  type: z.literal('tablecell'),
+  children: z.array(z.unknown()),
+  colSpan: z.number().int().positive().optional(),
+  rowSpan: z.number().int().positive().optional(),
+  headerState: z.number().optional(),
+  backgroundColor: z.string().optional(),
+  version: z.number().optional(),
+}).passthrough();
+export type StudioTableCellNode = z.infer<typeof StudioTableCellNodeSchema>;
+
+export const StudioTableRowNodeSchema = z.object({
+  type: z.literal('tablerow'),
+  children: z.array(z.unknown()),
+  version: z.number().optional(),
+}).passthrough();
+export type StudioTableRowNode = z.infer<typeof StudioTableRowNodeSchema>;
+
+export const StudioTableNodeSchema = z.object({
+  type: z.literal('table'),
+  children: z.array(z.unknown()),
+  version: z.number().optional(),
+}).passthrough();
+export type StudioTableNode = z.infer<typeof StudioTableNodeSchema>;
+
+export const StudioCardNodeDataSchema = z.object({
+  type: z.literal('studio-card'),
+  cardType: z.string().min(1),
+  cardData: z.record(z.string(), z.unknown()).default({}),
+  version: z.number().optional(),
+}).passthrough();
+export type StudioCardNode = z.infer<typeof StudioCardNodeDataSchema>;
+
+export function isStudioTextNode(node: unknown): node is StudioTextNode {
+  return StudioTextNodeSchema.safeParse(node).success;
+}
+
+export function isStudioHeadingNode(node: unknown): node is StudioHeadingNode {
+  return StudioHeadingNodeSchema.safeParse(node).success;
+}
+
+export function isStudioParagraphNode(node: unknown): node is StudioParagraphNode {
+  return StudioParagraphNodeSchema.safeParse(node).success;
+}
+
+export function isStudioLinkNode(node: unknown): node is StudioLinkNode {
+  return StudioLinkNodeSchema.safeParse(node).success;
+}
+
+export function isStudioListNode(node: unknown): node is StudioListNode {
+  return StudioListNodeSchema.safeParse(node).success;
+}
+
+export function isStudioListItemNode(node: unknown): node is StudioListItemNode {
+  return StudioListItemNodeSchema.safeParse(node).success;
+}
+
+export function isStudioCodeNode(node: unknown): node is StudioCodeNode {
+  return StudioCodeNodeSchema.safeParse(node).success;
+}
+
+export function isStudioTableNode(node: unknown): node is StudioTableNode {
+  return StudioTableNodeSchema.safeParse(node).success;
+}
+
+export function isStudioTableRowNode(node: unknown): node is StudioTableRowNode {
+  return StudioTableRowNodeSchema.safeParse(node).success;
+}
+
+export function isStudioTableCellNode(node: unknown): node is StudioTableCellNode {
+  return StudioTableCellNodeSchema.safeParse(node).success;
+}
+
+export function isStudioCardNode(node: unknown): node is StudioCardNode {
+  if (typeof node !== 'object' || node === null || Array.isArray(node)) {
+    return false;
+  }
+  const candidate = node as Record<string, unknown>;
+  if (
+    typeof candidate.cardData !== 'object' ||
+    candidate.cardData === null ||
+    Array.isArray(candidate.cardData)
+  ) {
+    return false;
+  }
+  return StudioCardNodeDataSchema.safeParse(node).success;
+}
+
+// ============================================================================
+// STU-203: Document Resource Limits
+// ============================================================================
+
+export interface DocumentResourceLimits {
+  /** Maximum serialized JSON size in bytes (default 5MB). */
+  maxSizeBytes?: number;
+  /** Maximum total node count in the document tree (default 50,000). */
+  maxNodeCount?: number;
+  /** Maximum tree nesting depth (default 64). */
+  maxDepth?: number;
+}
+
+export const DEFAULT_DOCUMENT_RESOURCE_LIMITS: Required<DocumentResourceLimits> = {
+  maxSizeBytes: 5 * 1024 * 1024, // 5 MB
+  maxNodeCount: 50_000,
+  maxDepth: 64,
+};
+
+export function resolveResourceLimits(limits?: DocumentResourceLimits): Required<DocumentResourceLimits> {
+  const maxSizeBytes =
+    typeof limits?.maxSizeBytes === 'number' && Number.isFinite(limits.maxSizeBytes) && limits.maxSizeBytes > 0
+      ? limits.maxSizeBytes
+      : DEFAULT_DOCUMENT_RESOURCE_LIMITS.maxSizeBytes;
+
+  const maxNodeCount =
+    typeof limits?.maxNodeCount === 'number' && Number.isFinite(limits.maxNodeCount) && limits.maxNodeCount > 0
+      ? Math.floor(limits.maxNodeCount)
+      : DEFAULT_DOCUMENT_RESOURCE_LIMITS.maxNodeCount;
+
+  const maxDepth =
+    typeof limits?.maxDepth === 'number' && Number.isFinite(limits.maxDepth) && limits.maxDepth > 0
+      ? Math.floor(limits.maxDepth)
+      : DEFAULT_DOCUMENT_RESOURCE_LIMITS.maxDepth;
+
+  return { maxSizeBytes, maxNodeCount, maxDepth };
+}
+
+export function getUtf8ByteLength(str: string): number {
+  if (typeof TextEncoder !== 'undefined') {
+    return new TextEncoder().encode(str).length;
+  }
+  let bytes = 0;
+  const len = str.length;
+  for (let i = 0; i < len; i++) {
+    const code = str.charCodeAt(i);
+    if (code < 0x80) {
+      bytes += 1;
+    } else if (code < 0x800) {
+      bytes += 2;
+    } else if (code >= 0xd800 && code <= 0xdbff) {
+      if (i + 1 < len) {
+        const next = str.charCodeAt(i + 1);
+        if (next >= 0xdc00 && next <= 0xdfff) {
+          bytes += 4;
+          i++;
+          continue;
+        }
+      }
+      // Unpaired high surrogate -> WHATWG TextEncoder emits U+FFFD (3 bytes in UTF-8)
+      bytes += 3;
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      // Unpaired low surrogate -> WHATWG TextEncoder emits U+FFFD (3 bytes in UTF-8)
+      bytes += 3;
+    } else {
+      bytes += 3;
+    }
+  }
+  return bytes;
+}
+
+export function getJsonStringByteLength(str: string): number {
+  let bytes = 2; // Opening and closing JSON quotes ""
+  const len = str.length;
+
+  for (let i = 0; i < len; i++) {
+    const code = str.charCodeAt(i);
+
+    if (code === 34 || code === 92) {
+      // \" or \\
+      bytes += 2;
+    } else if (code < 32) {
+      // Control characters
+      if (code === 8 || code === 9 || code === 10 || code === 12 || code === 13) {
+        // \b, \t, \n, \f, \r
+        bytes += 2;
+      } else {
+        // \u00xx
+        bytes += 6;
+      }
+    } else if (code < 0x80) {
+      // ASCII 0x20 - 0x7E
+      bytes += 1;
+    } else if (code < 0x800) {
+      // 2-byte UTF-8
+      bytes += 2;
+    } else if (code >= 0xd800 && code <= 0xdbff) {
+      // High surrogate
+      if (i + 1 < len) {
+        const next = str.charCodeAt(i + 1);
+        if (next >= 0xdc00 && next <= 0xdfff) {
+          // Valid surrogate pair -> 4-byte UTF-8 character in JSON output
+          bytes += 4;
+          i++;
+          continue;
+        }
+      }
+      // Unpaired high surrogate -> JSON.stringify escapes as \udxxx (6 ASCII bytes)
+      bytes += 6;
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      // Unpaired low surrogate -> JSON.stringify escapes as \udxxx (6 ASCII bytes)
+      bytes += 6;
+    } else {
+      // 3-byte UTF-8 (0x800 - 0xFFFF except surrogates)
+      bytes += 3;
+    }
+  }
+
+  return bytes;
+}
+
+function checkObjectResourceLimits(
+  rootObj: object,
+  rawDoc: unknown,
+  limits: Required<DocumentResourceLimits>
+): void {
+  let accumulatedBytes = 0;
+  let nodeCount = 0;
+  let totalSteps = 0;
+  const visited = new Set<unknown>();
+
+  function traverse(item: unknown, depth: number, isAstNode: boolean): void {
+    if (depth > limits.maxDepth) {
+      throw new StudioMigrationError(
+        `Document nesting depth (${depth}) exceeds maximum allowed limit (${limits.maxDepth}).`,
+        rawDoc,
+        'RESOURCE_LIMIT_EXCEEDED'
+      );
+    }
+
+    totalSteps++;
+    if (totalSteps > limits.maxNodeCount * 10) {
+      throw new StudioMigrationError(
+        `Document complexity exceeds maximum processing limits.`,
+        rawDoc,
+        'RESOURCE_LIMIT_EXCEEDED'
+      );
+    }
+
+    if (item === null || item === undefined) {
+      accumulatedBytes += 4; // 'null'
+      if (accumulatedBytes > limits.maxSizeBytes) {
+        throw new StudioMigrationError(
+          `Document size (${(accumulatedBytes / (1024 * 1024)).toFixed(2)} MB) exceeds maximum allowed limit (${(limits.maxSizeBytes / (1024 * 1024)).toFixed(2)} MB).`,
+          rawDoc,
+          'RESOURCE_LIMIT_EXCEEDED'
+        );
+      }
+      return;
+    }
+
+    const itemType = typeof item;
+    if (itemType === 'string') {
+      accumulatedBytes += getJsonStringByteLength(item as string);
+      if (accumulatedBytes > limits.maxSizeBytes) {
+        throw new StudioMigrationError(
+          `Document size (${(accumulatedBytes / (1024 * 1024)).toFixed(2)} MB) exceeds maximum allowed limit (${(limits.maxSizeBytes / (1024 * 1024)).toFixed(2)} MB).`,
+          rawDoc,
+          'RESOURCE_LIMIT_EXCEEDED'
+        );
+      }
+      return;
+    }
+
+    if (itemType === 'number') {
+      accumulatedBytes += Number.isFinite(item as number) ? String(item).length : 4;
+      if (accumulatedBytes > limits.maxSizeBytes) {
+        throw new StudioMigrationError(
+          `Document size (${(accumulatedBytes / (1024 * 1024)).toFixed(2)} MB) exceeds maximum allowed limit (${(limits.maxSizeBytes / (1024 * 1024)).toFixed(2)} MB).`,
+          rawDoc,
+          'RESOURCE_LIMIT_EXCEEDED'
+        );
+      }
+      return;
+    }
+
+    if (itemType === 'boolean') {
+      accumulatedBytes += item ? 4 : 5;
+      if (accumulatedBytes > limits.maxSizeBytes) {
+        throw new StudioMigrationError(
+          `Document size (${(accumulatedBytes / (1024 * 1024)).toFixed(2)} MB) exceeds maximum allowed limit (${(limits.maxSizeBytes / (1024 * 1024)).toFixed(2)} MB).`,
+          rawDoc,
+          'RESOURCE_LIMIT_EXCEEDED'
+        );
+      }
+      return;
+    }
+
+    if (itemType !== 'object') {
+      return;
+    }
+
+    // The size estimator models JSON data, not JavaScript object serialization
+    // hooks. Reject custom objects and callable/accessor toJSON without invoking
+    // user code; otherwise a tiny object can serialize into an oversized value.
+    const prototype = Object.getPrototypeOf(item);
+    const isArray = Array.isArray(item);
+    const isPlainObject = prototype === Object.prototype || prototype === null;
+    if (isArray ? prototype !== Array.prototype : !isPlainObject) {
+      throw new StudioMigrationError(
+        'Document must contain plain JSON objects and arrays.',
+        rawDoc,
+        'INVALID_DOCUMENT'
+      );
+    }
+    const ownToJson = Object.getOwnPropertyDescriptor(item, 'toJSON');
+    const inheritedToJson = prototype === null ? undefined : Object.getOwnPropertyDescriptor(prototype, 'toJSON');
+    const isUnsafeSerializer = (descriptor: PropertyDescriptor | undefined): boolean =>
+      Boolean(descriptor && (!('value' in descriptor) || typeof descriptor.value === 'function'));
+    if (isUnsafeSerializer(ownToJson) || isUnsafeSerializer(inheritedToJson)) {
+      throw new StudioMigrationError(
+        'Custom toJSON serialization is not supported in Studio documents.',
+        rawDoc,
+        'INVALID_DOCUMENT'
+      );
+    }
+
+    if (visited.has(item)) {
+      throw new StudioMigrationError(
+        'Cyclic reference detected in document tree.',
+        rawDoc,
+        'CORRUPTED_DOCUMENT'
+      );
+    }
+    visited.add(item);
+
+    if (Array.isArray(item)) {
+      accumulatedBytes += 2; // '[]'
+      for (let i = 0; i < item.length; i++) {
+        if (i > 0) accumulatedBytes += 1; // ','
+        const descriptor = Object.getOwnPropertyDescriptor(item, String(i));
+        if (descriptor && !('value' in descriptor)) {
+          throw new StudioMigrationError('Accessor properties are not supported in Studio documents.', rawDoc, 'INVALID_DOCUMENT');
+        }
+        // JSON.stringify represents holes and undefined array elements as null.
+        traverse(descriptor?.value, depth + 1, isAstNode);
+      }
+    } else {
+      accumulatedBytes += 2; // '{}'
+      const obj = item as Record<string, unknown>;
+
+      if (isAstNode) {
+        nodeCount++;
+        if (nodeCount > limits.maxNodeCount) {
+          throw new StudioMigrationError(
+            `Document node count (${nodeCount}) exceeds maximum allowed limit (${limits.maxNodeCount}).`,
+            rawDoc,
+            'RESOURCE_LIMIT_EXCEEDED'
+          );
+        }
+      }
+
+      let writtenFields = 0;
+      for (const k of Object.keys(obj)) {
+        const descriptor = Object.getOwnPropertyDescriptor(obj, k);
+        if (!descriptor || !('value' in descriptor)) {
+          throw new StudioMigrationError('Accessor properties are not supported in Studio documents.', rawDoc, 'INVALID_DOCUMENT');
+        }
+        const v: unknown = descriptor.value;
+        if (v === undefined || typeof v === 'function') continue;
+        if (writtenFields > 0) accumulatedBytes += 1; // ','
+        accumulatedBytes += getJsonStringByteLength(k) + 1; // "key":
+
+        const childIsAstNode = (k === 'root' || k === 'children') && typeof v === 'object' && v !== null;
+        traverse(v, depth + 1, childIsAstNode);
+        writtenFields++;
+      }
+    }
+
+    visited.delete(item);
+
+    if (accumulatedBytes > limits.maxSizeBytes) {
+      throw new StudioMigrationError(
+        `Document size (${(accumulatedBytes / (1024 * 1024)).toFixed(2)} MB) exceeds maximum allowed limit (${(limits.maxSizeBytes / (1024 * 1024)).toFixed(2)} MB).`,
+        rawDoc,
+        'RESOURCE_LIMIT_EXCEEDED'
+      );
+    }
+  }
+
+  traverse(rootObj, 1, true);
+}
+
+export function checkDocumentResourceLimits(
+  rawDoc: unknown,
+  limits: DocumentResourceLimits = {}
+): void {
+  const merged = resolveResourceLimits(limits);
+
+  if (typeof rawDoc === 'string') {
+    const bytes = getUtf8ByteLength(rawDoc);
+    if (bytes > merged.maxSizeBytes) {
+      throw new StudioMigrationError(
+        `Document size (${(bytes / (1024 * 1024)).toFixed(2)} MB) exceeds maximum allowed limit (${(merged.maxSizeBytes / (1024 * 1024)).toFixed(2)} MB).`,
+        rawDoc,
+        'RESOURCE_LIMIT_EXCEEDED'
+      );
+    }
+
+    try {
+      const parsed = JSON.parse(rawDoc);
+      if (parsed && typeof parsed === 'object') {
+        checkObjectResourceLimits(parsed as object, rawDoc, merged);
+      }
+    } catch (err) {
+      if (isStudioMigrationError(err)) {
+        throw err;
+      }
+      // Non-JSON plain strings are governed by maxSizeBytes alone
+    }
+    return;
+  }
+
+  if (rawDoc && typeof rawDoc === 'object') {
+    checkObjectResourceLimits(rawDoc as object, rawDoc, merged);
+  }
+}
+
 export function validateStudioDocument(doc: unknown): StudioDocument {
   if (!doc || typeof doc !== 'object') {
     throw new Error('INVALID_STUDIO_DOCUMENT: Document must be an object');
@@ -161,12 +653,12 @@ export function createDefaultStudioDocument(text = ''): StudioDocument {
 
 export class StudioMigrationError extends Error {
   readonly rawDocument: unknown;
-  readonly code: 'UNSUPPORTED_DOCUMENT' | 'INVALID_DOCUMENT' | 'CORRUPTED_DOCUMENT';
+  readonly code: 'UNSUPPORTED_DOCUMENT' | 'INVALID_DOCUMENT' | 'CORRUPTED_DOCUMENT' | 'RESOURCE_LIMIT_EXCEEDED';
 
   constructor(
     message: string,
     rawDocument: unknown,
-    code: 'UNSUPPORTED_DOCUMENT' | 'INVALID_DOCUMENT' | 'CORRUPTED_DOCUMENT' = 'UNSUPPORTED_DOCUMENT'
+    code: 'UNSUPPORTED_DOCUMENT' | 'INVALID_DOCUMENT' | 'CORRUPTED_DOCUMENT' | 'RESOURCE_LIMIT_EXCEEDED' = 'UNSUPPORTED_DOCUMENT'
   ) {
     super(message);
     this.name = 'StudioMigrationError';
@@ -179,10 +671,13 @@ export function isStudioMigrationError(error: unknown): error is StudioMigration
   return error instanceof Error && error.name === 'StudioMigrationError';
 }
 
-export function migrateDocument(rawDoc: unknown): StudioDocument {
+export function migrateDocument(rawDoc: unknown, limits?: DocumentResourceLimits): StudioDocument {
   if (rawDoc === undefined || rawDoc === null) {
     return createEmptyStudioDocument();
   }
+
+  // STU-203: Validate document resource limits before processing
+  checkDocumentResourceLimits(rawDoc, limits);
 
   // Handle legacy string content from Batch 2
   if (typeof rawDoc === 'string') {
@@ -201,7 +696,7 @@ export function migrateDocument(rawDoc: unknown): StudioDocument {
 
     if (parsed !== null && typeof parsed === 'object') {
       try {
-        return migrateDocument(parsed);
+        return migrateDocument(parsed, limits);
       } catch (error) {
         // Keep the actual persisted bytes available for recovery/export.
         // A nested StudioMigrationError must not be swallowed as parse failure.

@@ -5,9 +5,14 @@ import {
   validateStudioDocument,
   migrateDocument,
   normalizeStudioDocument,
+  checkDocumentResourceLimits,
+  type DocumentResourceLimits,
 } from '@vibress/studio-core';
 
-export function serializeStudioDocument(root: unknown): StudioDocument {
+export function serializeStudioDocument(root: unknown, limits?: DocumentResourceLimits): StudioDocument {
+  const sourceRoot = root && typeof root === 'object' && 'type' in root ? root : { type: 'root', children: [] };
+  // Reject cyclic/accessor/oversized structures before recursive normalization.
+  checkDocumentResourceLimits(sourceRoot, limits);
   const doc: StudioDocument = {
     schema: STUDIO_SCHEMA_NAME,
     version: CURRENT_STUDIO_VERSION,
@@ -18,13 +23,14 @@ export function serializeStudioDocument(root: unknown): StudioDocument {
     // studio-card so freshly saved documents only ever persist the canonical
     // representation.
     root: normalizeStudioDocument(
-      root && typeof root === 'object' && 'type' in root ? root : { type: 'root', children: [] }
+      sourceRoot
     ) as StudioDocument['root'],
   };
 
+  checkDocumentResourceLimits(doc, limits);
   return validateStudioDocument(doc);
 }
 
-export function deserializeStudioDocument(input: unknown): StudioDocument {
-  return migrateDocument(input);
+export function deserializeStudioDocument(input: unknown, limits?: DocumentResourceLimits): StudioDocument {
+  return migrateDocument(input, limits);
 }
