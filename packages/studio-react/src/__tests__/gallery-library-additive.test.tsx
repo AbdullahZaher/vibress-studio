@@ -43,10 +43,14 @@ function twoImageDocument(): StudioDocument {
 function readGallery(editor: LexicalEditor): Record<string, unknown> {
   const snapshot = serializeStudioDocument(editor.getEditorState().toJSON().root);
   const gallery = snapshot.root.children.find((node) =>
-    node.type === 'studio-card' && node.cardType === 'gallery'
+    typeof node === 'object' && node !== null &&
+    'type' in node && node.type === 'studio-card' &&
+    'cardType' in node && node.cardType === 'gallery'
   );
-  if (!gallery || gallery.type !== 'studio-card') throw new Error('Gallery was lost');
-  return gallery.cardData;
+  if (!gallery || typeof gallery !== 'object' || !('cardData' in gallery) ||
+      !gallery.cardData || typeof gallery.cardData !== 'object' ||
+      Array.isArray(gallery.cardData)) throw new Error('Gallery was lost');
+  return gallery.cardData as Record<string, unknown>;
 }
 
 describe('GalleryCardEditor actual Lexical/media picker integration', () => {
