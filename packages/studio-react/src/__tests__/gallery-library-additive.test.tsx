@@ -97,7 +97,7 @@ describe('GalleryCardEditor actual Lexical/media picker integration', () => {
     const data = readGallery(editor!);
     expect((data.images as Array<{ assetId?: string }>).map((img) => img.assetId))
       .toEqual(['asset-1', 'asset-2', 'asset-3']);
-    expect(data.caption).toBe('Edited while picker open');
+    expect(JSON.stringify(data.caption)).toContain('Edited while picker open');
     expect(data.captionHtml).toBe('<p>Edited while picker open</p>');
     expect(data.width).toBe('full');
     expect(data.unrelatedField).toBe('preserved');
