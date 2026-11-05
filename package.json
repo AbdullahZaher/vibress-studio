@@ -15,7 +15,10 @@
     "repo:health": "node scripts/count-explicit-any.mjs --max 50",
     "test:e2e": "playwright test --config e2e/playwright.config.ts",
     "test:e2e:lighthouse": "playwright test --config e2e/playwright.config.ts specs/08-lighthouse.spec.ts",
-    "test:e2e:install": "playwright install chromium"
+    "test:e2e:install": "playwright install chromium",
+    "docs:dev": "pnpm dlx vitepress@1.6.4 dev docs",
+    "docs:build": "pnpm dlx vitepress@1.6.4 build docs",
+    "docs:preview": "pnpm dlx vitepress@1.6.4 preview docs"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
