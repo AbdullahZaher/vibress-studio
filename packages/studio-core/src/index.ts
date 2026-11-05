@@ -159,13 +159,36 @@ export function createDefaultStudioDocument(text = ''): StudioDocument {
   };
 }
 
+export class StudioMigrationError extends Error {
+  readonly rawDocument: unknown;
+  readonly code: 'UNSUPPORTED_DOCUMENT' | 'INVALID_DOCUMENT' | 'CORRUPTED_DOCUMENT';
+
+  constructor(
+    message: string,
+    rawDocument: unknown,
+    code: 'UNSUPPORTED_DOCUMENT' | 'INVALID_DOCUMENT' | 'CORRUPTED_DOCUMENT' = 'UNSUPPORTED_DOCUMENT'
+  ) {
+    super(message);
+    this.name = 'StudioMigrationError';
+    this.rawDocument = rawDocument;
+    this.code = code;
+  }
+}
+
+export function isStudioMigrationError(error: unknown): error is StudioMigrationError {
+  return error instanceof Error && error.name === 'StudioMigrationError';
+}
+
 export function migrateDocument(rawDoc: unknown): StudioDocument {
-  if (!rawDoc) {
+  if (rawDoc === undefined || rawDoc === null) {
     return createEmptyStudioDocument();
   }
 
   // Handle legacy string content from Batch 2
   if (typeof rawDoc === 'string') {
+    if (rawDoc.trim() === '') {
+      return createEmptyStudioDocument();
+    }
     try {
       const parsed = JSON.parse(rawDoc);
       return migrateDocument(parsed);
@@ -174,30 +197,66 @@ export function migrateDocument(rawDoc: unknown): StudioDocument {
     }
   }
 
-  // Handle legacy object from Batch 2 (e.g. { version: 1, text: "..." })
-  if (typeof rawDoc === 'object' && rawDoc !== null) {
+  // Handle object inputs
+  if (typeof rawDoc === 'object' && rawDoc !== null && !Array.isArray(rawDoc)) {
     const obj = rawDoc as Record<string, unknown>;
 
-    // If it is already a valid Studio document, normalize legacy card nodes
-    // to the canonical representation (react-studio-card → studio-card).
-    if (obj.schema === 'vibress-studio' && obj.root) {
-      return validateStudioDocument(normalizeStudioDocument(rawDoc));
+    // Canonical Studio document envelope
+    if (obj.schema === 'vibress-studio') {
+      if (obj.root && typeof obj.root === 'object') {
+        try {
+          return validateStudioDocument(normalizeStudioDocument(rawDoc));
+        } catch (validationErr) {
+          throw new StudioMigrationError(
+            `Invalid persisted Studio document: ${validationErr instanceof Error ? validationErr.message : String(validationErr)}`,
+            rawDoc,
+            'INVALID_DOCUMENT'
+          );
+        }
+      }
+      throw new StudioMigrationError(
+        'Invalid persisted Studio document: root must be an object',
+        rawDoc,
+        'INVALID_DOCUMENT'
+      );
     }
 
-    // Legacy Batch 2 format: { text: "..." } or { root: ... } without schema envelope
+    // Legacy Batch 2 format: { text: "..." }
     if (typeof obj.text === 'string') {
       return createDefaultStudioDocument(obj.text);
     }
 
+    // Legacy Batch 2 format: { root: ... } without schema envelope
     if (obj.root && typeof obj.root === 'object') {
-      return {
+      const docCandidate: StudioDocument = {
         schema: STUDIO_SCHEMA_NAME,
         version: CURRENT_STUDIO_VERSION,
         editor: { lexicalVersion: '0.13.1' },
         root: normalizeStudioDocument(obj.root as StudioDocument['root']),
       };
+      try {
+        return validateStudioDocument(docCandidate);
+      } catch (validationErr) {
+        throw new StudioMigrationError(
+          `Invalid legacy Studio document root: ${validationErr instanceof Error ? validationErr.message : String(validationErr)}`,
+          rawDoc,
+          'INVALID_DOCUMENT'
+        );
+      }
     }
+
+    // Object is neither a Studio document nor a recognized legacy format
+    throw new StudioMigrationError(
+      'Unsupported persisted document format: unrecognized structure',
+      rawDoc,
+      'UNSUPPORTED_DOCUMENT'
+    );
   }
 
-  return createEmptyStudioDocument();
+  // Arrays, primitives (numbers, booleans, etc.)
+  throw new StudioMigrationError(
+    `Unsupported persisted document input type: ${Array.isArray(rawDoc) ? 'array' : typeof rawDoc}`,
+    rawDoc,
+    'UNSUPPORTED_DOCUMENT'
+  );
 }

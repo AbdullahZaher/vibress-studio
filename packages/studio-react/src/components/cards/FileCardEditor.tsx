@@ -40,7 +40,7 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
         }
         editor.update(() => {
           const node = $getNodeByKey(nodeKey);
-          if (node instanceof StudioCardNode) {
+          if (node instanceof StudioCardNode && node.isAttached()) {
             node.setCardData({ ...node.getCardData(), ...payload });
           }
         });
@@ -62,14 +62,14 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
     if (!payload) return;
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
-      if (node instanceof StudioCardNode) {
+      if (node instanceof StudioCardNode && node.isAttached()) {
         node.setCardData({
-          ...cardData,
+          ...node.getCardData(),
           ...payload,
         });
       }
     });
-  }, [editor, nodeKey, cardData, requestMedia]);
+  }, [editor, nodeKey, requestMedia]);
 
   const handleMetadataUpdate = useCallback(
     (data: { fileName: string; caption: string }) => {
@@ -91,7 +91,7 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
   const handleDelete = useCallback(() => {
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
-      if (node) {
+      if (node && node.isAttached()) {
         node.remove();
       }
     });

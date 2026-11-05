@@ -1,92 +1,60 @@
-# Vibress Studio — Import / Export
+# Vibress Studio — Import / Export (Current Contracts)
 
-Vibress Studio can import from and export to HTML and Markdown while keeping
-content and cards safe.
+**Source-reviewed:** 2026-11-04. See [source audit](audits/studio-source-reassessment-2026-11-04.md) and [remediation PR A3/B4](roadmaps/global-ux-quality-roadmap.md#16-current-authoritative-remediation-and-development-plan--2026-11-04).
 
-## HTML import — `htmlToStudioDocument`
-
-`@vibress/studio-html`
+## HTML import
 
 ```ts
 import { htmlToStudioDocument } from '@vibress/studio-html';
-
-const doc = htmlToStudioDocument(htmlString);
+const doc = htmlToStudioDocument(untrustedHtmlString);
 ```
 
-Pipeline (hardening P6):
+The implementation in `packages/studio-html/src/index.ts` calls the shared `sanitizeHtml` function (implemented by `sanitizeStudioHtml` using parse5), parses the cleaned HTML with parse5, and maps supported elements to Lexical-compatible Studio document nodes. The converter supports paragraphs/headings, inline formatting, links, lists, quotes, code, images, dividers, and table rows/cells with bounded spans and direction metadata. Unsupported markup may be flattened or dropped; exact DOM round-trip is **not** guaranteed.
 
-1. **Sanitize** with the allowlist policy (`sanitizeHtmlFragment`) — scripts,
-   iframes, event handlers, and unsafe protocols never reach the parser.
-2. **Parse** with `parse5` (WHATWG-spec parser — not regex).
-3. **Map** to Studio nodes: paragraphs, headings, bold/italic/strike/code
-   inline formatting, links, blockquotes, lists, code blocks, images,
-   figures/captions, horizontal rules.
+## Markdown import
 
-Unsupported or unsafe elements degrade to safe text or are dropped.
-
-## Markdown import — `markdownToStudioDocument`
-
-`@vibress/studio-markdown`
+There is **no exported `markdownToStudioDocument` function** in the current `studio-markdown/src/index.ts`. The shared `parseMarkdownToHtml` helper is exported instead. To import Markdown into Studio using the current APIs, go through sanitized HTML import:
 
 ```ts
-import { markdownToStudioDocument } from '@vibress/studio-markdown';
+import { parseMarkdownToHtml } from '@vibress/studio-markdown';
+import { htmlToStudioDocument } from '@vibress/studio-html';
 
-const doc = markdownToStudioDocument(markdownString);
+const document = htmlToStudioDocument(parseMarkdownToHtml(untrustedMarkdown));
 ```
 
-- Parsed with `markdown-it` with `html: false` (raw HTML stays literal
-  text).
-- All links are URL-validated; `javascript:`/`vbscript:` links are not
-  emitted as links.
-- Card fences (see below) roundtrip into card nodes.
+This pipeline is **lossy**; do not assume all Markdown constructs or card metadata are preserved. Validate and review outputs at the application boundary.
 
-## Markdown export — `studioDocumentToMarkdown`
+## Markdown export
 
-Native markdown for: paragraphs, headings, formatting, links, blockquotes,
-lists, code blocks, images, dividers, markdown cards, image cards,
-bookmark/link cards, embed links, callouts, toggles.
-
-### Card fallback fence (deterministic)
-
-Cards with no native markdown form (html, file, button, video, audio,
-complex gallery data, plugin cards) export as:
-
-```md
-::vibress-card{type="gallery"}
-{"images":[{"src":"https://example.com/1.jpg","alt":"one"}]}
-::
+```ts
+import { studioDocumentToMarkdown } from '@vibress/studio-markdown';
+const markdown = studioDocumentToMarkdown(document);
 ```
 
-This fence roundtrips through `markdownToStudioDocument` back into a card
-node with the same `cardData`.
+The current exporter maps basic paragraphs, headings, text marks, quotes, bullet-style list items, links, code blocks, divider cards and Markdown cards. Most other cards degrade to `[Card: type]`. It does **not** currently emit a JSON-backed `::vibress-card` fence. Numbered list type, nested structures, captions, tables, directions and rich media may be lost or flattened.
 
-## Roundtrip guarantees
+**Security limitation (`STU-R05`):** link destinations are currently interpolated directly as `[text](url)`, without an adequate shared URL-policy check or Markdown escaping. Treat exported Markdown as untrusted until the hardened path is implemented and verified. Do not directly interpret the output in privileged contexts.
 
-Tested in `packages/studio-testing/security/roundtrip.test.ts`:
+## Public HTML / plain text
 
-- HTML → Studio → HTML preserves content.
-- Markdown → Studio → Markdown preserves content.
-- Studio → HTML → Studio preserves text content.
-- Studio → Markdown → Studio preserves text content.
-- Malicious HTML/markdown is sanitized on import.
-- Cards survive roundtrips; unsupported cards degrade safely.
+```ts
+import {
+  renderStudioDocumentToHtml,
+  renderStudioDocumentToPlainText
+} from '@vibress/studio-renderer';
 
-## Plain-text export
+const safeHtml = renderStudioDocumentToHtml(document);
+const plainText = renderStudioDocumentToPlainText(document);
+```
 
-`renderStudioDocumentToPlainText(doc)` in `@vibress/studio-renderer`
-extracts a plain-text view for search indexing or previews.
+Public HTML output uses final `sanitizeStudioHtml`; do not assume all editor styles are emitted. Text color and highlight fidelity is tracked as `STU-R04`. Published renderer and editor parity must be tested independently.
 
-## HTML table and direction compatibility
+## Verification required before claiming round-trip guarantees
 
-Sanitized HTML import now creates native Lexical `table`, `tablerow` and
-`tablecell` nodes from `table`, `thead`/`tbody`/`tfoot`, `tr`, `th`
-and `td`. Header cells and bounded positive `rowspan`/`colspan` values
-are preserved; empty cells receive an empty paragraph, as Lexical requires.
-Arabic and mixed-direction block content retain supported `dir="rtl"` or
-`dir="ltr"` metadata. Public HTML rendering uses sanitized directional
-attributes, falling back to retained child direction for built-in table nodes
-that lose their own direction during editor import.
+- Valid/legacy/unknown v1 node fixtures save → reload without content loss.
+- HTML and Markdown output preserve text meaning and safe URLs, documenting unsupported constructs.
+- Style marks, captions, table direction and mixed Arabic/English content are checked both in JSON and in public HTML.
+- Unsafe, malformed, escaped and nested Markdown URLs do not produce executable links on re-import.
+- Renderer and import/export tests include deterministic lost-content reports rather than assuming equality for lossy formats.
 
-These changes do **not** change the persisted `StudioDocument.version` or
-rewrite existing documents. Complex unsupported HTML features may be flattened
-to safe content; callers should not assume arbitrary HTML-to-Lexical fidelity.
+Run `pnpm test:roundtrip`, `pnpm test:security`, `pnpm test` and browser import/export scenarios. See [testing inventory](testing.md).

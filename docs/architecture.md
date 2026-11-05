@@ -1,90 +1,76 @@
-# Vibress Studio Architecture
+# Vibress Studio — Architecture and Boundaries
 
-## Document model
+**Source-reviewed:** 2026-11-04 at standalone SHA `be7150d04aa31e53034e832e16726a69f2c9c6e7`. For active findings and design remediation see [source reassessment](audits/studio-source-reassessment-2026-11-04.md) and [roadmap §16](roadmaps/global-ux-quality-roadmap.md#16-current-authoritative-remediation-and-development-plan--2026-11-04).
 
-A studio document is a versioned JSON tree with a fixed envelope:
+## Canonical document envelope
 
 ```json
 {
   "schema": "vibress-studio",
   "version": 1,
   "editor": { "lexicalVersion": "0.13.1" },
-  "root": { "type": "root", "children": [...] }
+  "root": { "type": "root", "children": [] }
 }
 ```
 
-`@vibress/studio-core` owns the envelope: `StudioDocumentSchema` (Zod),
-`validateStudioDocument`, `migrateDocument` (upgrades legacy/unknown input to
-the current version), and `createEmptyStudioDocument` /
-`createDefaultStudioDocument` factories. Node `children` are stored as
-`unknown[]`; renderers narrow each child to a structural shape before walking
-it, so the stored model stays open for forward-compatible extensions.
+`studio-core` provides Zod validation, migration, normalization and document factories. The document tree allows forward-compatible unknown children. Legacy `react-studio-card` nodes normalize to `studio-card`. No schema fork or implicit rewriting of user documents is permitted.
 
-## Package layering
+**Open integrity issue:** `migrateDocument` currently returns an empty document for some unsupported non-null inputs. It must distinguish *new document / no value* from *unrecognized existing document* and preserve the source on failure (audit STU-R01). Unknown v1 nodes, cards, styles, directions and captions require round-trip verification.
 
-```
-studio-core          schema, document model, validation, migration, upload contracts
-studio-cards         serializable card definitions + Zod schemas + safe renderers
-studio-renderer      safe server HTML / plain-text rendering
-studio-html          sanitizer layer, HTML import (parse5)
-studio-markdown      markdown import/export
-studio-nodes         Lexical node set (incl. StudioCardNode) — editor-side only
-studio-transforms    Lexical node transforms — editor-side only
-studio-react         React editor, card editors, SafeHtml boundary, upload adapters
-studio-plugin-sdk    plugin/card registration boundary with capability model
-studio-testing       fixtures and security/a11y/perf test suites
-studio-serializer    document serialization helpers
-studio-utils         shared utilities (sanitizer implementation, URL safety)
-```
+## Package ownership and dependency direction
 
-**Boundary rule:** server renderer packages (`studio-core`, `studio-cards`,
-`studio-utils`, `studio-html`, `studio-markdown`, `studio-renderer`,
-`studio-serializer`, `studio-plugin-sdk`) never import React or Lexical.
-Lexical lives only in `studio-nodes`, `studio-transforms`, and
-`studio-react`. Enforced by `pnpm verify:package-exports`.
+| Package | Responsibility | Notes |
+| --- | --- | --- |
+| `studio-core` | Schema v1, migrations, validation | Server-safe |
+| `studio-utils` | parse5 HTML sanitizer, URL/escape helpers, Markdown-to-HTML helper | Server-safe |
+| `studio-card-definitions` | Serializable Zod card contracts and safe renderers | Server-safe |
+| `studio-cards` | Compatibility exports and Lexical card node | Editor dependency |
+| `studio-renderer` | Server HTML and plain-text output | Server-safe |
+| `studio-html` | HTML import/export integration | Server-safe |
+| `studio-markdown` | Markdown export/import integration | Server-safe; export has open URL-policy gap |
+| `studio-serializer` | Document ↔ serialized state helpers | Server-safe |
+| `studio-nodes` / `studio-transforms` | Lexical nodes and interactions | Editor |
+| `studio-react` | React editor, interactive cards, upload/media/AI hooks and CSS | Editor |
+| `studio-plugin-sdk` | Plugin registry, safe renderer registration | Registry, **not** sandbox; editor integration limited |
+| `studio-testing`, `tests`, `e2e`, `playground` | Fixtures and verification harnesses | Development |
 
-## Boundaries
+Never import React or Lexical into server-safe packages. Public imports must use package export maps; no cross-package private deep paths. The workspace package-export verification checks actual distribution contracts, but does not by itself prove every architectural claim.
 
-- **Editing** lives in `@vibress/studio-react` (Lexical). It is the only
-  package with a browser dependency.
-- **Rendering** lives in `@vibress/studio-renderer` (+ `studio-html`,
-  `studio-markdown`) and is deliberately server-safe: no `document`/`window`
-  access, all output escaped/sanitized.
-- **Cards** (`@vibress/studio-cards`) define per-type Zod schemas, HTML and
-  plain-text renderers. Every renderer is safe by default (see
-  `docs/cards.md`). The Lexical `StudioCardNode` lives in `studio-nodes`, so
-  card definitions carry no Lexical dependency.
-- **Plugins** register through `@vibress/studio-plugin-sdk` and never reach
-  into `studio-react` internals.
+## Data and trust boundaries
 
-## Data flow
-
-```
-Editor (studio-react)
-  └─ exportJSON / importJSON ─▶ studio document (unknown) ─▶ migrateDocument
-        ─▶ validateStudioDocument
-  Renderers (studio-renderer / studio-markdown) walk the narrowed node shape
-  Cards validate their `cardData` with per-type Zod schemas before rendering.
-  Public HTML: renderStudioDocumentToHtml (server-safe)
-  Import: htmlToStudioDocument (parse5) / markdownToStudioDocument
-  Export: studioDocumentToMarkdown
+```text
+Host-owned authenticated persistence / revision control
+       │ validated current or legacy document input
+       ▼
+studio-core: migration + normalization + validation
+       │                              ▲
+       ▼                              │
+studio-react: Lexical editor   onChange validated snapshot
+       │
+       ├── host uploadMedia/requestMedia (durable publication asset)
+       ├── optional host AI callback (authorized, consent-aware)
+       └── editor-local selection, history, commands and card editing
+                                      │
+stored document ─► studio-renderer ─► final sanitizeStudioHtml ─► public HTML
+                └► studio-markdown (separate URL/escaping boundary)
 ```
 
-## Security
+`studio-utils/src/sanitize.ts` uses **parse5**, not `sanitize-html`; `sanitizeHtmlFragment`, `HTML_SANITIZE_POLICY` and a `SafeHtml`-only branded boundary are not present in the current tree. The static React card path invokes the sanitizer before HTML injection. Plugin HTML must be rendered through the registry's safe rendering method.
 
-- `escapeHtml`, `escapeAttribute`, `sanitizeUrl`, `isSafeUrl` and the
-  allowlist `sanitizeHtmlFragment` (backed by `sanitize-html`) in
-  `@vibress/studio-utils` are the only gatekeepers for string/HTML/URL
-  output. The regex sanitizer was removed (P1).
-- The HTML card sanitizes strictly (Option B); the embed card uses a
-  provider allowlist.
-- React previews render through the branded `SafeHtml` boundary only (P3).
-- XSS regression payloads (`@vibress/studio-testing`) assert renderers never
-  emit executable content (see `docs/security/xss-regression-matrix.md`).
+Current embed allowlist supports YouTube and Vimeo. Treat all document, caption, URL, imported and plugin content as untrusted.
 
-## Type safety
+## Editor and host ownership
 
-The workspace enforces a zero-explicit-`any` policy for production source via
-`scripts/count-explicit-any.mjs` (`pnpm verify:explicit-any`). The few places
-where Lexical's serialized-state APIs need bridging use
-`as unknown as Parameters<...>[0]` casts instead of `any`.
+- **Studio:** Lexical state, selection, undo/redo, card editing, `onChange` snapshots, server-safe renderers, media/AI *callbacks*.
+- **Host:** auth, autosave, publication context, revision conflicts, durable asset storage, collaboration provider lifecycle and AI gateway.
+- **Do not** add a Studio backend, persistence store or Yjs service for parity. Scope such integrations in the host and test via public APIs.
+
+## Canonical runtime proposal
+
+`docs/adr/0001-studio-canonical-runtime.md` says **Proposed**. Its intended direction uses `AbdullahZaher/vibress` as the reference for the currently shipped runtime and standalone as a downstream distribution target. The source review observed host SHA `b33fb1ab597bfabb8861516132cf8bad567f0bf1`. Host collaboration exports are missing from standalone, so **do not assume parity or copy host files blindly**. Obtain explicit ADR approval and compare named SHAs and v1 fixtures before syncing.
+
+## Visual CSS contract and accessibility
+
+Public CSS tokens and styles are exported by `studio-react`, but portions of interactive cards use unbundled Tailwind-like utility classes, and some global selectors leak beyond Studio. A clean consuming app without host/Tailwind CSS must be used to verify the component contract before presenting the standalone design as self-contained.
+
+All editing and display features require RTL, LTR, mixed bidi, light/dark, narrow viewport, keyboard and touch evidence; see roadmap §16.4.

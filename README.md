@@ -1,27 +1,24 @@
 # Vibress Studio
 
-Standalone, framework-agnostic rich-content editor for Vibress — a document
+Standalone reusable rich-content editor for Vibress — a document
 model, Lexical-based editing experience, and server-safe renderers
 (HTML / plain text / Markdown) that share one validated schema.
 
-Production-hardened: allowlist HTML sanitization, safe-by-default card
-renderers, a branded React `SafeHtml` boundary, a media upload adapter
-contract, parser-based import/export, a capability-gated plugin SDK, and
-publish-ready packages.
+The repository includes a parse5-backed HTML allowlist sanitizer, card renderers, import/export tooling, host media/AI hooks, and automated tests. **The current source audit identifies open integrity, fidelity, CSS integration and accessibility verification work; production readiness is not certified.** See the [2026-11-04 source reassessment](docs/audits/studio-source-reassessment-2026-11-04.md), [remediation roadmap](docs/roadmaps/global-ux-quality-roadmap.md#16-current-authoritative-remediation-and-development-plan--2026-11-04) and [readiness gates](docs/production-readiness.md).
 
 ## Packages
 
 | Package | Purpose |
 |---|---|
-| `@vibress/studio-core` | Canonical `vibress-studio` document schema, validation, migration, and upload adapter contracts |
-| `@vibress/studio-cards` | Card definitions (image, gallery, video, audio, file, bookmark, embed, button, callout, toggle, markdown, html, divider) with Zod-validated data and safe HTML/plain-text renderers |
-| `@vibress/studio-renderer` | Server-safe renderers: `renderStudioDocumentToHtml` / `renderStudioDocumentToPlainText` |
-| `@vibress/studio-html` | Allowlist sanitizer layer and HTML import (`htmlToStudioDocument`, parse5) |
+| `@vibress/studio-core` | Canonical `vibress-studio` document schema, validation and migration |
+| `@vibress/studio-cards` | Compatibility card exports and Lexical card node; serializable card contracts/renderers are in `studio-card-definitions` |
+| `@vibress/studio-card-definitions` | Portable Zod card contracts and safe HTML/plain-text renderers |\n| `@vibress/studio-renderer` | Server-safe renderers: `renderStudioDocumentToHtml` / `renderStudioDocumentToPlainText` |
+| `@vibress/studio-html` | HTML import (`htmlToStudioDocument`, parse5) |
 | `@vibress/studio-markdown` | Markdown import/export (`markdownToStudioDocument` / `studioDocumentToMarkdown`) |
 | `@vibress/studio-nodes` | Lexical node set (paragraph, heading, quote, list, link, code, StudioCardNode) — editor-side |
 | `@vibress/studio-transforms` | Lexical node transforms — editor-side |
-| `@vibress/studio-plugin-sdk` | Capability-gated plugin/card registration boundary |
-| `@vibress/studio-react` | React editor (Lexical), card editors, `SafeHtml` boundary, media upload adapters |
+| `@vibress/studio-plugin-sdk` | Plugin/card registry with validation and sanitized HTML rendering; not a sandbox or fully integrated editor plugin host |
+| `@vibress/studio-react` | React/Lexical editor and card editing UI, media/AI host callbacks |
 | `@vibress/studio-serializer` | Document serialization helpers |
 | `@vibress/studio-testing` | Test fixtures and security/a11y/perf suites |
 | `@vibress/studio-utils` | Shared utilities: allowlist sanitizer implementation, URL safety, HTML escaping |
@@ -110,16 +107,19 @@ audit on every push to `main` and on pull requests (`.github/workflows/ci.yml`).
 
 ## Security
 
-- Renderers escape text, validate and escape URLs, and sanitize HTML with a
-  strict allowlist policy (`sanitize-html`-backed). No regex-only
+- Renderers escape text, validate URLs and sanitize HTML with a
+  parse5-backed allowlist policy (`sanitizeStudioHtml`). No regex-only
   sanitization.
 - The HTML card sanitizes strictly; the embed card emits iframes only for a
   provider allowlist.
-- React previews render only through the branded `SafeHtml` boundary.
+- React static cards sanitize HTML before injection; the playground preview uses the sanitized document renderer.
 - XSS regression payloads live in `@vibress/studio-testing` and are
   exercised by the security suite.
 
 ## Documentation
+
+The documentation website is published (once GitHub Pages is enabled and the docs PR is merged) at **https://abdullahzaher.github.io/vibress-studio/**. Source Markdown remains in [docs/](docs/). Use `pnpm docs:dev` locally and `pnpm docs:build` to validate it; see [documentation site maintenance](docs/guide/documentation-site.md).
+
 
 | Doc | Contents |
 |---|---|
@@ -135,11 +135,11 @@ audit on every push to `main` and on pull requests (`.github/workflows/ci.yml`).
 | [docs/package-exports.md](docs/package-exports.md) | Publishing and verification |
 | [docs/testing.md](docs/testing.md) | Test suite organization incl. browser E2E |
 | [docs/vibress-integration.md](docs/vibress-integration.md) | Vibress core integration guide |
-| [docs/production-readiness.md](docs/production-readiness.md) | Readiness criteria and evidence |
+| [docs/audits/studio-source-reassessment-2026-11-04.md](docs/audits/studio-source-reassessment-2026-11-04.md) | Source-evidenced findings and verification limits |\n| [docs/production-readiness.md](docs/production-readiness.md) | Readiness criteria and evidence |
 
 ## UX and Design Quality Roadmap
 
-- [Global-quality UX & Design Execution Roadmap](docs/roadmaps/global-ux-quality-roadmap.md) — reviewed phased delivery plan, cross-repository source-of-truth decision, acceptance gates, accessibility/RTL requirements, and release-quality scorecard.
+- [Global-quality UX & Design Execution Roadmap](docs/roadmaps/global-ux-quality-roadmap.md) — phased remediation and future development plan; §16 supersedes historical unverified readiness/quality-score claims.
 
 ## License
 

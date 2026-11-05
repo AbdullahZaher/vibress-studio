@@ -1,8 +1,26 @@
-import { StudioDocument, migrateDocument } from '@vibress/studio-core';
-import { renderStudioDocumentToPlainText } from '@vibress/studio-renderer';
-import { parseMarkdownToHtml } from '@vibress/studio-utils';
+import { migrateDocument } from '@vibress/studio-core';
+import { parseMarkdownToHtml, isSafeUrl } from '@vibress/studio-utils';
 
 export { parseMarkdownToHtml };
+
+export function escapeMarkdownLabel(text: string): string {
+  return text
+    .replace(/\\/g, '\\\\')
+    .replace(/\[/g, '\\[')
+    .replace(/\]/g, '\\]');
+}
+
+export function escapeMarkdownUrl(url: unknown): string {
+  if (typeof url !== 'string' || !isSafeUrl(url)) {
+    return '#';
+  }
+  const trimmed = url.trim();
+  return trimmed
+    .replace(/[\u0000-\u001f\u007f-\u009f]/g, '')
+    .replace(/ /g, '%20')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)');
+}
 
 export function studioDocumentToMarkdown(docInput: unknown): string {
   const doc = migrateDocument(docInput);
@@ -18,7 +36,17 @@ export function studioDocumentToMarkdown(docInput: unknown): string {
 
 function renderNodeToMarkdown(node: unknown): string {
   if (!node || typeof node !== 'object') return '';
-  const n = node as { type?: string; text?: string; format?: number; children?: unknown[]; tag?: string; listType?: string; url?: string; src?: string; alt?: string; cardType?: string; caption?: string; cardData?: Record<string, unknown>; } & Record<string, unknown>;
+  const n = node as {
+    type?: string;
+    text?: string;
+    format?: number;
+    children?: unknown[];
+    tag?: string;
+    listType?: string;
+    url?: string;
+    cardType?: string;
+    cardData?: Record<string, unknown>;
+  } & Record<string, unknown>;
 
   const type = n.type;
 
@@ -52,14 +80,34 @@ function renderNodeToMarkdown(node: unknown): string {
     case 'quote':
       return `> ${renderChildren()}`;
 
-    case 'list':
-      return renderChildren();
+    case 'list': {
+      const isNumbered = n.listType === 'number';
+      if (Array.isArray(n.children)) {
+        return n.children
+          .map((child: unknown, idx: number) => {
+            if (isNumbered && child && typeof child === 'object') {
+              const item = child as { children?: unknown[] };
+              const itemContent = Array.isArray(item.children)
+                ? item.children.map((c: unknown) => renderNodeToMarkdown(c)).join('')
+                : '';
+              return `${idx + 1}. ${itemContent}`;
+            }
+            return renderNodeToMarkdown(child);
+          })
+          .join('\n');
+      }
+      return '';
+    }
 
     case 'listitem':
       return `- ${renderChildren()}`;
 
-    case 'link':
-      return `[${renderChildren()}](${n.url || '#'})`;
+    case 'link': {
+      const label = renderChildren();
+      const safeUrl = escapeMarkdownUrl(n.url);
+      const escapedLabel = escapeMarkdownLabel(label);
+      return `[${escapedLabel}](${safeUrl})`;
+    }
 
     case 'code':
       return `\`\`\`\n${renderChildren()}\n\`\`\``;
@@ -67,6 +115,20 @@ function renderNodeToMarkdown(node: unknown): string {
     case 'studio-card': {
       if (n.cardType === 'divider') return '---';
       if (n.cardType === 'markdown') return (n.cardData?.markdown as string | undefined) || '';
+      if (n.cardType === 'image') {
+        const rawSrc = n.cardData?.src;
+        const safeSrc = escapeMarkdownUrl(rawSrc);
+        const alt = escapeMarkdownLabel(typeof n.cardData?.alt === 'string' ? n.cardData.alt : '');
+        if (safeSrc && safeSrc !== '#') {
+          return `![${alt}](${safeSrc})`;
+        }
+        return `[Card: image]`;
+      }
+      if (n.cardType === 'button') {
+        const text = escapeMarkdownLabel(typeof n.cardData?.text === 'string' ? n.cardData.text : 'Button');
+        const url = escapeMarkdownUrl(n.cardData?.url);
+        return `[${text}](${url})`;
+      }
       return `[Card: ${n.cardType}]`;
     }
 

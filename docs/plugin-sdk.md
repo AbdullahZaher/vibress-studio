@@ -1,86 +1,56 @@
-# Vibress Studio — Plugin SDK
+# Vibress Studio — Plugin SDK (Implemented Surface)
 
-`@vibress/studio-plugin-sdk` provides a safe, capability-gated extension
-model. Plugins can add cards, renderers, toolbar actions, slash commands,
-and upload providers — but unsafe capabilities are **disabled by default**.
+**Source-reviewed:** 2026-11-04 at `packages/studio-plugin-sdk/src/index.ts`. Plugin registration is **not a sandbox** and does not provide a permissions system.
 
-## Manifest
-
-Every plugin declares a manifest with an id, name, version, and the
-capabilities it wants:
+## Implemented plugin interface
 
 ```ts
-import type { StudioPlugin } from '@vibress/studio-plugin-sdk';
+import {
+  StudioPluginRegistry,
+  type StudioPlugin
+} from '@vibress/studio-plugin-sdk';
+
+const registry = new StudioPluginRegistry();
 
 const plugin: StudioPlugin = {
-  manifest: {
-    id: 'my-plugin',            // ^[a-z0-9][a-z0-9._-]*$
-    name: 'My Plugin',
-    version: '1.0.0',           // semver
-    capabilities: ['render-html', 'toolbar-command'],
-  },
-  install(registration) {
-    registration.registerCard(card);
-    registration.registerToolbarAction({ id: 'x', label: 'X', execute(editor) { /* ... */ } });
-  },
+  name: 'example',
+  version: '1.0.0',
+  cards: [/* existing StudioCardDefinition objects */],
+  toolbarItems: [{
+    id: 'example.action',
+    label: 'Example action',
+    execute(editor) {
+      // Host/editor integration is responsible for invoking this.
+    }
+  }]
 };
-```
-
-## Capabilities
-
-| Capability | Grants |
-|---|---|
-| `render-html` | register custom renderers (host always sanitizes output) |
-| `raw-html` | allow a `trusted` card to emit HTML without host sanitization |
-| `upload` | register an upload provider |
-| `external-embed` | (declared intent) external embeds |
-| `toolbar-command` | register toolbar actions |
-| `slash-command` | register slash commands |
-
-Rules:
-
-- Declaring a capability the host disallows fails registration.
-- `raw-html` requires BOTH the capability AND `trustLevel: 'trusted'` on the
-  card. Everything else is `host-sanitized` by default.
-- Custom renderers registered via `registerRenderer` are always
-  host-sanitized — there is no trusted path for them.
-- Invalid manifests, duplicate plugin ids, and duplicate card types are
-  rejected with `StudioPluginError` (codes `INVALID_MANIFEST`,
-  `DUPLICATE_PLUGIN`, `DUPLICATE_CARD`, `CAPABILITY_REQUIRED`,
-  `INVALID_UPLOAD_PROVIDER`).
-
-## Host-side registry
-
-```ts
-import { StudioPluginRegistry } from '@vibress/studio-plugin-sdk';
-
-const registry = new StudioPluginRegistry({
-  // Optionally block capabilities entirely:
-  allowedCapabilities: ['render-html', 'slash-command'],
-});
 
 registry.registerPlugin(plugin);
+const definition = registry.getCard('example-card-type');
+const safeHtml = registry.renderCardHtml('example-card-type', unknownCardData);
 ```
 
-The registry also rolls back a plugin (removes its manifest) if `install`
-throws partway through.
+`cards` contains `StudioCardDefinition` entries from `@vibress/studio-card-definitions`, each defining `type`, validation and rendering functions. `toolbarItems` are registered metadata but this alone does **not** make them appear in the editor UI.
 
-## Writing safe plugins
+## Actual registration behavior
 
-- Prefer `host-sanitized` cards; you never need `raw-html`.
-- Escape/validate inside your own `renderHtml` anyway (defense in depth):
-  `escapeHtml` for text, `sanitizeUrl` + `escapeAttribute` for URLs.
-- Never attempt to output `<script>`, `iframe`, or event handlers — the
-  host strips them and the tests assert this.
-- If you genuinely need trusted output, document the trust requirement and
-  the audit trail; the default host rejects it.
+- A duplicate plugin name is ignored (returns without registration).
+- Duplicate card types within one plugin, conflicts with previously registered types, and collisions with built-in card definitions **throw** `STUDIO_CARD_TYPE_CONFLICT`.
+- Card registrations are preflight-checked before mutating the registry, preventing partial registration on a card-type error.
+- `getCard`, `getPlugins`, and `renderCardHtml` are available.
+- `renderCardHtml` validates registered card input and sanitizes renderer output via `renderStudioCardSafeHtml`.
 
-## Plugin safety tests
+## Not implemented in this version
 
-`packages/studio-testing/security/plugin-safety.test.ts` verifies:
+The old plugin documentation described `manifest`, `install(registration)`, `allowedCapabilities`, `registerRenderer`, `registerUploadProvider`, `StudioPluginError`, and capabilities `raw-html`, `slash-command`, etc. **Those APIs are not in the reviewed source** and should not be used.
 
-- plugin cannot bypass the sanitizer by default;
-- plugin `raw-html` denied without capability;
-- invalid manifest rejected;
-- duplicate card ids rejected;
-- malicious plugin renderer output sanitized.
+The current `VibressStudio` props do not accept a plugin registry and its interactive card mapping is static. A registered card is **not automatically** insertable or editable in the React authoring experience. Enabling this is a proposed additive design task `STU-R13` under the [remediation roadmap](roadmaps/global-ux-quality-roadmap.md#16-current-authoritative-remediation-and-development-plan--2026-11-04), not an available capability.
+
+## Security and extension requirements
+
+- All renderer output is untrusted; validate with the actual Zod card schema and sanitize at the public HTML boundary.
+- Plugin execution is arbitrary JavaScript within the host context; do not promise isolation, permission enforcement or safe execution.
+- Do not import another workspace package's private paths or use unverified HTML from a custom card in `dangerouslySetInnerHTML`.
+- Any future ability to register toolbar actions, slash commands or plugin-provided editor components requires explicit public contracts, host integration, collision behavior, undo/redo, readonly/keyboard/RTL and XSS regression tests.
+
+Current registry tests are at `tests/studio-plugin-registry.test.ts`. No dedicated `packages/studio-testing/security/plugin-safety.test.ts` exists in the reviewed tree.

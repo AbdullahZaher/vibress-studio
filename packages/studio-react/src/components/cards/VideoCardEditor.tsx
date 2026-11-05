@@ -39,7 +39,7 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
         }
         editor.update(() => {
           const node = $getNodeByKey(nodeKey);
-          if (node instanceof StudioCardNode) {
+          if (node instanceof StudioCardNode && node.isAttached()) {
             node.setCardData({
               ...node.getCardData(),
               ...payload,
@@ -65,14 +65,14 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
     if (!payload) return;
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
-      if (node instanceof StudioCardNode) {
+      if (node instanceof StudioCardNode && node.isAttached()) {
         node.setCardData({
-          ...cardData,
+          ...node.getCardData(),
           ...payload,
         });
       }
     });
-  }, [editor, nodeKey, cardData, requestMedia]);
+  }, [editor, nodeKey, requestMedia]);
 
   const handleMetadataUpdate = useCallback(
     (data: {
@@ -102,21 +102,21 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
     (newWidth: 'regular' | 'wide' | 'full') => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
           node.setCardData({
-            ...cardData,
+            ...node.getCardData(),
             width: newWidth,
           });
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   const handleDelete = useCallback(() => {
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
-      if (node) {
+      if (node && node.isAttached()) {
         node.remove();
       }
     });
