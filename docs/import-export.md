@@ -1,60 +1,86 @@
-# Vibress Studio — Import / Export (Current Contracts)
+# Vibress Studio — Import, Export, and Format Conversion
 
-**Source-reviewed:** 2026-11-04. See [source audit](audits/studio-source-reassessment-2026-11-04.md) and [remediation PR A3/B4](roadmaps/global-ux-quality-roadmap.md#16-current-authoritative-remediation-and-development-plan--2026-11-04).
+Vibress Studio provides robust, deterministic transformation between its canonical document AST (`vibress-studio` schema version 1), HTML, and GitHub Flavored Markdown (GFM).
 
-## HTML import
+This document establishes the **authoritative Loss Matrix and conversion boundaries** across HTML import, Markdown import, and Markdown export, resolving finding **STU-R12**.
 
-```ts
-import { htmlToStudioDocument } from '@vibress/studio-html';
-const doc = htmlToStudioDocument(untrustedHtmlString);
-```
+---
 
-The implementation in `packages/studio-html/src/index.ts` calls the shared `sanitizeHtml` function (implemented by `sanitizeStudioHtml` using parse5), parses the cleaned HTML with parse5, and maps supported elements to Lexical-compatible Studio document nodes. The converter supports paragraphs/headings, inline formatting, links, lists, quotes, code, images, dividers, and table rows/cells with bounded spans and direction metadata. Unsupported markup may be flattened or dropped; exact DOM round-trip is **not** guaranteed.
+## 1. Document Architecture & Conversion Guarantees
 
-## Markdown import
+- **Canonical Schema:** Persisted and runtime state uses schema `vibress-studio`, version `1`.
+- **Explicitly Lossy Conversion:** The canonical document is preserved in Studio; HTML/Markdown conversions can omit layout, unknown nodes and unsupported card data. Never overwrite the original persisted document using a lossy export.
+- **Strict Allowlisted Sanitization:** Untrusted HTML and Markdown input is sanitized using strict allowlists (`sanitizeHtml`, `parseMarkdownToHtml`, `isSafeUrl`, `escapeMarkdownUrl`). Executable URLs (`javascript:`, `vbscript:`, `data:text/html`), raw script tags, and malicious event handlers are rejected at the boundary.
+- **Safe Fallbacks:** Elements or cards that cannot be represented natively in plain Markdown degrade deterministically to readable semantic text representations.
 
-There is **no exported `markdownToStudioDocument` function** in the current `studio-markdown/src/index.ts`. The shared `parseMarkdownToHtml` helper is exported instead. To import Markdown into Studio using the current APIs, go through sanitized HTML import:
+---
 
-```ts
-import { parseMarkdownToHtml } from '@vibress/studio-markdown';
-import { htmlToStudioDocument } from '@vibress/studio-html';
+## 2. Markdown Export Loss Matrix (`studioDocumentToMarkdown`)
 
-const document = htmlToStudioDocument(parseMarkdownToHtml(untrustedMarkdown));
-```
+The following matrix documents the exact transformation applied when exporting a `StudioDocument` to Markdown:
 
-This pipeline is **lossy**; do not assume all Markdown constructs or card metadata are preserved. Validate and review outputs at the application boundary.
+| AST Element / Card | Markdown Export Output | Fidelity & Conversion Status |
+| :--- | :--- | :--- |
+| **Paragraph** | Plain text / inline formatted text | **Lossless** |
+| **Heading (h1–h6)** | `# Heading` through `###### Heading` | **Lossless** |
+| **Inline Formatting** | `**bold**`, `*italic*`, `~~strike~~`, `` `code` `` | **Lossless** (Lexical bitmask 1, 2, 4, 16) |
+| **Text Colors & Highlights** | Rendered as text without inline style | **Intentionally Lossy:** Standard Markdown has no inline style syntax. Colors survive to HTML renderer but not Markdown. |
+| **Bullet List** | `- Item` | **Lossless** |
+| **Numbered List** | `1. Item`, `2. Item` | **Lossless:** Preserves ordinal sequence numbers. |
+| **Checklist** | `- [ ] Pending`, `- [x] Completed` | **Lossless:** Standard GFM task list syntax. |
+| **Blockquote** | `> Quote text` | **Lossless** |
+| **Code Block** | ````lang\ncode\n```` | **Lossless:** Preserves language identifier. |
+| **Link** | `[Label](url)` | **Safe & Lossless:** Validates URL protocol; escapes label `[` and `]`, percent-encodes spaces, escapes parentheses in URL. |
+| **Table** | `\| H1 \| H2 \|\n\| --- \| --- \|\n\| C1 \| C2 \|` | **Semantic Fallback:** Emits standard GFM table. Cell formatting (spans, cell colors) is flattened. Newlines within cells are converted to `<br />`. |
+| **Direction (RTL / LTR)** | Emits clean text | **Lossy:** Standard Markdown does not have native block direction syntax. Unicode bidirectional marks and script detection govern client display. |
+| **Divider Card** | `---` | **Lossless:** Standard Markdown thematic break. |
+| **Markdown Card** | `cardData.markdown` | **Lossless:** Literal Markdown string. |
+| **HTML Card** | Safe readable text or `[Card: html]` | **Lossy/Safe:** Never emits raw untrusted HTML card markup into Markdown. |
+| **Image Card** | `![alt](src)` followed by `*caption*` if present | **Semantic Fallback:** Image URL and alt text survive losslessly. Layout widths (`wide`, `full`) and intrinsic pixel dimensions are omitted. |
+| **Gallery Card** | Sequence of `![alt](src)` followed by `*caption*` | **Semantic Fallback:** Every image in the gallery is emitted as an individual Markdown image link. |
+| **Video Card** | `[▶ Caption](src)` | **Semantic Fallback:** Safe link with player affordance indicator. |
+| **Audio Card** | `[🎵 Title](src)` | **Semantic Fallback:** Safe link with audio affordance indicator. |
+| **File Card** | `[📎 fileName](src)` | **Semantic Fallback:** Safe download link with attachment affordance indicator. |
+| **Bookmark Card** | `[Title](url)` followed by `> Description` | **Semantic Fallback:** Rich preview card decomposes to primary link and blockquote description. |
+| **Callout Card** | `> emoji text` | **Semantic Fallback:** Converts to Markdown blockquote, preserving callout emoji and multi-line body. Color theme is omitted. |
+| **Toggle Card** | `<details><summary>heading</summary>…</details>` | **Lossy/Safe:** Encodes heading and content; requires a Markdown consumer that permits controlled HTML, otherwise renders literal markup. |
+| **Button Card** | `[Text](url)` | **Semantic Fallback:** Emits accessible Markdown link. |
+| **Embed Card** | `[Caption or Embed: url](url)` | **Semantic Fallback:** Emits verified provider link. |
+| **Unknown / Custom Card** | `[Card: cardType]` | **Safe Indicator:** Does not drop or crash; surfaces card identity. |
 
-## Markdown export
+---
 
-```ts
-import { studioDocumentToMarkdown } from '@vibress/studio-markdown';
-const markdown = studioDocumentToMarkdown(document);
-```
+## 3. HTML Import Mapping (`htmlToStudioDocument`)
 
-The current exporter maps basic paragraphs, headings, text marks, quotes, bullet-style list items, links, code blocks, divider cards and Markdown cards. Most other cards degrade to `[Card: type]`. It does **not** currently emit a JSON-backed `::vibress-card` fence. Numbered list type, nested structures, captions, tables, directions and rich media may be lost or flattened.
+When importing arbitrary or sanitized HTML into a `StudioDocument`:
 
-**Security limitation (`STU-R05`):** link destinations are currently interpolated directly as `[text](url)`, without an adequate shared URL-policy check or Markdown escaping. Treat exported Markdown as untrusted until the hardened path is implemented and verified. Do not directly interpret the output in privileged contexts.
+| Incoming HTML Element | Mapped Studio Node | Processing Rules |
+| :--- | :--- | :--- |
+| `<p>` | `paragraph` | Inlines collected into paragraph node. |
+| `<h1>` – `<h6>` | `heading` with `tag: h1` – `h6` | Retains level and direction. |
+| `<strong>`, `<b>` | `text` with `format \|= 1` | Bold formatting bitmask. |
+| `<em>`, `<i>` | `text` with `format \|= 2` | Italic formatting bitmask. |
+| `<s>`, `<del>`, `<strike>` | `text` with `format \|= 4` | Strikethrough formatting bitmask. |
+| `<u>` | `text` with `format \|= 8` | Underline formatting bitmask. |
+| `<code>` | `text` with `format \|= 16` | Inline code formatting bitmask. |
+| `<a>` | `link` | URL sanitized via `isSafeUrl`. |
+| `<blockquote>` | `quote` | Blockquote container. |
+| `<ul>`, `<ol>` | `list` with `listType: bullet \| number` | Retains `start` attribute on ordered lists. |
+| `<li>` | `listitem` | Preserves nested lists. |
+| `<pre>` | `code` | Code block container. |
+| `<hr>` | `studio-card` (`divider`) | Horizontal separator card. |
+| `<table>` | `table` with `tablerow` & `tablecell` | Retains header cells (`<th>`), row/col spans (bounded positive integers 1–1000), cell and table `dir` attributes. Empty cells receive empty paragraphs. |
+| `<figure>` with `<img>` & `<figcaption>` | `studio-card` (`image`) | Extracts `src`, `alt`, and `caption` into card data. |
+| `<details>` with `<summary>` | `studio-card` (`toggle`) | Extracts summary text as `heading` and details body as `content`. |
+| `<br>` | `linebreak` | Hard line break. |
+| `dir="rtl"` / `dir="ltr"` | `direction: "rtl" \| "ltr"` | Propagated down tree to ensure bilingual fidelity. |
 
-## Public HTML / plain text
+---
 
-```ts
-import {
-  renderStudioDocumentToHtml,
-  renderStudioDocumentToPlainText
-} from '@vibress/studio-renderer';
+## 4. Verification and Regression Testing
 
-const safeHtml = renderStudioDocumentToHtml(document);
-const plainText = renderStudioDocumentToPlainText(document);
-```
-
-Public HTML output uses final `sanitizeStudioHtml`; do not assume all editor styles are emitted. Text color and highlight fidelity is tracked as `STU-R04`. Published renderer and editor parity must be tested independently.
-
-## Verification required before claiming round-trip guarantees
-
-- Valid/legacy/unknown v1 node fixtures save → reload without content loss.
-- HTML and Markdown output preserve text meaning and safe URLs, documenting unsupported constructs.
-- Style marks, captions, table direction and mixed Arabic/English content are checked both in JSON and in public HTML.
-- Unsafe, malformed, escaped and nested Markdown URLs do not produce executable links on re-import.
-- Renderer and import/export tests include deterministic lost-content reports rather than assuming equality for lossy formats.
-
-Run `pnpm test:roundtrip`, `pnpm test:security`, `pnpm test` and browser import/export scenarios. See [testing inventory](testing.md).
+The import and export conversions are verified in the following automated test suites:
+- `packages/studio-markdown/src/__tests__/markdown-export.test.ts`: GFM tables, checklists, code blocks, card fallbacks, and RTL export.
+- `packages/studio-testing/security/markdown-security.test.ts`: Malicious URLs, escaping, and protocol injection.
+- `tests/html-import-regressions.test.ts`: Complex nested HTML, tables, bidirectional text, and figure/details parsing.
+- `e2e/specs/06-import-export.spec.ts`: End-to-end browser import/export round-trip workflows.
