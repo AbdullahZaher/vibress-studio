@@ -162,6 +162,29 @@ export function getEmbedProvider(url: string): { kind: EmbedProviderKind; embedU
   return null;
 }
 
+export type StudioEmbedDestination =
+  | { kind: 'iframe'; url: string }
+  | { kind: 'external-link'; url: string }
+  | { kind: 'invalid' };
+
+/** Shared source of truth for editor previews and published embed output. */
+export function resolveStudioEmbedDestination(input: unknown): StudioEmbedDestination {
+  if (typeof input !== 'string' || !input.trim()) return { kind: 'invalid' };
+  if (/[\u0000-\u001f\u007f\\\\]/.test(input)) return { kind: 'invalid' };
+  let parsed: URL;
+  try {
+    parsed = new URL(input.trim());
+  } catch {
+    return { kind: 'invalid' };
+  }
+  if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:') || !parsed.hostname) {
+    return { kind: 'invalid' };
+  }
+  const provider = getEmbedProvider(parsed.href);
+  if (provider) return { kind: 'iframe', url: provider.embedUrl };
+  return { kind: 'external-link', url: parsed.href };
+}
+
 export function isAllowedEmbedHost(hostname: string): boolean {
   const h = hostname.toLowerCase().replace(/^www\./, '');
   return EMBED_HOSTS.has(h);
