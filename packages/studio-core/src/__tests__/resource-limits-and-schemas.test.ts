@@ -598,4 +598,68 @@ describe('Document Resource Limits & Typed Node Schemas (STU-201, STU-203)', () 
       expect(paragraph.children?.[0]?.text).toBe(malformedJson);
     });
   });
+
+  describe('non-JSON object serialization safeguards', () => {
+    it('rejects a nested custom toJSON without executing it or losing original recovery data', () => {
+      let serializeCalls = 0;
+      const doc = {
+        schema: 'vibress-studio',
+        version: 1,
+        root: {
+          type: 'root',
+          children: [{
+            type: 'studio-card',
+            cardType: 'custom',
+            cardData: {
+              payload: {
+                toJSON() {
+                  serializeCalls++;
+                  return 'X'.repeat(6 * 1024 * 1024);
+                },
+              },
+            },
+          }],
+        },
+      };
+      try {
+        checkDocumentResourceLimits(doc, { maxSizeBytes: 1024 });
+        expect.unreachable('Custom toJSON should have been rejected');
+      } catch (err) {
+        expect(isStudioMigrationError(err)).toBe(true);
+        expect((err as StudioMigrationError).code).toBe('INVALID_DOCUMENT');
+        expect((err as StudioMigrationError).rawDocument).toBe(doc);
+        expect(serializeCalls).toBe(0);
+      }
+    });
+
+    it('rejects custom class instances and accessors instead of evaluating them', () => {
+      const document = createDefaultStudioDocument('Safe');
+      const root = document.root as { children: unknown[] };
+      root.children.push({ type: 'studio-card', cardType: 'custom', cardData: { date: new Date() } });
+      expect(() => checkDocumentResourceLimits(document)).toThrow(StudioMigrationError);
+
+      let getterCalls = 0;
+      const metadata = Object.defineProperty({}, 'payload', {
+        enumerable: true,
+        get() { getterCalls++; return 'X'.repeat(6 * 1024 * 1024); },
+      });
+      const docWithGetter = {
+        schema: 'vibress-studio', version: 1,
+        root: { type: 'root', children: [{ type: 'studio-card', cardType: 'custom', cardData: metadata }] },
+      };
+      expect(() => checkDocumentResourceLimits(docWithGetter)).toThrow(StudioMigrationError);
+      expect(getterCalls).toBe(0);
+    });
+
+    it('continues to accept plain JSON data, including a non-callable toJSON field', () => {
+      const document = createDefaultStudioDocument('Safe');
+      (document.root.children as unknown[]).push({
+        type: 'studio-card',
+        cardType: 'custom',
+        cardData: { meta: { toJSON: 'stored label', nested: ['ok', null, 2] } },
+      });
+      expect(() => checkDocumentResourceLimits(document)).not.toThrow();
+    });
+  });
+
 });

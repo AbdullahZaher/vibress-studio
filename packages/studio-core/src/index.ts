@@ -396,6 +396,31 @@ function checkObjectResourceLimits(
       return;
     }
 
+    // The size estimator models JSON data, not JavaScript object serialization
+    // hooks. Reject custom objects and callable/accessor toJSON without invoking
+    // user code; otherwise a tiny object can serialize into an oversized value.
+    const prototype = Object.getPrototypeOf(item);
+    const isArray = Array.isArray(item);
+    const isPlainObject = prototype === Object.prototype || prototype === null;
+    if (isArray ? prototype !== Array.prototype : !isPlainObject) {
+      throw new StudioMigrationError(
+        'Document must contain plain JSON objects and arrays.',
+        rawDoc,
+        'INVALID_DOCUMENT'
+      );
+    }
+    const ownToJson = Object.getOwnPropertyDescriptor(item, 'toJSON');
+    const inheritedToJson = prototype === null ? undefined : Object.getOwnPropertyDescriptor(prototype, 'toJSON');
+    const isUnsafeSerializer = (descriptor: PropertyDescriptor | undefined): boolean =>
+      Boolean(descriptor && (!('value' in descriptor) || typeof descriptor.value === 'function'));
+    if (isUnsafeSerializer(ownToJson) || isUnsafeSerializer(inheritedToJson)) {
+      throw new StudioMigrationError(
+        'Custom toJSON serialization is not supported in Studio documents.',
+        rawDoc,
+        'INVALID_DOCUMENT'
+      );
+    }
+
     if (visited.has(item)) {
       throw new StudioMigrationError(
         'Cyclic reference detected in document tree.',
@@ -409,7 +434,12 @@ function checkObjectResourceLimits(
       accumulatedBytes += 2; // '[]'
       for (let i = 0; i < item.length; i++) {
         if (i > 0) accumulatedBytes += 1; // ','
-        traverse(item[i], depth + 1, isAstNode);
+        const descriptor = Object.getOwnPropertyDescriptor(item, String(i));
+        if (descriptor && !('value' in descriptor)) {
+          throw new StudioMigrationError('Accessor properties are not supported in Studio documents.', rawDoc, 'INVALID_DOCUMENT');
+        }
+        // JSON.stringify represents holes and undefined array elements as null.
+        traverse(descriptor?.value, depth + 1, isAstNode);
       }
     } else {
       accumulatedBytes += 2; // '{}'
@@ -427,7 +457,12 @@ function checkObjectResourceLimits(
       }
 
       let writtenFields = 0;
-      for (const [k, v] of Object.entries(obj)) {
+      for (const k of Object.keys(obj)) {
+        const descriptor = Object.getOwnPropertyDescriptor(obj, k);
+        if (!descriptor || !('value' in descriptor)) {
+          throw new StudioMigrationError('Accessor properties are not supported in Studio documents.', rawDoc, 'INVALID_DOCUMENT');
+        }
+        const v: unknown = descriptor.value;
         if (v === undefined || typeof v === 'function') continue;
         if (writtenFields > 0) accumulatedBytes += 1; // ','
         accumulatedBytes += getJsonStringByteLength(k) + 1; // "key":

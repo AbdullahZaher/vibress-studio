@@ -865,4 +865,19 @@ describe('code block interactive controls (STU-R17)', () => {
       expect(plain).toContain('42');
     });
   });
+
+  it('preserves positive ordered-list start attributes without emitting unsafe values', () => {
+    const makeList = (start?: unknown, listType = 'number') => ({
+      type: 'list',
+      listType,
+      ...(start !== undefined ? { start } : {}),
+      children: [{ type: 'listitem', children: [{ type: 'text', text: 'Item' }] }],
+    });
+    expect(renderStudioDocumentToHtml(doc([makeList(5)]))).toContain('<ol start="5"><li>Item</li></ol>');
+    expect(renderStudioDocumentToHtml(doc([makeList(1)]))).toContain('<ol><li>Item</li></ol>');
+    expect(renderStudioDocumentToHtml(doc([makeList('5')]))).toContain('<ol><li>Item</li></ol>');
+    expect(renderStudioDocumentToHtml(doc([makeList(-5)]))).toContain('<ol><li>Item</li></ol>');
+    expect(renderStudioDocumentToHtml(doc([makeList(5, 'bullet')]))).toContain('<ul><li>Item</li></ul>');
+  });
+
 });

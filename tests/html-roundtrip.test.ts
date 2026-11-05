@@ -304,4 +304,19 @@ describe('HTML Import/Export Fidelity & Round-trip (Phase B)', () => {
       expect(reRendered).toBe(html);
     });
   });
+
+  it('round-trips an ordered list with a non-default starting ordinal', () => {
+    const inputHtml = '<ol start="5"><li>First</li><li>Second</li></ol>';
+    const imported = htmlToStudioDocument(inputHtml);
+    const list = imported.root.children[0] as { type: string; start?: number };
+    expect(list.type).toBe('list');
+    expect(list.start).toBe(5);
+    const rendered = renderStudioDocumentToHtml(imported);
+    expect(rendered).toContain('<ol start="5">');
+    expect(rendered).toContain('<li>First</li>');
+    const again = htmlToStudioDocument(rendered);
+    const restoredList = again.root.children[0] as { start?: number };
+    expect(restoredList.start).toBe(5);
+  });
+
 });

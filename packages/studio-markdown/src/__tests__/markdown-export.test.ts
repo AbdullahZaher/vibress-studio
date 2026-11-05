@@ -280,4 +280,41 @@ describe('studioDocumentToMarkdown — GFM Tables, Checklists, Code and Cards (S
     expect(md).not.toContain('<script');
     expect(md).not.toContain('onerror');
   });
+
+  it('uses a safe h2 fallback for malformed heading tags and preserves h4-h6 levels', () => {
+    const md = studioDocumentToMarkdown(doc([
+      { type: 'heading', tag: 42, children: [{ type: 'text', text: 'Malformed numeric tag' }] },
+      { type: 'heading', tag: { invalid: true }, children: [{ type: 'text', text: 'Malformed object tag' }] },
+      { type: 'heading', tag: 'h99', children: [{ type: 'text', text: 'Unsupported tag' }] },
+      { type: 'heading', tag: 'h4', children: [{ type: 'text', text: 'Fourth' }] },
+      { type: 'heading', tag: 'h5', children: [{ type: 'text', text: 'Fifth' }] },
+      { type: 'heading', tag: 'h6', children: [{ type: 'text', text: 'Sixth' }] },
+    ]));
+    expect(md).toBe([
+      '## Malformed numeric tag',
+      '## Malformed object tag',
+      '## Unsupported tag',
+      '#### Fourth',
+      '##### Fifth',
+      '###### Sixth',
+    ].join('\n\n'));
+  });
+
+  it('retains numbered-list start and defaults malformed or absent starts to one', () => {
+    const list = (start?: unknown) => ({
+      type: 'list',
+      listType: 'number',
+      ...(start !== undefined ? { start } : {}),
+      children: [
+        { type: 'listitem', children: [{ type: 'text', text: 'First' }] },
+        { type: 'listitem', children: [{ type: 'text', text: 'Second' }] },
+      ],
+    });
+    expect(studioDocumentToMarkdown(doc([list(5)]))).toBe('5. First\n6. Second');
+    expect(studioDocumentToMarkdown(doc([list(1)]))).toBe('1. First\n2. Second');
+    expect(studioDocumentToMarkdown(doc([list('broken')]))).toBe('1. First\n2. Second');
+    expect(studioDocumentToMarkdown(doc([list(-9)]))).toBe('1. First\n2. Second');
+    expect(studioDocumentToMarkdown(doc([list()]))).toBe('1. First\n2. Second');
+  });
+
 });

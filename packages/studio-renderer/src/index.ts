@@ -180,7 +180,9 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
         return `<ul class="studio-checklist"${directionAttr}>${renderChildren()}</ul>`;
       }
       const listType = n.listType === 'number' ? 'ol' : 'ul';
-      return `<${listType}${directionAttr}>${renderChildren()}</${listType}>`;
+      const startAttr = listType === 'ol' && typeof n.start === 'number' && Number.isSafeInteger(n.start) && n.start > 1
+        ? ` start="${n.start}"` : '';
+      return `<${listType}${startAttr}${directionAttr}>${renderChildren()}</${listType}>`;
     }
 
     case 'listitem': {

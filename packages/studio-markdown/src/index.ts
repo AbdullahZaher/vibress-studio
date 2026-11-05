@@ -72,9 +72,11 @@ function renderNodeToMarkdown(node: unknown): string {
       return renderChildren();
 
     case 'heading': {
-      const tag = (n.tag || 'h2').toLowerCase();
-      const hashes = tag === 'h1' ? '#' : tag === 'h2' ? '##' : tag === 'h3' ? '###' : '####';
-      return `${hashes} ${renderChildren()}`;
+      // Persisted root.children may contain malformed known nodes: do not assume
+      // an untrusted tag has String methods. Match public HTML's h2 fallback.
+      const rawTag = typeof n.tag === 'string' ? n.tag.toLowerCase().trim() : '';
+      const level = /^h[1-6]$/.test(rawTag) ? Number(rawTag.slice(1)) : 2;
+      return `${'#'.repeat(level)} ${renderChildren()}`;
     }
 
     case 'quote':
@@ -82,6 +84,7 @@ function renderNodeToMarkdown(node: unknown): string {
 
     case 'list': {
       const isNumbered = n.listType === 'number';
+      const start = typeof n.start === 'number' && Number.isSafeInteger(n.start) && n.start > 0 ? n.start : 1;
       if (Array.isArray(n.children)) {
         return n.children
           .map((child: unknown, idx: number) => {
@@ -90,7 +93,7 @@ function renderNodeToMarkdown(node: unknown): string {
               const itemContent = Array.isArray(item.children)
                 ? item.children.map((c: unknown) => renderNodeToMarkdown(c)).join('')
                 : '';
-              return `${idx + 1}. ${itemContent}`;
+              return `${start + idx}. ${itemContent}`;
             }
             return renderNodeToMarkdown(child);
           })
