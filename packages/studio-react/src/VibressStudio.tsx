@@ -24,6 +24,8 @@ import { StudioCardNode } from '@vibress/studio-cards';
 import { ReactStudioCardNode } from './nodes/ReactStudioCardNode';
 import { StudioDocument, migrateDocument, CURRENT_STUDIO_VERSION, StudioMigrationError } from '@vibress/studio-core';
 import { serializeStudioDocument } from '@vibress/studio-serializer';
+import type { StudioPluginRegistry } from '@vibress/studio-plugin-sdk';
+import { StudioPluginContext } from './plugin-context';
 import { StudioUploadContext, StudioUploadApi } from './upload-context';
 import { StudioMediaContext, StudioMediaApi, StudioMediaRequest } from './media-context';
 
@@ -91,6 +93,8 @@ export interface VibressStudioProps {
   uploadMedia?: StudioUploadApi['uploadMedia'];
   allowUnsplash?: boolean;
   showWordCount?: boolean;
+  /** Optional trusted in-process plugin registry for custom card rendering and discovery. */
+  pluginRegistry?: StudioPluginRegistry;
   className?: string;
 }
 
@@ -196,6 +200,7 @@ export function VibressStudio({
   uploadMedia,
   allowUnsplash = true,
   showWordCount = true,
+  pluginRegistry,
   className = '',
 }: VibressStudioProps) {
   const { parsedDoc, migrationError } = useMemo(() => {
@@ -326,6 +331,7 @@ export function VibressStudio({
 
   return (
     <StudioErrorBoundary onError={onError}>
+      <StudioPluginContext.Provider value={pluginRegistry || null}>
       <StudioUploadContext.Provider value={{ uploadMedia }}>
         <StudioMediaContext.Provider value={mediaContextValue}>
         <div className={`vibress-studio-editor ${className || ''}`}>
@@ -392,6 +398,7 @@ export function VibressStudio({
         </div>
         </StudioMediaContext.Provider>
       </StudioUploadContext.Provider>
+      </StudioPluginContext.Provider>
     </StudioErrorBoundary>
   );
 }

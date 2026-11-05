@@ -1,56 +1,132 @@
-# Vibress Studio — Plugin SDK (Implemented Surface)
+# Vibress Studio — Plugin SDK
 
-**Source-reviewed:** 2026-11-04 at `packages/studio-plugin-sdk/src/index.ts`. Plugin registration is **not a sandbox** and does not provide a permissions system.
+`@vibress/studio-plugin-sdk` provides an in-process extension model for Vibress Studio. Plugins can register custom card types with runtime schema validation, HTML rendering, plain-text export, and slash-menu discovery.
 
-## Implemented plugin interface
+## Architecture and Execution Model
+
+> [!IMPORTANT]
+> **No Sandboxing:** Plugins execute in-process within the host application's JavaScript runtime. They are **not isolated** in web workers or iframe sandboxes. Host applications must only install and register trusted plugins.
+
+Security and content integrity are maintained through three structural boundaries:
+1. **Collision Prevention:** Plugin card types cannot collide with or shadow built-in Studio cards (`image`, `video`, `gallery`, `audio`, `file`, `bookmark`, `embed`, `button`, `callout`, `toggle`, `markdown`, `html`, `divider`) or cards registered by other plugins.
+2. **Schema Validation:** Each card definition specifies a `validate(data)` function (typically using Zod) that rejects malformed payloads before rendering.
+3. **Mandatory Host Sanitization:** Output from a card's `renderHtml()` is **never** emitted raw. Both the public HTML renderer (`renderStudioDocumentToHtml`) and the editor canvas component (`StudioCardComponent`) pipe all card markup through `sanitizeStudioHtml()` (DOMPurify allowlist) before mounting or publishing. Executable script tags, inline event handlers (`onclick`, `onerror`), and unsafe URL schemes (`javascript:`, `vbscript:`, `data:`) are stripped unconditionally.
+
+---
+
+## Plugin Contract
+
+A plugin implements the `StudioPlugin` interface:
 
 ```ts
-import {
-  StudioPluginRegistry,
-  type StudioPlugin
-} from '@vibress/studio-plugin-sdk';
+import type { StudioPlugin } from '@vibress/studio-plugin-sdk';
+import type { StudioCardDefinition } from '@vibress/studio-card-definitions';
+
+export interface StudioPlugin {
+  name: string;
+  version: string;
+  cards?: StudioCardDefinition[];
+  toolbarItems?: StudioToolbarItem[];
+}
+```
+
+### Card Definition
+
+A card definition implements `StudioCardDefinition`:
+
+```ts
+import { z } from 'zod';
+import { escapeHtml } from '@vibress/studio-utils';
+import type { StudioCardDefinition } from '@vibress/studio-card-definitions';
+
+const MetricCardSchema = z.object({
+  label: z.string(),
+  value: z.number(),
+  change: z.string().optional(),
+});
+
+type MetricCardData = z.infer<typeof MetricCardSchema>;
+
+export const MetricCardDefinition: StudioCardDefinition<MetricCardData> = {
+  type: 'metric-card',
+  version: 1,
+  title: 'Metric Card',
+  description: 'Display a KPI with trend indicator',
+  validate: (data: unknown) => MetricCardSchema.parse(data),
+  renderHtml: (data: MetricCardData) => {
+    return `<div class="studio-metric-card">
+      <span class="studio-metric-label">${escapeHtml(data.label)}</span>
+      <span class="studio-metric-value">${data.value}</span>
+    </div>`;
+  },
+  renderPlainText: (data: MetricCardData) => `${data.label}: ${data.value}`,
+};
+```
+
+---
+
+## Registry Usage
+
+### 1. Creating the Registry
+
+```ts
+import { StudioPluginRegistry } from '@vibress/studio-plugin-sdk';
 
 const registry = new StudioPluginRegistry();
 
-const plugin: StudioPlugin = {
-  name: 'example',
+registry.registerPlugin({
+  name: 'analytics-widgets',
   version: '1.0.0',
-  cards: [/* existing StudioCardDefinition objects */],
-  toolbarItems: [{
-    id: 'example.action',
-    label: 'Example action',
-    execute(editor) {
-      // Host/editor integration is responsible for invoking this.
-    }
-  }]
-};
-
-registry.registerPlugin(plugin);
-const definition = registry.getCard('example-card-type');
-const safeHtml = registry.renderCardHtml('example-card-type', unknownCardData);
+  cards: [MetricCardDefinition],
+});
 ```
 
-`cards` contains `StudioCardDefinition` entries from `@vibress/studio-card-definitions`, each defining `type`, validation and rendering functions. `toolbarItems` are registered metadata but this alone does **not** make them appear in the editor UI.
+### 2. Preflight Collision Checks
 
-## Actual registration behavior
+Registration performs an atomic preflight check:
+- If `plugin.name` is already registered, registration is a safe no-op (idempotent).
+- If any card type matches a built-in card or an already registered plugin card, registration throws `Error('STUDIO_CARD_TYPE_CONFLICT: <type>')`.
+- If a plugin has multiple cards and any one fails, **no cards** from that plugin are registered (atomic failure).
 
-- A duplicate plugin name is ignored (returns without registration).
-- Duplicate card types within one plugin, conflicts with previously registered types, and collisions with built-in card definitions **throw** `STUDIO_CARD_TYPE_CONFLICT`.
-- Card registrations are preflight-checked before mutating the registry, preventing partial registration on a card-type error.
-- `getCard`, `getPlugins`, and `renderCardHtml` are available.
-- `renderCardHtml` validates registered card input and sanitizes renderer output via `renderStudioCardSafeHtml`.
+### 3. Editor Integration
 
-## Not implemented in this version
+Pass the registry to `<VibressStudio />`:
 
-The old plugin documentation described `manifest`, `install(registration)`, `allowedCapabilities`, `registerRenderer`, `registerUploadProvider`, `StudioPluginError`, and capabilities `raw-html`, `slash-command`, etc. **Those APIs are not in the reviewed source** and should not be used.
+```tsx
+import { VibressStudio } from '@vibress/studio-react';
+import { registry } from './plugins';
 
-The current `VibressStudio` props do not accept a plugin registry and its interactive card mapping is static. A registered card is **not automatically** insertable or editable in the React authoring experience. Enabling this is a proposed additive design task `STU-R13` under the [remediation roadmap](roadmaps/global-ux-quality-roadmap.md#16-current-authoritative-remediation-and-development-plan--2026-11-04), not an available capability.
+export function Editor({ value, onChange }) {
+  return (
+    <VibressStudio
+      value={value}
+      onChange={onChange}
+      pluginRegistry={registry}
+    />
+  );
+}
+```
 
-## Security and extension requirements
+Registered plugin cards automatically:
+- Appear in the `/` slash menu under the `PLUGIN` badge.
+- Are inserted into the document schema as `studio-card` nodes (`cardType: 'metric-card'`).
+- Render in the editor canvas using the card's `validate` and `renderHtml` output, protected by `sanitizeStudioHtml`.
 
-- All renderer output is untrusted; validate with the actual Zod card schema and sanitize at the public HTML boundary.
-- Plugin execution is arbitrary JavaScript within the host context; do not promise isolation, permission enforcement or safe execution.
-- Do not import another workspace package's private paths or use unverified HTML from a custom card in `dangerouslySetInnerHTML`.
-- Any future ability to register toolbar actions, slash commands or plugin-provided editor components requires explicit public contracts, host integration, collision behavior, undo/redo, readonly/keyboard/RTL and XSS regression tests.
+### 4. Public Rendering Integration
 
-Current registry tests are at `tests/studio-plugin-registry.test.ts`. No dedicated `packages/studio-testing/security/plugin-safety.test.ts` exists in the reviewed tree.
+Pass the registry in `RenderOptions` to publish the document:
+
+```ts
+import { renderStudioDocumentToHtml, renderStudioDocumentToPlainText } from '@vibress/studio-renderer';
+import { registry } from './plugins';
+
+// HTML rendering with sanitization
+const html = renderStudioDocumentToHtml(doc, { pluginRegistry: registry });
+
+// Plain-text rendering for excerpts and search indexing
+const text = renderStudioDocumentToPlainText(doc, { pluginRegistry: registry });
+```
+
+If a document contains a custom card but no matching plugin is provided in `pluginRegistry`:
+- `renderStudioDocumentToHtml` safely drops the unknown card during allowlist sanitization without breaking the document or leaking internal data.
+- `renderStudioDocumentToPlainText` safely returns an empty string without throwing.
