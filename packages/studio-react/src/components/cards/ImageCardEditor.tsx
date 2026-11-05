@@ -5,6 +5,7 @@ import { NodeKey, $getNodeByKey } from 'lexical';
 import { ImageCardData, StudioCardNode } from '@vibress/studio-cards';
 
 import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
@@ -118,8 +119,7 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
           node.setCardData({
             ...currentData,
             alt: data.alt,
-            caption: data.caption,
-            captionHtml: data.caption,
+            ...captionMetadataPatch(node.getCardData(), data.caption),
             href: data.href,
           });
         }

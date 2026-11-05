@@ -5,6 +5,7 @@ import { NodeKey, $getNodeByKey } from 'lexical';
 import { AudioCardData, StudioCardNode } from '@vibress/studio-cards';
 
 import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
@@ -82,8 +83,7 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
           node.setCardData({
             ...node.getCardData(),
             title: data.title,
-            caption: data.caption,
-            captionHtml: data.caption,
+            ...captionMetadataPatch(node.getCardData(), data.caption),
           });
         }
       });

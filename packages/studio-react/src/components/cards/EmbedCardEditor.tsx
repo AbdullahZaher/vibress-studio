@@ -6,6 +6,7 @@ import { EmbedCardData, StudioCardNode } from '@vibress/studio-cards';
 import { getEmbedProvider, sanitizeStudioHtml } from '@vibress/studio-utils';
 
 import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { captionMetadataPatch } from './caption-metadata';
 import { UrlPlaceholder } from '../ui/UrlPlaceholder';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
 import { EmbedMetadataPopover } from '../ui/media-popovers/EmbedMetadataPopover';
@@ -42,8 +43,7 @@ export function EmbedCardEditor({ nodeKey, cardData }: Props) {
           node.setCardData({
             ...currentData,
             url: data.url,
-            caption: data.caption,
-            captionHtml: data.caption,
+            ...captionMetadataPatch(node.getCardData(), data.caption),
           });
         }
       });

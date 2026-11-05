@@ -5,6 +5,7 @@ import { NodeKey, $getNodeByKey } from 'lexical';
 import { VideoCardData, StudioCardNode } from '@vibress/studio-cards';
 
 import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
@@ -86,8 +87,7 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
         if (node instanceof StudioCardNode && node.isAttached()) {
           node.setCardData({
             ...node.getCardData(),
-            caption: data.caption,
-            captionHtml: data.caption,
+            ...captionMetadataPatch(node.getCardData(), data.caption),
             poster: data.poster,
             loop: data.loop,
             autoplay: data.autoplay,
