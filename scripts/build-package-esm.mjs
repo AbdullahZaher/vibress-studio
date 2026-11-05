@@ -18,4 +18,17 @@ await build({
   target: ['es2022'],
   jsx: 'automatic',
   legalComments: 'none',
+  plugins: [{
+    name: 'node-resolvable-lexical-esm-subpaths',
+    setup(builder) {
+      // @lexical/react historically exposes CommonJS .js subpath files
+      // without Node ESM extensionless subpath exports (Lexical 0.13.1).
+      // Preserve peer/runtime deduplication by keeping them external, but
+      // emit the real Node-resolvable file specifier, not a missing path.
+      builder.onResolve({ filter: /^@lexical\\/[^/]+\\/.+/ }, (args) => {
+        const entry = args.path.endsWith('.js') ? args.path : `${args.path}.js`;
+        return { path: entry, external: true };
+      });
+    },
+  }],
 });
