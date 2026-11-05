@@ -6,12 +6,14 @@ on:
     paths:
       - 'docs/**'
       - 'package.json'
+      - 'pnpm-lock.yaml'
       - '.github/workflows/docs-pages.yml'
   pull_request:
     branches: [main]
     paths:
       - 'docs/**'
       - 'package.json'
+      - 'pnpm-lock.yaml'
       - '.github/workflows/docs-pages.yml'
   workflow_dispatch:
 
@@ -44,7 +46,10 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Build and validate internal links
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build locked documentation
         run: pnpm docs:build
 
       - name: Upload pages artifact

@@ -1,0 +1,135 @@
+{
+  "reviewedBase": "54de2142ca2fc111181098675f7dcc09a2221fd3",
+  "localWorkingTreeChangesIncluded": true,
+  "findingReproductions": [
+    {
+      "finding": "CR-01",
+      "test": "packages/studio-react/src/__tests__/external-metadata-ordering.test.tsx",
+      "before": {
+        "failed": 6,
+        "passed": 1
+      },
+      "after": {
+        "failed": 0,
+        "passed": 7
+      }
+    },
+    {
+      "finding": "CR-02",
+      "test": "packages/studio-react/src/__tests__/gallery-library-additive.test.tsx",
+      "before": {
+        "failed": 1,
+        "passed": 3
+      },
+      "after": {
+        "failed": 0,
+        "passed": 5
+      }
+    },
+    {
+      "finding": "CR-03",
+      "test": "packages/studio-react/src/__tests__/media-upload-components.test.tsx",
+      "before": {
+        "failed": 8,
+        "passed": 25
+      },
+      "afterExpanded": {
+        "failed": 0,
+        "passed": 62
+      }
+    }
+  ],
+  "verification": {
+    "targeted": {
+      "tests": 81,
+      "files": 5
+    },
+    "full": {
+      "tests": 499,
+      "files": 51
+    },
+    "coverageBranches": 93.56,
+    "browsers": {
+      "tests": 256,
+      "retries": 0,
+      "skipped": 0,
+      "duration": "3.1m",
+      "engines": [
+        "chromium",
+        "firefox",
+        "webkit"
+      ],
+      "lighthouse": "chromium only by configured project exclusion"
+    },
+    "productionAudit": "no known vulnerabilities",
+    "developmentAdvisories": {
+      "high": 7,
+      "moderate": 16,
+      "low": 2
+    }
+  },
+  "hostFixtureComparison": {
+    "hostCommit": "05446c782ab37db60d4cf6082184c2233934c2bc",
+    "scope": "Persisted core fixtures only; no renderer/editor/Yjs/service parity asserted",
+    "status": "blocked",
+    "results": [
+      {
+        "fixture": "current-mixed-rtl",
+        "status": "pass"
+      },
+      {
+        "fixture": "legacy-card",
+        "status": "pass"
+      },
+      {
+        "fixture": "unknown-future-node",
+        "status": "pass"
+      },
+      {
+        "fixture": "future-document-version",
+        "status": "fail",
+        "reason": "Persisted document changed or was rejected across repositories"
+      },
+      {
+        "fixture": "tables-lists-code",
+        "status": "pass"
+      },
+      {
+        "fixture": "envelope-extension",
+        "status": "fail",
+        "reason": "Persisted document changed or was rejected across repositories"
+      },
+      {
+        "fixture": "foreign-schema",
+        "status": "pass"
+      },
+      {
+        "fixture": "invalid-root",
+        "status": "pass"
+      },
+      {
+        "fixture": "unknown-object",
+        "status": "pass"
+      }
+    ]
+  },
+  "initialCI": {
+    "head": "9163197e72052f1c06821ba1c5442bb1e98e2970",
+    "url": "https://github.com/AbdullahZaher/vibress-studio/actions/runs/42093812986",
+    "browserPassed": 255,
+    "browserFlaky": 1,
+    "flakyTest": "Chromium slash-menu keyboard navigation",
+    "correction": "Keep pointer outside keyboard-only menu test and await exact committed selected/unselected option attributes; no timeout increase or weakened assertions"
+  },
+  "keyboardStressVerification": {
+    "command": "pnpm exec playwright test --config e2e/playwright.config.ts e2e/specs/07-keyboard-nav.spec.ts --grep \"slash menu opens\" --repeat-each 15 --retries 0",
+    "passed": 45,
+    "retries": 0,
+    "skipped": 0,
+    "engines": [
+      "chromium",
+      "firefox",
+      "webkit"
+    ]
+  }
+}

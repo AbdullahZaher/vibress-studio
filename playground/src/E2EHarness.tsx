@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { VibressStudio } from '@vibress/studio-react';
+import { VibressStudio, type StudioRecoveryData } from '@vibress/studio-react';
 import { sanitizeStudioHtml } from '@vibress/studio-utils';
 import { StudioDocument, createEmptyStudioDocument } from '@vibress/studio-core';
 import { renderStudioDocumentToHtml } from '@vibress/studio-renderer';
 import { htmlToStudioDocument } from '@vibress/studio-html';
+import { createBenchmarkStudioDocument } from '@vibress/studio-testing';
 import { parseMarkdownToHtml, studioDocumentToMarkdown } from '@vibress/studio-markdown';
 import { LexicalEditor } from 'lexical';
 import {
@@ -57,6 +58,10 @@ interface StudioTestApi {
   importMarkdown: (md: string) => void;
   /** Update value without remounting Lexical, to exercise controlled props. */
   syncHTML: (html: string) => void;
+  /** Fault-inject raw host input while keeping the last valid preview document. */
+  syncValue: (value: unknown) => void;
+  benchmarkReadyMs: () => number | null;
+  setRecoveryLocale: (locale: 'en' | 'ar') => void;
   setReadOnly: (value: boolean) => void;
   setAiEnabled: (value: boolean) => void;
   setRtl: (value: boolean) => void;
@@ -100,7 +105,24 @@ class MockUploadAdapter {
 }
 
 export function E2EHarness() {
-  const [doc, setDoc] = useState<StudioDocument>(createEmptyStudioDocument());
+  const [mountStartedAt] = useState(() => performance.now());
+  const readyMs = useRef<number | null>(null);
+  const readyFrame = useRef<number | null>(null);
+  const [doc, setDoc] = useState<StudioDocument>(() => {
+    const benchmark = new URLSearchParams(window.location.search).get('benchmark');
+    return benchmark ? createBenchmarkStudioDocument(benchmark) : createEmptyStudioDocument();
+  });
+  const [externalValue, setExternalValue] = useState<{ value: unknown } | null>(null);
+  const [recoveryLocale, setRecoveryLocale] = useState<'en' | 'ar'>('en');
+  const exportRecovery = useCallback((data: StudioRecoveryData) => {
+    const json = JSON.stringify({ ...data, error: { name: data.error.name, message: data.error.message } }, null, 2);
+    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'studio-recovery.json';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }, []);
   const [replacementId, setReplacementId] = useState(0);
   const [readOnly, setReadOnly] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
@@ -110,6 +132,7 @@ export function E2EHarness() {
     // Explicit import/reset: replace the live document without destroying the
     // mounted Lexical editor or its host callback subscriptions.
     setDoc(next);
+    setExternalValue(null);
     setReplacementId((value) => value + 1);
   }, []);
   const uploadMedia = useCallback((file: File, cardType: string) =>
@@ -123,6 +146,19 @@ export function E2EHarness() {
     return { assetId: 'picker-mock', src: '/mock/assets/from-picker' };
   }, []);
   const [editor, setEditor] = useState<LexicalEditor | null>(null);
+  const handleEditorReady = useCallback((instance: LexicalEditor | null) => {
+    setEditor(instance);
+    if (!instance) {
+      if (readyFrame.current !== null) cancelAnimationFrame(readyFrame.current);
+      return;
+    }
+    readyFrame.current = requestAnimationFrame(() => {
+      readyFrame.current = requestAnimationFrame(() => {
+        readyFrame.current = null;
+        readyMs.current = performance.now() - mountStartedAt;
+      });
+    });
+  }, [mountStartedAt]);
   const [isRtl, setIsRtl] = useState(false);
   const [htmlInput, setHtmlInput] = useState('');
   const [mdInput, setMdInput] = useState('');
@@ -193,6 +229,9 @@ export function E2EHarness() {
       importHTML: (html) => replaceDoc(htmlToStudioDocument(html)),
       importMarkdown: (md) => replaceDoc(htmlToStudioDocument(parseMarkdownToHtml(md))),
       syncHTML: (html) => setDoc(htmlToStudioDocument(html)),
+      syncValue: (value) => setExternalValue({ value }),
+      benchmarkReadyMs: () => readyMs.current,
+      setRecoveryLocale,
       setReadOnly,
       setAiEnabled,
       setRtl: (rtl: boolean) => setIsRtl(rtl),
@@ -258,7 +297,9 @@ export function E2EHarness() {
           <h2 style={{ fontSize: '16px', margin: '0 0 8px', color: '#1f2937' }}>Editor</h2>
           <div data-testid="studio-editor" data-ai-enabled={aiEnabled}>
             <VibressStudio
-              value={doc}
+              value={externalValue ? externalValue.value : doc}
+              recoveryLocale={recoveryLocale}
+              onRequestRecovery={exportRecovery}
               replacementId={replacementId}
               onChange={(d) => setDoc(d)}
               readOnly={readOnly}
@@ -267,7 +308,7 @@ export function E2EHarness() {
               placeholder="Type here..."
               uploadMedia={uploadMedia}
               requestMedia={pickerEnabled ? requestMedia : undefined}
-              onEditorReady={setEditor}
+              onEditorReady={handleEditorReady}
               dir={isRtl ? 'rtl' : 'ltr'}
             />
           </div>

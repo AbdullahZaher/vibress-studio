@@ -91,6 +91,7 @@ export function UrlPlaceholder({
           </div>
           <button
             type="submit"
+            tabIndex={0}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium bg-background dark:bg-white/[0.06] border border-border/80 dark:border-white/10 text-foreground hover:border-primary/50 hover:text-primary hover:bg-primary/5 transition-all shadow-sm flex-shrink-0 cursor-pointer"
           >
             <span>{isEmbed ? 'Embed' : 'Save'}</span>

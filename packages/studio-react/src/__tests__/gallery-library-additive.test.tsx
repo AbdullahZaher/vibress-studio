@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { $getRoot, LexicalEditor } from 'lexical';
+import { $getRoot, LexicalEditor, UNDO_COMMAND, REDO_COMMAND } from 'lexical';
 import { StudioDocument } from '@vibress/studio-core';
 import { StudioCardNode } from '@vibress/studio-cards';
 import { serializeStudioDocument } from '@vibress/studio-serializer';
@@ -103,6 +103,54 @@ describe('GalleryCardEditor actual Lexical/media picker integration', () => {
     expect(data.unrelatedField).toBe('preserved');
     // The actual published/persisted envelope also remains reloadable.
     expect(serializeStudioDocument(editor!.getEditorState().toJSON().root).schema).toBe('vibress-studio');
+  });
+
+  it('deduplicates by either exact URL or durable ID, retaining existing repeated entries and history (CR-02)', async () => {
+    let editor: LexicalEditor | null = null;
+    const doc = twoImageDocument();
+    const view = render(<VibressStudio value={doc} requestMedia={async () => ({ images: [
+      { assetId: 'other-id', src: '/media/one.jpg', alt: 'Same URL' },
+      { assetId: 'asset-2', src: '/media/changed.jpg', alt: 'Same ID' },
+      { src: '/media/two.jpg', alt: 'Legacy duplicate' },
+      { assetId: 'new', src: '/other/one.jpg?size=large', alt: 'Distinct asset' },
+      { assetId: 'new', src: '/other/changed.jpg', alt: 'Same selection twice' },
+    ] })} onEditorReady={(instance) => { editor = instance; }} />);
+    await waitFor(() => expect(view.container.querySelectorAll('.vb-gallery-card img')).toHaveLength(2));
+    // Existing authored repetitions must never be removed by a picker append.
+    await act(async () => { editor!.update(() => {
+      const node = $getRoot().getFirstChild() as StudioCardNode;
+      const data = node.getCardData();
+      node.setCardData({ ...data, images: [...data.images as unknown[], (data.images as unknown[])[0]], custom: { retained: true } });
+    }, { discrete: true, tag: 'history-push' }); });
+    fireEvent.click(screen.getByRole('button', { name: 'Add images from library' }));
+    await waitFor(() => expect(view.container.querySelectorAll('.vb-gallery-card img')).toHaveLength(4));
+    const saved = serializeStudioDocument(editor!.getEditorState().toJSON().root);
+    expect((readGallery(editor!).images as Array<{ src: string }>).map(x => x.src))
+      .toEqual(['/media/one.jpg', '/media/two.jpg', '/media/one.jpg', '/other/one.jpg?size=large']);
+    expect(readGallery(editor!).custom).toEqual({ retained: true });
+    await act(async () => { editor!.dispatchCommand(UNDO_COMMAND, undefined); });
+    expect(readGallery(editor!).images).toHaveLength(3);
+    await act(async () => { editor!.dispatchCommand(REDO_COMMAND, undefined); });
+    expect(readGallery(editor!).images).toHaveLength(4);
+    view.unmount();
+    const reload = render(<VibressStudio value={JSON.stringify(saved)} />);
+    await waitFor(() => expect(reload.container.querySelectorAll('.vb-gallery-card img')).toHaveLength(4));
+  });
+
+  it('keeps concurrent gallery additions additive in completion order and preserves current metadata', async () => {
+    const first = deferred<Record<string, unknown> | null>(); const second = deferred<Record<string, unknown> | null>();
+    const requestMedia = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    let editor: LexicalEditor | null = null;
+    const view = render(<VibressStudio value={twoImageDocument()} requestMedia={requestMedia}
+      onEditorReady={instance => { editor = instance; }} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add images from library' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add images from library' }));
+    await act(async () => { second.resolve({ src: '/media/second.jpg', assetId: 'second' }); await second.promise; });
+    await act(async () => { first.resolve({ src: '/media/first.jpg', assetId: 'first' }); await first.promise; });
+    expect((readGallery(editor!).images as Array<{ assetId: string }>).map(x => x.assetId))
+      .toEqual(['asset-1', 'asset-2', 'second', 'first']);
+    expect(readGallery(editor!).width).toBe('wide');
+    expect(view.container.querySelectorAll('.vb-gallery-card img')).toHaveLength(4);
   });
 
   it('does not mutate on picker cancel or resurrect a removed gallery on delayed completion', async () => {

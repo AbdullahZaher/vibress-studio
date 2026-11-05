@@ -26,5 +26,9 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
-  projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
+  projects: [
+    { name: 'chromium', use: { browserName: 'chromium' } },
+    { name: 'firefox', use: { browserName: 'firefox' }, testIgnore: '**/08-lighthouse.spec.ts' },
+    { name: 'webkit', use: { browserName: 'webkit' }, testIgnore: '**/08-lighthouse.spec.ts' },
+  ],
 });

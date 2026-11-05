@@ -9,6 +9,9 @@ import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
 import { isDurableMediaUrl, mergeDurableMediaAsset } from '../../utils/mergeDurableMedia';
+import { MediaPickerError } from '../ui/MediaPickerError';
+import { useCardMediaPicker } from '../../utils/useCardMediaPicker';
+import { useMediaRequestGuard } from '../../utils/useMediaRequestGuard';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
 import { ImageMetadataPopover } from '../ui/media-popovers/ImageMetadataPopover';
 
@@ -21,24 +24,28 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
   const [editor] = useLexicalComposerContext();
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
   const { uploadMedia, requestMedia, allowUnsplash } = useStudioMedia();
-  const [uploading, setUploading] = useState(false);
+  const { uploading, beginRequest } = useMediaRequestGuard();
   const [uploadError, setUploadError] = useState(false);
   const [lastFile, setLastFile] = useState<File | null>(null);
 
   const isPopulated = !!cardData.src;
 
   const attemptUpload = (file: File) => {
-    if (!uploadMedia || uploading) return;
+    if (!uploadMedia || uploading || !editor.isEditable()) return;
+    const isCurrent = beginRequest(true, true);
+    picker.dismiss();
     setLastFile(file);
     setUploadError(false);
-    setUploading(true);
-    uploadMedia(file, 'image')
+    Promise.resolve().then(() => isCurrent() ? uploadMedia(file, 'image') : null)
       .then((payload) => {
+        if (!isCurrent()) return;
+        if (payload === null) return; // Host cancellation is a no-op.
         if (!payload || !isDurableMediaUrl(payload.src)) {
           setUploadError(true);
           return;
         }
         editor.update(() => {
+          if (!isCurrent()) return;
           const node = $getNodeByKey(nodeKey);
           if (node instanceof StudioCardNode && node.isAttached()) {
             const next = mergeDurableMediaAsset(node.getCardData(), payload, 'image');
@@ -46,8 +53,8 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
           }
         });
       })
-      .catch(() => setUploadError(true))
-      .finally(() => setUploading(false));
+      .catch(() => { if (isCurrent()) setUploadError(true); })
+      .finally(isCurrent.finish);
   };
 
   const onFileSelect = (files: File[]) => {
@@ -55,37 +62,12 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
     if (file) attemptUpload(file);
   };
 
-  const handleChangeFromLibrary = useCallback(async () => {
-    if (!requestMedia) return;
-    const payload = await requestMedia({
-      cardType: 'image',
-      source: 'library',
-    });
-    if (!payload || !isDurableMediaUrl(payload.src)) return;
-    editor.update(() => {
-      const node = $getNodeByKey(nodeKey);
-      if (node instanceof StudioCardNode && node.isAttached()) {
-        const next = mergeDurableMediaAsset(node.getCardData(), payload, 'image');
-        if (next) node.setCardData(next);
-      }
-    });
-  }, [editor, nodeKey, requestMedia]);
-
-  const handleUnsplash = useCallback(async () => {
-    if (!requestMedia) return;
-    const payload = await requestMedia({
-      cardType: 'image',
-      source: 'unsplash',
-    });
-    if (!payload || !isDurableMediaUrl(payload.src)) return;
-    editor.update(() => {
-      const node = $getNodeByKey(nodeKey);
-      if (node instanceof StudioCardNode && node.isAttached()) {
-        const next = mergeDurableMediaAsset(node.getCardData(), payload, 'image');
-        if (next) node.setCardData(next);
-      }
-    });
-  }, [editor, nodeKey, requestMedia]);
+  const picker = useCardMediaPicker(editor, nodeKey, 'image', beginRequest, requestMedia,
+    useCallback(() => setUploadError(false), []));
+  const handleChangeFromLibrary = useCallback(() => picker.pick('library'), [picker.pick]);
+  const handleUnsplash = useCallback(() => picker.pick('unsplash'), [picker.pick]);
+  const pickerFailure = picker.failedSource !== null ? <MediaPickerError
+    onRetry={() => { void picker.pick(picker.failedSource!); }} onDismiss={picker.dismiss} /> : null;
 
   const handleMetadataUpdate = useCallback(
     (data: { alt: string; caption: string; href?: string | undefined }) => {
@@ -155,6 +137,7 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
   if (!isPopulated) {
     return (
       <div>
+        {pickerFailure}
         <CardPlaceholder
           iconType="image"
           title="Image"
@@ -207,6 +190,7 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
         transition: 'outline 0.1s ease',
       }}
     >
+      {pickerFailure}
       <StudioMediaFloatingToolbar
         onChange={requestMedia ? handleChangeFromLibrary : undefined}
         changeLabel="Change"

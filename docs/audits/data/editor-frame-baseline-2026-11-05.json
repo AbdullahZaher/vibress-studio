@@ -1,0 +1,352 @@
+[
+  {
+    "commit": "642ce9187c238262386c7dd07a2644931a488232",
+    "workingTreeDirty": false,
+    "fixtureVersion": 1,
+    "fixtureHash": "0fafe35650aaf7c8365bed8b54ebf598a22fff82483f894e4b53506a87169402",
+    "scenario": "1000-words",
+    "profile": "desktop",
+    "browser": "151.0.7922.34",
+    "platform": "darwin",
+    "cpu": "Apple M4 Pro",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "cpuThrottle": 1,
+    "method": "React mount to second animation frame; keydown to second frame proxy. Not INP, not physical mobile hardware.",
+    "mountMs": 57.5,
+    "typing": {
+      "samples": 20,
+      "p50Ms": 15.699999988079071,
+      "p95Ms": 16.600000023841858,
+      "maxMs": 16.799999952316284
+    },
+    "serializedBytes": 12717
+  },
+  {
+    "commit": "642ce9187c238262386c7dd07a2644931a488232",
+    "workingTreeDirty": false,
+    "fixtureVersion": 1,
+    "fixtureHash": "0fafe35650aaf7c8365bed8b54ebf598a22fff82483f894e4b53506a87169402",
+    "scenario": "1000-words",
+    "profile": "mobile-emulation-4x-cpu",
+    "browser": "151.0.7922.34",
+    "platform": "darwin",
+    "cpu": "Apple M4 Pro",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "cpuThrottle": 4,
+    "method": "React mount to second animation frame; keydown to second frame proxy. Not INP, not physical mobile hardware.",
+    "mountMs": 245.5,
+    "typing": {
+      "samples": 20,
+      "p50Ms": 30.69999998807907,
+      "p95Ms": 41.39999997615814,
+      "maxMs": 53
+    },
+    "serializedBytes": 12717
+  },
+  {
+    "commit": "642ce9187c238262386c7dd07a2644931a488232",
+    "workingTreeDirty": false,
+    "fixtureVersion": 1,
+    "fixtureHash": "0fafe35650aaf7c8365bed8b54ebf598a22fff82483f894e4b53506a87169402",
+    "scenario": "20000-words",
+    "profile": "desktop",
+    "browser": "151.0.7922.34",
+    "platform": "darwin",
+    "cpu": "Apple M4 Pro",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "cpuThrottle": 1,
+    "method": "React mount to second animation frame; keydown to second frame proxy. Not INP, not physical mobile hardware.",
+    "mountMs": 162.20000004768372,
+    "typing": {
+      "samples": 20,
+      "p50Ms": 74.09999996423721,
+      "p95Ms": 91.60000002384186,
+      "maxMs": 105.09999996423721
+    },
+    "serializedBytes": 251167
+  },
+  {
+    "commit": "642ce9187c238262386c7dd07a2644931a488232",
+    "workingTreeDirty": false,
+    "fixtureVersion": 1,
+    "fixtureHash": "0fafe35650aaf7c8365bed8b54ebf598a22fff82483f894e4b53506a87169402",
+    "scenario": "20000-words",
+    "profile": "mobile-emulation-4x-cpu",
+    "browser": "151.0.7922.34",
+    "platform": "darwin",
+    "cpu": "Apple M4 Pro",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "cpuThrottle": 4,
+    "method": "React mount to second animation frame; keydown to second frame proxy. Not INP, not physical mobile hardware.",
+    "mountMs": 703.8000000119209,
+    "typing": {
+      "samples": 20,
+      "p50Ms": 317.2999999523163,
+      "p95Ms": 360.80000001192093,
+      "maxMs": 382.89999997615814
+    },
+    "serializedBytes": 251167
+  },
+  {
+    "commit": "642ce9187c238262386c7dd07a2644931a488232",
+    "workingTreeDirty": false,
+    "fixtureVersion": 1,
+    "fixtureHash": "0fafe35650aaf7c8365bed8b54ebf598a22fff82483f894e4b53506a87169402",
+    "scenario": "5000-words",
+    "profile": "desktop",
+    "browser": "151.0.7922.34",
+    "platform": "darwin",
+    "cpu": "Apple M4 Pro",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "cpuThrottle": 1,
+    "method": "React mount to second animation frame; keydown to second frame proxy. Not INP, not physical mobile hardware.",
+    "mountMs": 80,
+    "typing": {
+      "samples": 20,
+      "p50Ms": 22.399999976158142,
+      "p95Ms": 28.30000001192093,
+      "maxMs": 28.5
+    },
+    "serializedBytes": 62917
+  },
+  {
+    "commit": "642ce9187c238262386c7dd07a2644931a488232",
+    "workingTreeDirty": false,
+    "fixtureVersion": 1,
+    "fixtureHash": "0fafe35650aaf7c8365bed8b54ebf598a22fff82483f894e4b53506a87169402",
+    "scenario": "5000-words",
+    "profile": "mobile-emulation-4x-cpu",
+    "browser": "151.0.7922.34",
+    "platform": "darwin",
+    "cpu": "Apple M4 Pro",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "cpuThrottle": 4,
+    "method": "React mount to second animation frame; keydown to second frame proxy. Not INP, not physical mobile hardware.",
+    "mountMs": 347,
+    "typing": {
+      "samples": 20,
+      "p50Ms": 96.60000002384186,
+      "p95Ms": 124.10000002384186,
+      "maxMs": 134.19999998807907
+    },
+    "serializedBytes": 62917
+  },
+  {
+    "commit": "642ce9187c238262386c7dd07a2644931a488232",
+    "workingTreeDirty": false,
+    "fixtureVersion": 1,
+    "fixtureHash": "0fafe35650aaf7c8365bed8b54ebf598a22fff82483f894e4b53506a87169402",
+    "scenario": "empty",
+    "profile": "desktop",
+    "browser": "151.0.7922.34",
+    "platform": "darwin",
+    "cpu": "Apple M4 Pro",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "cpuThrottle": 1,
+    "method": "React mount to second animation frame; keydown to second frame proxy. Not INP, not physical mobile hardware.",
+    "mountMs": 69.80000001192093,
+    "typing": {
+      "samples": 20,
+      "p50Ms": 15.399999976158142,
+      "p95Ms": 16.30000001192093,
+      "maxMs": 16.5
+    },
+    "serializedBytes": 359
+  },
+  {
+    "commit": "642ce9187c238262386c7dd07a2644931a488232",
+    "workingTreeDirty": false,
+    "fixtureVersion": 1,
+    "fixtureHash": "0fafe35650aaf7c8365bed8b54ebf598a22fff82483f894e4b53506a87169402",
+    "scenario": "empty",
+    "profile": "mobile-emulation-4x-cpu",
+    "browser": "151.0.7922.34",
+    "platform": "darwin",
+    "cpu": "Apple M4 Pro",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "cpuThrottle": 4,
+    "method": "React mount to second animation frame; keydown to second frame proxy. Not INP, not physical mobile hardware.",
+    "mountMs": 203.60000002384186,
+    "typing": {
+      "samples": 20,
+      "p50Ms": 13.899999976158142,
+      "p95Ms": 18.80000001192093,
+      "maxMs": 36.59999996423721
+    },
+    "serializedBytes": 359
+  },
+  {
+    "commit": "642ce9187c238262386c7dd07a2644931a488232",
+    "workingTreeDirty": false,
+    "fixtureVersion": 1,
+    "fixtureHash": "0fafe35650aaf7c8365bed8b54ebf598a22fff82483f894e4b53506a87169402",
+    "scenario": "media-5000",
+    "profile": "desktop",
+    "browser": "151.0.7922.34",
+    "platform": "darwin",
+    "cpu": "Apple M4 Pro",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "cpuThrottle": 1,
+    "method": "React mount to second animation frame; keydown to second frame proxy. Not INP, not physical mobile hardware.",
+    "mountMs": 164.30000001192093,
+    "typing": {
+      "samples": 20,
+      "p50Ms": 41.89999997615814,
+      "p95Ms": 50.69999998807907,
+      "maxMs": 68.10000002384186
+    },
+    "serializedBytes": 70187
+  },
+  {
+    "commit": "642ce9187c238262386c7dd07a2644931a488232",
+    "workingTreeDirty": false,
+    "fixtureVersion": 1,
+    "fixtureHash": "0fafe35650aaf7c8365bed8b54ebf598a22fff82483f894e4b53506a87169402",
+    "scenario": "media-5000",
+    "profile": "mobile-emulation-4x-cpu",
+    "browser": "151.0.7922.34",
+    "platform": "darwin",
+    "cpu": "Apple M4 Pro",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "cpuThrottle": 4,
+    "method": "React mount to second animation frame; keydown to second frame proxy. Not INP, not physical mobile hardware.",
+    "mountMs": 725.5999999642372,
+    "typing": {
+      "samples": 20,
+      "p50Ms": 184.30000001192093,
+      "p95Ms": 234.30000001192093,
+      "maxMs": 243.80000001192093
+    },
+    "serializedBytes": 70187
+  },
+  {
+    "commit": "642ce9187c238262386c7dd07a2644931a488232",
+    "workingTreeDirty": false,
+    "fixtureVersion": 1,
+    "fixtureHash": "0fafe35650aaf7c8365bed8b54ebf598a22fff82483f894e4b53506a87169402",
+    "scenario": "mixed-5000",
+    "profile": "desktop",
+    "browser": "151.0.7922.34",
+    "platform": "darwin",
+    "cpu": "Apple M4 Pro",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "cpuThrottle": 1,
+    "method": "React mount to second animation frame; keydown to second frame proxy. Not INP, not physical mobile hardware.",
+    "mountMs": 124.40000003576279,
+    "typing": {
+      "samples": 20,
+      "p50Ms": 48.5,
+      "p95Ms": 53,
+      "maxMs": 58.5
+    },
+    "serializedBytes": 72917
+  },
+  {
+    "commit": "642ce9187c238262386c7dd07a2644931a488232",
+    "workingTreeDirty": false,
+    "fixtureVersion": 1,
+    "fixtureHash": "0fafe35650aaf7c8365bed8b54ebf598a22fff82483f894e4b53506a87169402",
+    "scenario": "mixed-5000",
+    "profile": "mobile-emulation-4x-cpu",
+    "browser": "151.0.7922.34",
+    "platform": "darwin",
+    "cpu": "Apple M4 Pro",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "cpuThrottle": 4,
+    "method": "React mount to second animation frame; keydown to second frame proxy. Not INP, not physical mobile hardware.",
+    "mountMs": 541.3999999761581,
+    "typing": {
+      "samples": 20,
+      "p50Ms": 205.9000000357628,
+      "p95Ms": 219.89999997615814,
+      "maxMs": 244.5
+    },
+    "serializedBytes": 72917
+  },
+  {
+    "commit": "642ce9187c238262386c7dd07a2644931a488232",
+    "workingTreeDirty": false,
+    "fixtureVersion": 1,
+    "fixtureHash": "0fafe35650aaf7c8365bed8b54ebf598a22fff82483f894e4b53506a87169402",
+    "scenario": "table-5000",
+    "profile": "desktop",
+    "browser": "151.0.7922.34",
+    "platform": "darwin",
+    "cpu": "Apple M4 Pro",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "cpuThrottle": 1,
+    "method": "React mount to second animation frame; keydown to second frame proxy. Not INP, not physical mobile hardware.",
+    "mountMs": 190.9000000357628,
+    "typing": {
+      "samples": 20,
+      "p50Ms": 100.39999997615814,
+      "p95Ms": 125.60000002384186,
+      "maxMs": 126.89999997615814
+    },
+    "serializedBytes": 181079
+  },
+  {
+    "commit": "642ce9187c238262386c7dd07a2644931a488232",
+    "workingTreeDirty": false,
+    "fixtureVersion": 1,
+    "fixtureHash": "0fafe35650aaf7c8365bed8b54ebf598a22fff82483f894e4b53506a87169402",
+    "scenario": "table-5000",
+    "profile": "mobile-emulation-4x-cpu",
+    "browser": "151.0.7922.34",
+    "platform": "darwin",
+    "cpu": "Apple M4 Pro",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "cpuThrottle": 4,
+    "method": "React mount to second animation frame; keydown to second frame proxy. Not INP, not physical mobile hardware.",
+    "mountMs": 828.3000000119209,
+    "typing": {
+      "samples": 20,
+      "p50Ms": 433,
+      "p95Ms": 468.5,
+      "maxMs": 482.69999998807907
+    },
+    "serializedBytes": 181079
+  }
+]

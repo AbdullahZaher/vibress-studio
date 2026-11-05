@@ -12,7 +12,7 @@ import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import LexicalErrorBoundary from '@lexical/react/LexicalErrorBoundary';
-import { type LexicalEditor } from 'lexical';
+import { type LexicalEditor, type SerializedEditorState } from 'lexical';
 import { SlashMenuPlugin } from './plugins/SlashMenuPlugin';
 import { FloatingFormatToolbarPlugin } from './plugins/FloatingFormatToolbarPlugin';
 import { FloatingCardActionToolbarPlugin } from './plugins/FloatingCardActionToolbarPlugin';
@@ -22,58 +22,22 @@ import { WordCountPlugin } from './plugins/WordCountPlugin';
 import { STUDIO_CORE_NODES } from '@vibress/studio-nodes';
 import { StudioCardNode } from '@vibress/studio-cards';
 import { ReactStudioCardNode } from './nodes/ReactStudioCardNode';
-import { StudioDocument, migrateDocument, CURRENT_STUDIO_VERSION, StudioMigrationError, type DocumentResourceLimits } from '@vibress/studio-core';
+import { StudioDocument, migrateDocument, createEmptyStudioDocument, assertStudioDocumentEditable, type DocumentResourceLimits } from '@vibress/studio-core';
 import { serializeStudioDocument } from '@vibress/studio-serializer';
 import type { StudioPluginRegistry } from '@vibress/studio-plugin-sdk';
 import { StudioPluginContext } from './plugin-context';
 import { StudioUploadContext, StudioUploadApi } from './upload-context';
 import { StudioMediaContext, StudioMediaApi, StudioMediaRequest } from './media-context';
+import { preserveSerializedTableDirections, restoreImportedNodeProperties } from './utils/lexicalCompatibility';
+import { validateCardPayloads } from './utils/validateCardPayloads';
+import { DocumentRecovery } from './components/DocumentRecovery';
 
-// Lexical can only serialize nodes for which it has registered node classes.
-// Preserve forward-compatible documents by refusing to edit unsupported trees
-// instead of loading a partial tree and publishing a lossy onChange snapshot.
-const EDITABLE_STUDIO_NODE_TYPES = new Set([
-  'root', 'paragraph', 'text', 'linebreak', 'tab',
-  'heading', 'quote', 'list', 'listitem',
-  'link', 'autolink', 'code', 'code-highlight',
-  'table', 'tablerow', 'tablecell',
-  'studio-card', 'react-studio-card',
-]);
-
-function findUnsupportedEditorNode(node: unknown): string | null {
-  if (!node || typeof node !== 'object' || Array.isArray(node)) {
-    return 'invalid node';
-  }
-  const entry = node as { type?: unknown; children?: unknown };
-  if (typeof entry.type !== 'string' || !EDITABLE_STUDIO_NODE_TYPES.has(entry.type)) {
-    return typeof entry.type === 'string' ? entry.type : 'missing node type';
-  }
-  if (entry.children !== undefined) {
-    if (!Array.isArray(entry.children)) return entry.type + ' (invalid children)';
-    for (const child of entry.children) {
-      const unsupported = findUnsupportedEditorNode(child);
-      if (unsupported) return unsupported;
-    }
-  }
-  return null;
-}
-
-function assertEditorCanPreserveDocument(document: StudioDocument, rawDocument: unknown): void {
-  if (document.version !== CURRENT_STUDIO_VERSION) {
-    throw new StudioMigrationError(
-      `Cannot edit Studio document version ${document.version} with a version ${CURRENT_STUDIO_VERSION} editor. Open it with a compatible editor instead.`,
-      rawDocument,
-      'UNSUPPORTED_DOCUMENT'
-    );
-  }
-  const unsupportedNode = findUnsupportedEditorNode(document.root);
-  if (unsupportedNode) {
-    throw new StudioMigrationError(
-      `Cannot safely edit unsupported Lexical node type: ${unsupportedNode}.`,
-      rawDocument,
-      'UNSUPPORTED_DOCUMENT'
-    );
-  }
+export interface StudioRecoveryData {
+  readonly originalValue: unknown;
+  readonly error: Error;
+  /** Raw current editor state, including edits not admitted for autosave. */
+  readonly editorState?: SerializedEditorState;
+  readonly lastAcceptedDocument?: StudioDocument;
 }
 
 export interface VibressStudioProps {
@@ -87,6 +51,12 @@ export interface VibressStudioProps {
    * document switch, authorized remote update). Change this token only for an
    * intentional replacement, never for autosave acknowledgments. */
   replacementId?: string | number;
+  /** Authorizes envelope-only updates using a monotonically increasing safe
+   * integer (>= 0) within one replacementId epoch. The host must attach the
+   * sequence assigned to that metadata snapshot, not its response arrival order.
+   * Never authorizes a root replacement. Omitted/equal/older values cannot
+   * update metadata. A changed replacementId starts a new sequence. */
+  metadataRevision?: number;
   onChange?: (doc: StudioDocument) => void;
   /** Optional host integration for editor-specific commands; null on cleanup. */
   onEditorReady?: (editor: LexicalEditor | null) => void;
@@ -96,6 +66,10 @@ export interface VibressStudioProps {
   onAiGenerate?: (prompt: string, context?: StudioAiContext) => Promise<string>;
   placeholder?: string;
   onError?: (error: Error) => void;
+  /** Host-owned export/recovery action; omitted actions are not displayed. */
+  onRequestRecovery?: (data: StudioRecoveryData) => void | Promise<void>;
+  /** Recovery messages only; does not infer or change document direction. */
+  recoveryLocale?: 'en' | 'ar';
   requestMedia?: (req: StudioMediaRequest) => Promise<Record<string, unknown> | null>;
   /** Durable upload adapter: local file → assetId/src payload. Card editors
    *  must use this instead of transient blob: URLs. */
@@ -170,33 +144,57 @@ const STUDIO_EXTERNAL_SYNC_TAG = 'studio-external-sync';
  * Preserve the author's live draft in either case. Hosts must change
  * replacementId to explicitly authorize switching/reloading this document.
  * revisionId is informational only; incrementing it must not lose draft edits.
+ * metadataRevision authorizes ordered envelope-only acknowledgments, never roots.
  */
 function DocumentSyncPlugin({
   document,
   replacementId,
+  metadataRevision,
   onError,
   hasLocalEdits,
   onExternalApplied,
+  onMetadataApplied,
 }: {
-  document: StudioDocument;
+  document: StudioDocument | null;
   replacementId?: string | number;
+  metadataRevision?: number;
   onError?: (error: Error) => void;
   hasLocalEdits: () => boolean;
-  onExternalApplied: (rootJson: string) => void;
+  onExternalApplied: (document: StudioDocument) => void;
+  onMetadataApplied: (document: StudioDocument) => void;
 }) {
   const [editor] = useLexicalComposerContext();
   const lastObservedIncoming = useRef<string | null>(null);
   const lastReplacementId = useRef<string | number | undefined>(replacementId);
+  const acceptedMetadataRevision = useRef(-1);
+  const orderedMetadata = useRef(false);
 
   useEffect(() => {
+    // Keep this plugin mounted during recovery so rejected replacements do
+    // not consume a token or reset the existing synchronization history.
+    if (!document) return;
+    const isFirstDocument = lastObservedIncoming.current === null;
     const incoming = JSON.stringify(document.root);
     const isExplicitReplacement =
       replacementId !== undefined && replacementId !== lastReplacementId.current;
 
+    const validMetadataRevision = metadataRevision !== undefined &&
+      Number.isSafeInteger(metadataRevision) && metadataRevision >= 0;
+    if (!isFirstDocument && !isExplicitReplacement &&
+        (metadataRevision !== undefined || orderedMetadata.current)) {
+      // An ordered metadata snapshot authorizes only its envelope. Its root
+      // may be an old autosave snapshot, even before the first local edit.
+      if (validMetadataRevision && metadataRevision > acceptedMetadataRevision.current) {
+        onMetadataApplied(document);
+        acceptedMetadataRevision.current = metadataRevision;
+        orderedMetadata.current = true;
+      }
+      return;
+    }
     if (incoming === lastObservedIncoming.current && !isExplicitReplacement) return;
 
     try {
-      const current = serializeStudioDocument(editor.getEditorState().toJSON().root);
+      const current = serializeStudioDocument(preserveSerializedTableDirections(editor.getEditorState().toJSON().root));
       const currentJson = JSON.stringify(current.root);
 
       if (currentJson !== incoming) {
@@ -208,21 +206,29 @@ function DocumentSyncPlugin({
           return;
         }
 
+        // A valid persisted empty root needs Lexical's empty paragraph before
+        // setEditorState, which rejects a root with no children. No content is
+        // replaced or truncated by this editor-only empty-state adaptation.
+        const root = document.root.children.length ? document.root : {
+          ...document.root, children: createEmptyStudioDocument().root.children,
+        };
         const next = editor.parseEditorState(JSON.stringify({
-          root: { ...document.root, version: 1 },
-        }));
+          root: { ...root, version: 1 },
+        }), () => restoreImportedNodeProperties(root));
         editor.setEditorState(next, { tag: STUDIO_EXTERNAL_SYNC_TAG });
       }
 
       lastObservedIncoming.current = incoming;
       lastReplacementId.current = replacementId;
-      if (isExplicitReplacement || currentJson !== incoming) {
-        onExternalApplied(incoming);
+      acceptedMetadataRevision.current = validMetadataRevision ? metadataRevision : -1;
+      orderedMetadata.current = metadataRevision !== undefined;
+      if (isFirstDocument || isExplicitReplacement || currentJson !== incoming) {
+        onExternalApplied(document);
       }
     } catch (error) {
       onError?.(error instanceof Error ? error : new Error('Unable to load Studio document'));
     }
-  }, [editor, document, replacementId, onError, hasLocalEdits, onExternalApplied]);
+  }, [editor, document, replacementId, metadataRevision, onError, hasLocalEdits, onExternalApplied, onMetadataApplied]);
 
   return null;
 }
@@ -241,6 +247,7 @@ export function VibressStudio({
   resourceLimits,
   revisionId,
   replacementId,
+  metadataRevision,
   onChange,
   onEditorReady,
   readOnly = false,
@@ -248,6 +255,8 @@ export function VibressStudio({
   onAiGenerate,
   placeholder = 'Begin writing your post...',
   onError,
+  onRequestRecovery,
+  recoveryLocale = 'en',
   requestMedia,
   uploadMedia,
   allowUnsplash = true,
@@ -259,11 +268,26 @@ export function VibressStudio({
   const hasLocalEditsRef = useRef(false);
   const lastObservedEditorRootRef = useRef<string | null>(null);
   const [snapshotError, setSnapshotError] = useState<Error | null>(null);
+  const [hasLoadedDocument, setHasLoadedDocument] = useState(false);
+  const acceptedDocumentRef = useRef<StudioDocument | undefined>(undefined);
+  const editorInstanceRef = useRef<LexicalEditor | null>(null);
+  const handleEditorReady = useCallback((editor: LexicalEditor | null) => {
+    editorInstanceRef.current = editor;
+    onEditorReady?.(editor);
+  }, [onEditorReady]);
 
   const hasLocalEdits = useCallback(() => hasLocalEditsRef.current, []);
-  const onExternalApplied = useCallback((rootJson: string) => {
-    lastObservedEditorRootRef.current = rootJson;
+  const onExternalApplied = useCallback((document: StudioDocument) => {
+    lastObservedEditorRootRef.current = JSON.stringify(document.root);
+    acceptedDocumentRef.current = document;
+    setSnapshotError(null);
     hasLocalEditsRef.current = false;
+  }, []);
+
+  const onMetadataApplied = useCallback((document: StudioDocument) => {
+    // Do not reset dirty tracking, selection, history, or the observed root.
+    // Serialization combines this admitted envelope with the live editor root.
+    acceptedDocumentRef.current = document;
   }, []);
 
   // revisionId is an acknowledgment/revision label for the host. It is never
@@ -273,7 +297,8 @@ export function VibressStudio({
   const { parsedDoc, migrationError } = useMemo(() => {
     try {
       const doc = migrateDocument(value, resourceLimits);
-      assertEditorCanPreserveDocument(doc, value);
+      assertStudioDocumentEditable(doc, value);
+      validateCardPayloads(doc, value);
       return { parsedDoc: doc, migrationError: null };
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
@@ -282,10 +307,16 @@ export function VibressStudio({
   }, [value, resourceLimits]);
 
   useEffect(() => {
+    if (parsedDoc) setHasLoadedDocument(true);
+  }, [parsedDoc]);
+
+  useEffect(() => {
     if (migrationError && onError) {
       onError(migrationError);
     }
   }, [migrationError, onError]);
+
+  const editingPaused = readOnly || Boolean(migrationError);
 
   const initialConfig = useMemo(
     () => ({
@@ -304,7 +335,7 @@ export function VibressStudio({
           },
         },
       ],
-      editable: !readOnly,
+      editable: !editingPaused,
       onError: (error: Error) => {
         if (onError) onError(error);
       },
@@ -340,7 +371,7 @@ export function VibressStudio({
         },
       },
     }),
-    [readOnly, onError]
+    [editingPaused, onError]
   );
 
   const mediaContextValue = useMemo<StudioMediaApi>(
@@ -352,48 +383,20 @@ export function VibressStudio({
     [uploadMedia, requestMedia, allowUnsplash]
   );
 
-  if (migrationError || !parsedDoc) {
-    return (
-      <div
-        role="alert"
-        aria-live="assertive"
-        className={`vibress-studio-editor studio-migration-error ${className || ''}`}
-        style={{
-          padding: '1.5rem',
-          border: '1px solid #ef4444',
-          borderRadius: '0.5rem',
-          background: '#fef2f2',
-          color: '#991b1b',
-          fontFamily: 'inherit',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-          <strong style={{ fontSize: '1rem' }}>Studio Document Recovery</strong>
-          <span style={{ fontSize: '0.8125rem', padding: '2px 8px', borderRadius: '9999px', background: '#fee2e2' }}>
-            Content Preserved
-          </span>
-        </div>
-        <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.875rem', lineHeight: '1.5' }}>
-          The document could not be loaded because the persisted format is unsupported or invalid.
-          The original content has been retained without overwriting.
-        </p>
-        <pre
-          style={{
-            margin: '0',
-            padding: '0.75rem',
-            background: '#ffffff',
-            border: '1px solid #fca5a5',
-            borderRadius: '0.375rem',
-            fontSize: '0.8125rem',
-            overflowX: 'auto',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-all',
-          }}
-        >
-          {migrationError?.message || 'Unsupported persisted document'}
-        </pre>
-      </div>
-    );
+  const recoveryError = migrationError || snapshotError;
+  const recoveryNotice = recoveryError ? (
+    <DocumentRecovery error={recoveryError} hasDraft={hasLoadedDocument} locale={recoveryLocale} kind={migrationError ? 'input' : 'snapshot'}
+      onRequestRecovery={onRequestRecovery ? () => onRequestRecovery({
+        originalValue: value,
+        error: recoveryError,
+        editorState: editorInstanceRef.current?.getEditorState().toJSON(),
+        lastAcceptedDocument: acceptedDocumentRef.current,
+      }) : undefined}
+    />
+  ) : null;
+
+  if (!parsedDoc && !hasLoadedDocument) {
+    return <div className={`vibress-studio-editor studio-migration-error ${className || ''}`}>{recoveryNotice}</div>;
   }
 
   return (
@@ -402,13 +405,8 @@ export function VibressStudio({
       <StudioUploadContext.Provider value={{ uploadMedia }}>
         <StudioMediaContext.Provider value={mediaContextValue}>
         <div className={`vibress-studio-editor ${className || ''}`} dir={dir}>
-          {snapshotError && (
-            <div role="alert" aria-live="polite" className="studio-snapshot-error">
-              <strong>Document not saved:</strong> {snapshotError.message}
-              {' '}The current draft remains in the editor. Reduce its size before saving.
-            </div>
-          )}
-          <fieldset disabled={readOnly} style={{ minWidth: 0, margin: 0, padding: 0, border: 0 }}>
+          {recoveryNotice}
+          <fieldset disabled={editingPaused} style={{ minWidth: 0, margin: 0, padding: 0, border: 0 }}>
           <LexicalComposer initialConfig={initialConfig}>
             <div className="vibress-studio-canvas" style={{ position: 'relative', minHeight: '30vh' }}>
               <RichTextPlugin
@@ -444,31 +442,40 @@ export function VibressStudio({
               <ListPlugin />
               <CheckListPlugin />
               <TablePlugin hasCellMerge hasCellBackgroundColor hasTabHandler />
-              {!readOnly && <MarkdownShortcutPlugin transformers={TRANSFORMERS} />}
+              {!editingPaused && <MarkdownShortcutPlugin transformers={TRANSFORMERS} />}
               <LinkPlugin />
-              {!readOnly && <SlashMenuPlugin requestMedia={requestMedia} />}
-              {!readOnly && <FloatingFormatToolbarPlugin />}
-              {!readOnly && <FloatingCardActionToolbarPlugin />}
-              {!readOnly && <BlockHandleGutterPlugin />}
-              {!readOnly && enableAi && onAiGenerate && <InlineAIPlugin onGenerate={onAiGenerate} />}
+              {!editingPaused && <SlashMenuPlugin requestMedia={requestMedia} />}
+              {!editingPaused && <FloatingFormatToolbarPlugin />}
+              {!editingPaused && <FloatingCardActionToolbarPlugin />}
+              {!editingPaused && <BlockHandleGutterPlugin />}
+              {!editingPaused && enableAi && onAiGenerate && <InlineAIPlugin onGenerate={onAiGenerate} />}
               {showWordCount && <WordCountPlugin />}
               <EditorAccessibleNamePlugin />
-              <EditorEditablePlugin readOnly={readOnly} />
+              <EditorEditablePlugin readOnly={editingPaused} />
               <DocumentSyncPlugin
                 document={parsedDoc}
                 replacementId={replacementId}
+                metadataRevision={metadataRevision}
                 onError={onError}
                 hasLocalEdits={hasLocalEdits}
                 onExternalApplied={onExternalApplied}
+                onMetadataApplied={onMetadataApplied}
               />
-              {onEditorReady && <EditorReadyPlugin onReady={onEditorReady} />}
+              <EditorReadyPlugin onReady={handleEditorReady} />
               <OnChangePlugin
                 onChange={(editorState, _editor, tags) => {
                   if (tags.has(STUDIO_EXTERNAL_SYNC_TAG)) return;
+                  if (migrationError) {
+                    // Pending uploads may still finish while editing is paused.
+                    // Keep their changes local; never autosave over rejected data.
+                    hasLocalEditsRef.current = true;
+                    return;
+                  }
                   // A rejected snapshot must never be emitted to host autosave,
                   // and the active Lexical editor state must never be reset.
                   try {
-                    const studioDoc = serializeStudioDocument(editorState.toJSON().root, resourceLimits);
+                    const studioDoc = serializeStudioDocument(preserveSerializedTableDirections(editorState.toJSON().root), resourceLimits, acceptedDocumentRef.current);
+                    validateCardPayloads(studioDoc, studioDoc);
                     const rootJson = JSON.stringify(studioDoc.root);
                     if (rootJson === lastObservedEditorRootRef.current) return;
                     lastObservedEditorRootRef.current = rootJson;

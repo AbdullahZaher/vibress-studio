@@ -39,7 +39,9 @@ test.describe('Functional editor controls, preview continuity, and truthful inte
 
   test('preview mode preserves editor selection and history without unmounting (STU-R08)', async ({ page }) => {
     const editor = page.locator('.vibress-studio-editor [contenteditable="true"][aria-label="Editor content"]');
-    await editor.click();
+    // Place the caret in text; the editor's center can fall on a non-text card
+    // in different browser/font layouts, which intentionally selects the card.
+    await editor.locator('.studio-paragraph').first().click();
     await page.keyboard.type('Persistent authoring content before preview.');
 
     await expect(editor).toContainText('Persistent authoring content before preview.');

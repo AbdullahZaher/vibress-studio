@@ -51,6 +51,28 @@ const TAG_ATTRS: Record<string, Set<string>> = {
 const URL_ATTRS = new Set(['href', 'src', 'poster']);
 const SAFE_DATA_IMAGE_RE = /^data:image\/(png|jpe?g|gif|webp|avif);base64,/i;
 
+export interface StudioUrlOptions {
+  allowDataImages?: boolean;
+  /** Optional host-specific URL length budget; no implicit truncation. */
+  maxLength?: number;
+}
+
+/** Different destinations have different protocol contracts. A safe mail
+ * link is not a media source; inline raster data is opt-in for HTML images. */
+export function isSafeStudioUrl(value: unknown, context: 'link' | 'image' | 'media', options: StudioUrlOptions = {}): value is string {
+  if (typeof value !== 'string' || !value.trim() || /[\u0000-\u001f\u007f-\u009f\\]/.test(value)) return false;
+  if (options.maxLength !== undefined && (!Number.isFinite(options.maxLength) || options.maxLength <= 0 || value.length > options.maxLength)) return false;
+  if (!isSafeProtocolUrl(value)) return false;
+  const url = value.trim();
+  if (SAFE_DATA_IMAGE_RE.test(url)) return context === 'image' && options.allowDataImages === true;
+  if (context !== 'link' && url.startsWith('#')) return false;
+  try {
+    const parsed = new URL(url, 'https://studio.invalid/');
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ||
+      (context === 'link' && (parsed.protocol === 'mailto:' || parsed.protocol === 'tel:'));
+  } catch { return false; }
+}
+
 export const ALLOWED_REL_TOKENS = new Set([
   'noopener',
   'noreferrer',
@@ -330,7 +352,8 @@ function sanitizeNode(node: P5Node): P5Node[] {
       if (tag === 'iframe') {
         return isAllowedIframeSrc(value);
       }
-      return isSafeProtocolUrl(value);
+      const context = name === 'href' ? 'link' : tag === 'img' || name === 'poster' ? 'image' : 'media';
+      return isSafeStudioUrl(value, context, { allowDataImages: tag === 'img' });
     }
     return true;
   });

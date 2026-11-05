@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { isDurableMediaUrl, mergeDurableMediaAsset } from '../utils/mergeDurableMedia';
 
 describe('media payload boundary: durable URL and author-owned fields', () => {
+  it('never pairs a new source URL with the previous asset ID', () => {
+    const original = { src: '/old.png', assetId: 'old-id', caption: 'Keep' };
+    const replaced = mergeDurableMediaAsset(original, { src: '/external.png' }, 'image');
+    expect(replaced).toEqual({ src: '/external.png', caption: 'Keep' });
+    expect(mergeDurableMediaAsset(original, { src: '/old.png' }, 'image')?.assetId).toBe('old-id');
+  });
   it('accepts host-provided permanent absolute and relative media references', () => {
     for (const url of [
       'https://cdn.example.com/asset.png',

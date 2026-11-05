@@ -82,7 +82,7 @@ function firstChildDirection(node: unknown): 'ltr' | 'rtl' | null {
 
 function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: HeadingSlugTracker | Map<string, number>): string {
   if (!node || typeof node !== 'object') return '';
-  const n = node as { type?: string; text?: string; format?: number; children?: unknown[]; tag?: string; listType?: string; url?: string; src?: string; alt?: string; cardType?: string; caption?: string; rel?: string; target?: string; cardData?: Record<string, unknown>; } & Record<string, unknown>;
+  const n = node as Record<string, unknown>;
 
   const type = n.type;
   const directionAttr = n.direction === 'rtl' || n.direction === 'ltr'
@@ -274,7 +274,8 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
       if (def) {
         try {
           const validated = def.validate(cardData);
-          return def.renderHtml(validated);
+          const html = def.renderHtml(validated);
+          return typeof html === 'string' ? html : '';
         } catch {
           return `<!-- Error rendering card: ${escapeHtml(cardType || '')} -->`;
         }
@@ -314,24 +315,7 @@ function hasTransientMedia(cardData: Record<string, unknown>): boolean {
 
 function renderNodeToPlainText(node: unknown, options: RenderOptions = {}): string {
   if (!node || typeof node !== 'object') return '';
-  const n = node as {
-    type?: string;
-    text?: string;
-    format?: number;
-    children?: unknown[];
-    tag?: string;
-    listType?: string;
-    url?: string;
-    src?: string;
-    alt?: string;
-    cardType?: string;
-    caption?: string;
-    rel?: string;
-    target?: string;
-    cardData?: Record<string, unknown>;
-    checked?: boolean;
-    start?: number;
-  } & Record<string, unknown>;
+  const n = node as Record<string, unknown>;
 
   if (n.type === 'text') {
     return typeof n.text === 'string' ? n.text : (n.text != null && typeof n.text !== 'object' ? String(n.text) : '');
@@ -350,7 +334,8 @@ function renderNodeToPlainText(node: unknown, options: RenderOptions = {}): stri
     if (def) {
       try {
         const validated = def.validate(cardData);
-        return def.renderPlainText(validated);
+        const text = def.renderPlainText(validated);
+        return typeof text === 'string' ? text : '';
       } catch {
         return '';
       }

@@ -3,6 +3,14 @@
 **Status: SOURCE COMPARISON ONLY; NOT APPROVED FOR HOST REPLACEMENT.**
 ADR-0001 remains Proposed; this document cannot approve it.
 
+Program update: the new immutable core-fixture comparison at host
+`f56ae8b94d4f1ce45bec380580b9d238ddf8b5c1` reports five passing cases and four
+differences. Clean runtime tarball installation and scoped package rollback now
+have local evidence; strict installed declarations fail. See the
+[program record](../audits/studio-program-implementation-2026-11-05.md) for current
+results and boundaries. The source matrix below remains a historical comparison
+at its explicitly named commits; it does not describe deployed parity.
+
 ## Named immutable references
 
 - Standalone assessment baseline: `AbdullahZaher/vibress-studio@36445d0288bed112e84944b838bea7373589d5bc` (PR #28).

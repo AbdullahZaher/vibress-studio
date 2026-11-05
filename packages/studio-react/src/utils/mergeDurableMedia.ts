@@ -1,32 +1,10 @@
-import { isSafeUrl } from '@vibress/studio-utils';
+import { isSafeStudioUrl } from '@vibress/studio-utils';
 
 export type MediaAssetKind = 'image' | 'video' | 'audio' | 'file';
 
 /** A media source stored in a document must outlive the editor's browser tab. */
 export function isDurableMediaUrl(value: unknown): value is string {
-  if (typeof value !== 'string') return false;
-  // Reject control characters before trim; browsers may interpret them inconsistently.
-  if (/[\u0000-\u001f\u007f\\]/.test(value)) return false;
-  const url = value.trim();
-  if (!url || url.startsWith('#')) return false;
-  if (!isSafeUrl(url)) return false;
-  if (url.startsWith('//')) {
-    try {
-      return Boolean(new URL('https:' + url).hostname);
-    } catch {
-      return false;
-    }
-  }
-  if (/^[a-z][a-z\d+.-]*:/i.test(url)) {
-    try {
-      const parsed = new URL(url);
-      return (parsed.protocol === 'https:' || parsed.protocol === 'http:') && Boolean(parsed.hostname);
-    } catch {
-      return false;
-    }
-  }
-  // Local and relative host asset paths are legitimate durable references.
-  return !url.includes(':');
+  return isSafeStudioUrl(value, 'media');
 }
 
 /**
@@ -44,7 +22,9 @@ export function mergeDurableMediaAsset(
 
   const next: Record<string, unknown> = { ...current, src: payload.src.trim() };
   if (typeof payload.assetId === 'string' && payload.assetId.trim()) {
-    next.assetId = payload.assetId;
+    next.assetId = payload.assetId.trim();
+  } else if (current.src !== next.src) {
+    delete next.assetId;
   }
 
   if (kind === 'video' && !current.poster && isDurableMediaUrl(payload.poster)) {

@@ -9,7 +9,7 @@
   width: 100%;
   font-family: var(--vb-studio-font-sans);
   color: var(--vb-studio-foreground);
-  background-color: transparent;
+  background-color: var(--vb-studio-canvas);
   box-sizing: border-box;
 }
 
@@ -1144,4 +1144,49 @@ html[dir="rtl"] .studio-table th,
 html[dir="rtl"] .studio-table td {
   text-align: right;
 }
-
+.vibress-studio-editor .studio-recovery {
+  margin-block: 0.75rem;
+  padding: 1rem;
+  max-inline-size: 100%;
+  border: 1px solid var(--vb-studio-border, #e2e8f0);
+  border-inline-start: 4px solid var(--vb-studio-danger, #ef4444);
+  border-radius: var(--vb-studio-radius-md, 8px);
+  background: var(--vb-studio-surface, #fff);
+  color: var(--vb-studio-foreground, #0f172a);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.vibress-studio-editor .studio-recovery-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+}
+.vibress-studio-editor .studio-recovery-retained { font-size: 0.75rem; }
+.vibress-studio-editor .studio-recovery p { margin-block: 0.75rem; }
+.vibress-studio-editor .studio-recovery summary { cursor: pointer; }
+.vibress-studio-editor .studio-recovery pre {
+  max-block-size: 12rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  text-align: start;
+  font-family: var(--vb-studio-font-mono, monospace);
+  font-size: 0.8125rem;
+}
+.vibress-studio-editor .studio-recovery-export {
+  margin-block-start: 0.75rem;
+  min-block-size: 44px;
+  padding: 0.5rem 0.875rem;
+  border: 0;
+  border-radius: var(--vb-studio-radius-md, 8px);
+  background: var(--vb-studio-primary, #2563eb);
+  color: var(--vb-studio-primary-foreground, #fff);
+  font: inherit;
+  cursor: pointer;
+}
+.vibress-studio-editor .studio-recovery-export:focus-visible {
+  outline: 2px solid var(--vb-studio-ring, #3b82f6);
+  outline-offset: 3px;
+}
+.vibress-studio-editor .studio-recovery-export:disabled { opacity: 0.65; cursor: progress; }

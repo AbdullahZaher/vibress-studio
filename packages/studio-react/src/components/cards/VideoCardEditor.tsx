@@ -9,6 +9,9 @@ import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
 import { isDurableMediaUrl, mergeDurableMediaAsset } from '../../utils/mergeDurableMedia';
+import { MediaPickerError } from '../ui/MediaPickerError';
+import { useCardMediaPicker } from '../../utils/useCardMediaPicker';
+import { useMediaRequestGuard } from '../../utils/useMediaRequestGuard';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
 import { VideoMetadataPopover } from '../ui/media-popovers/VideoMetadataPopover';
 
@@ -21,25 +24,29 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
   const [editor] = useLexicalComposerContext();
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
   const { uploadMedia, requestMedia } = useStudioMedia();
-  const [uploading, setUploading] = useState(false);
+  const { uploading, beginRequest } = useMediaRequestGuard();
   const [uploadError, setUploadError] = useState(false);
   const [retryFile, setRetryFile] = useState<File | null>(null);
 
   const isPopulated = !!cardData.src;
 
   const attemptUpload = (selectedFile: File) => {
-    if (!uploadMedia || uploading) return;
+    if (!uploadMedia || uploading || !editor.isEditable()) return;
+    const isCurrent = beginRequest(true, true);
+    picker.dismiss();
     setRetryFile(selectedFile);
     setUploadError(false);
-    setUploading(true);
     Promise.resolve()
-      .then(() => uploadMedia(selectedFile, 'video'))
+      .then(() => isCurrent() ? uploadMedia(selectedFile, 'video') : null)
       .then((payload) => {
+        if (!isCurrent()) return;
+        if (payload === null) return; // Host cancellation is a no-op.
         if (!payload || !isDurableMediaUrl(payload.src)) {
           setUploadError(true);
           return;
         }
         editor.update(() => {
+          if (!isCurrent()) return;
           const node = $getNodeByKey(nodeKey);
           if (node instanceof StudioCardNode && node.isAttached()) {
             const next = mergeDurableMediaAsset(node.getCardData(), payload, 'video', selectedFile.name);
@@ -47,29 +54,19 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
           }
         });
       })
-      .catch(() => setUploadError(true))
-      .finally(() => setUploading(false));
+      .catch(() => { if (isCurrent()) setUploadError(true); })
+      .finally(isCurrent.finish);
   };
 
   const onFileSelect = (files: File[]) => {
     if (files[0]) attemptUpload(files[0]);
   };
 
-  const handleChangeFromLibrary = useCallback(async () => {
-    if (!requestMedia) return;
-    const payload = await requestMedia({
-      cardType: 'video',
-      source: 'library',
-    });
-    if (!payload || !isDurableMediaUrl(payload.src)) return;
-    editor.update(() => {
-      const node = $getNodeByKey(nodeKey);
-      if (node instanceof StudioCardNode && node.isAttached()) {
-        const next = mergeDurableMediaAsset(node.getCardData(), payload, 'video');
-        if (next) node.setCardData(next);
-      }
-    });
-  }, [editor, nodeKey, requestMedia]);
+  const picker = useCardMediaPicker(editor, nodeKey, 'video', beginRequest, requestMedia,
+    useCallback(() => setUploadError(false), []));
+  const handleChangeFromLibrary = useCallback(() => picker.pick('library'), [picker.pick]);
+  const pickerFailure = picker.failedSource !== null ? <MediaPickerError
+    onRetry={() => { void picker.pick(picker.failedSource!); }} onDismiss={picker.dismiss} /> : null;
 
   const handleMetadataUpdate = useCallback(
     (data: {
@@ -142,6 +139,7 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
   if (!isPopulated) {
     return (
       <div>
+        {pickerFailure}
         <CardPlaceholder
           iconType="video"
           title="Video"
@@ -194,6 +192,7 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
         transition: 'outline 0.1s ease',
       }}
     >
+      {pickerFailure}
       <StudioMediaFloatingToolbar
         onChange={requestMedia ? handleChangeFromLibrary : undefined}
         changeLabel="Change"
