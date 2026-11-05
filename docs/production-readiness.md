@@ -37,10 +37,10 @@ Passing tests demonstrate their *covered cases only*. They do **not** certify ab
 | Gate | Status | Verified Evidence |
 | --- | --- | --- |
 | G0 — Canonical runtime ownership | **Proposed** | ADR-0001 drafted; pending repository owner formal sign-off. Vibress host remains production runtime reference. |
-| G1 — Document integrity & media concurrency | **Verified & Closed** | STU-R01 (PR #7), STU-R02 (PR #9), STU-R03/R11 (PR #11). Verified via unit tests (`migrate.test.ts`, `image-upload-concurrent.test.tsx`) and E2E specs (`04-upload-adapter.spec.ts`). |
-| G2 — Fidelity, security & controls | **Verified & Closed** | STU-R04 (PR #13), STU-R05 (PR #10), STU-R07/R08/R09/R17 (PR #15), STU-R12 (PR #16), STU-R13 (PR #17). Verified via markdown security tests, renderer tests, loss matrix, and plugin registry suites. |
-| G3 — RTL, mobile & accessibility | **Verified & Closed** | STU-R14, STU-R10 (PR #18). Verified across viewports (320px, 390px, 768px, 1440px), Arabic RTL authoring, bilingual slash menu search, LTR code block isolation, and scoped focus visible in `09-rtl-mobile-a11y.spec.ts`. |
-| G4 — Performance & package contracts | **Verified & Closed** | STU-R16 (non-blocking word count, 50,000 words in ~4ms, pure selection bypass), package exports verified across all 13 workspace packages, 0 explicit-any in production source. |
+| G1 — Document integrity & media concurrency | **Reopened — pending host and gallery acceptance** | Historical migration/upload regressions exist, but F01 host autosave ordering and F02 additive gallery selection require passing updated tests on the final commits. |
+| G2 — Fidelity, security & controls | **Partially verified** | Existing sanitizer, Markdown, renderer, and plugin tests cover historical regressions. New resource-limit and embed parity changes require CI and adversarial review; host security remains independent. |
+| G3 — RTL, mobile & accessibility | **Automated baseline only** | Chromium viewport/RTL regressions exist. The updated heading-link test still needs final CI confirmation; WCAG 2.2 AA, real mobile Arabic IME, VoiceOver, NVDA, and TalkBack are not manually verified. |
+| G4 — Performance & package contracts | **Partially verified** | Package export and word-count implementation checks exist. Historical microbenchmarks are not production latency evidence; representative INP, p95 typing, memory, clean external consumer installation, and rollback remain unverified. |
 | G5 — Independent acceptance & release sign-off | **Pending Sign-Off** | All automated suites pass; requires human engineering review, ADR-0001 alignment, and formal sign-off before release or tag publication. |
 
 ## Rules for changing this verdict
@@ -59,3 +59,11 @@ Passing tests demonstrate their *covered cases only*. They do **not** certify ab
 - **Not verified:** Yjs CRDT real-time collaborative editing interoperability.
 
 **No repository release, package publication or deployment is authorized by this document.**
+
+## 2026-11-05 remediation evidence in progress
+
+- The baseline PR #28 HEAD assessed before these changes was `36445d0288bed112e84944b838bea7373589d5bc`. Only a passing workflow on the **new final HEAD** counts as updated test evidence.
+- F01 host-only work is in [Vibress PR #124](https://github.com/AbdullahZaher/vibress/pull/124). The active host remains a separate runtime; no parity or Yjs interoperability is asserted.
+- F02 gallery addition, F03 shared admission limits, F04 accessible heading permalinks, F05 embed parity, and F08 transforms contract changes are in standalone PR #28 awaiting final CI and review.
+- F07 manual WCAG 2.2 AA checks, F10 external package installation and rollback, and F11 measured editor performance remain independent release gates. No numerical quality improvement or production certification follows from patches alone.
+
