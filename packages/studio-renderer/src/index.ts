@@ -1,4 +1,4 @@
-import { StudioDocument, validateStudioDocument, migrateDocument } from '@vibress/studio-core';
+import { migrateDocument } from '@vibress/studio-core';
 import { STUDIO_CARD_DEFINITIONS, type StudioCardDefinition } from '@vibress/studio-card-definitions';
 import { escapeHtml, sanitizeUrl, sanitizeStudioHtml, sanitizeInlineStyle, isSafeCssColor } from '@vibress/studio-utils';
 
@@ -18,7 +18,8 @@ export function renderStudioDocumentToHtml(docInput: unknown, options: RenderOpt
     return '';
   }
 
-  const raw = doc.root.children.map((node) => renderNodeToHtml(node, options)).join('');
+  const seenSlugs = new Map<string, number>();
+  const raw = doc.root.children.map((node) => renderNodeToHtml(node, options, seenSlugs)).join('');
 
   // FINAL security boundary: every Studio card's rendered markup passes
   // through the shared allowlist sanitizer before leaving the server.
@@ -50,7 +51,7 @@ function firstChildDirection(node: unknown): 'ltr' | 'rtl' | null {
   return null;
 }
 
-function renderNodeToHtml(node: unknown, options: RenderOptions): string {
+function renderNodeToHtml(node: unknown, options: RenderOptions, seenSlugs?: Map<string, number>): string {
   if (!node || typeof node !== 'object') return '';
   const n = node as { type?: string; text?: string; format?: number; children?: unknown[]; tag?: string; listType?: string; url?: string; src?: string; alt?: string; cardType?: string; caption?: string; rel?: string; target?: string; cardData?: Record<string, unknown>; } & Record<string, unknown>;
 
@@ -86,7 +87,7 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
   // Render children helper
   const renderChildren = () => {
     if (Array.isArray(n.children)) {
-      return n.children.map((child: unknown) => renderNodeToHtml(child, options)).join('');
+      return n.children.map((child: unknown) => renderNodeToHtml(child, options, seenSlugs)).join('');
     }
     return '';
   };
@@ -119,8 +120,15 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
       const safeStyle = typeof n.style === 'string' && n.style.trim() ? sanitizeInlineStyle(n.style) : '';
       const styleAttr = safeStyle ? ` style="${escapeHtml(safeStyle)}"` : '';
       const childrenHtml = renderChildren();
-      const rawText = extractNodeText(n);
-      const slug = slugifyHeading(rawText);
+      const rawText = extractNodeText(n).trim();
+      let baseSlug = slugifyHeading(rawText);
+      if (!baseSlug && rawText) baseSlug = 'heading';
+      let slug = '';
+      if (baseSlug) {
+        const count = seenSlugs?.get(baseSlug) || 0;
+        seenSlugs?.set(baseSlug, count + 1);
+        slug = count > 0 ? `${baseSlug}-${count}` : baseSlug;
+      }
       const idAttr = slug ? ` id="${escapeHtml(slug)}"` : '';
       const anchor = slug
         ? `<a href="#${escapeHtml(slug)}" class="heading-anchor" aria-label="Link to section" aria-hidden="true">#</a>`
@@ -174,7 +182,7 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
         }
       }
       const bg = style ? ` style="${escapeHtml(style)}"` : '';
-      return `<${tag}${colSpan}${rowSpan}${bg}>${renderChildren()}</${tag}>`;
+      return `<${tag}${colSpan}${rowSpan}${bg}${directionAttr}>${renderChildren()}</${tag}>`;
     }
 
     case 'link': {
@@ -247,7 +255,24 @@ function hasTransientMedia(cardData: Record<string, unknown>): boolean {
 
 function renderNodeToPlainText(node: unknown, options: RenderOptions = {}): string {
   if (!node || typeof node !== 'object') return '';
-  const n = node as { type?: string; text?: string; format?: number; children?: unknown[]; tag?: string; listType?: string; url?: string; src?: string; alt?: string; cardType?: string; caption?: string; rel?: string; target?: string; cardData?: Record<string, unknown>; } & Record<string, unknown>;
+  const n = node as {
+    type?: string;
+    text?: string;
+    format?: number;
+    children?: unknown[];
+    tag?: string;
+    listType?: string;
+    url?: string;
+    src?: string;
+    alt?: string;
+    cardType?: string;
+    caption?: string;
+    rel?: string;
+    target?: string;
+    cardData?: Record<string, unknown>;
+    checked?: boolean;
+    start?: number;
+  } & Record<string, unknown>;
 
   if (n.type === 'text') {
     return n.text || '';
@@ -270,6 +295,72 @@ function renderNodeToPlainText(node: unknown, options: RenderOptions = {}): stri
       }
     }
     return '';
+  }
+
+  if (n.type === 'list') {
+    const isNumbered = n.listType === 'number';
+    const isCheck = n.listType === 'check';
+    const start = typeof n.start === 'number' && Number.isSafeInteger(n.start) && n.start > 0 ? n.start : 1;
+    if (Array.isArray(n.children)) {
+      return n.children
+        .map((child, idx) => {
+          const itemText = renderNodeToPlainText(child, options).trim();
+          if (!itemText) return '';
+          const prefix = isNumbered ? `${start + idx}. ` : (isCheck ? '' : '• ');
+          return `${prefix}${itemText}`;
+        })
+        .filter(Boolean)
+        .join('\n');
+    }
+    return '';
+  }
+
+  if (n.type === 'listitem') {
+    const content = Array.isArray(n.children)
+      ? n.children.map((c) => renderNodeToPlainText(c, options)).join('')
+      : '';
+    if (typeof n.checked === 'boolean') {
+      const check = n.checked ? '[x] ' : '[ ] ';
+      return `${check}${content.trim()}`;
+    }
+    return content;
+  }
+
+  if (n.type === 'table') {
+    if (Array.isArray(n.children)) {
+      return n.children
+        .map((row) => renderNodeToPlainText(row, options).trim())
+        .filter(Boolean)
+        .join('\n');
+    }
+    return '';
+  }
+
+  if (n.type === 'tablerow') {
+    if (Array.isArray(n.children)) {
+      return n.children
+        .map((cell) => renderNodeToPlainText(cell, options).trim())
+        .filter(Boolean)
+        .join('\t');
+    }
+    return '';
+  }
+
+  if (n.type === 'tablecell') {
+    if (Array.isArray(n.children)) {
+      return n.children
+        .map((c) => renderNodeToPlainText(c, options).trim())
+        .filter(Boolean)
+        .join(' ');
+    }
+    return '';
+  }
+
+  if (n.type === 'quote') {
+    const text = Array.isArray(n.children)
+      ? n.children.map((c) => renderNodeToPlainText(c, options)).join('')
+      : '';
+    return text.trim();
   }
 
   if (Array.isArray(n.children)) {

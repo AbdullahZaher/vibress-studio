@@ -376,6 +376,116 @@ describe('renderStudioDocumentToPlainText', () => {
     expect(toc[1]).toEqual({ id: 'sub-section', text: 'Sub section', level: 3 });
     expect(toc[2]).toEqual({ id: 'first-section-1', text: 'First Section', level: 2 });
   });
+
+  it('renders unique sequential heading IDs matching table of contents anchors (Phase D)', () => {
+    const document = doc([
+      { type: 'heading', tag: 'h2', children: [{ type: 'text', text: 'First Section' }] },
+      { type: 'paragraph', children: [{ type: 'text', text: 'Body paragraph' }] },
+      { type: 'heading', tag: 'h3', children: [{ type: 'text', text: 'Sub section' }] },
+      { type: 'heading', tag: 'h2', children: [{ type: 'text', text: 'First Section' }] }, // duplicate
+      { type: 'heading', tag: 'h2', children: [{ type: 'text', text: 'مقدمة' }] },
+      { type: 'heading', tag: 'h2', children: [{ type: 'text', text: 'مقدمة' }] }, // duplicate Arabic
+    ]);
+
+    const toc = extractTableOfContentsFromDocument(document);
+    const html = renderStudioDocumentToHtml(document);
+
+    // Verify HTML contains matching id and anchor for each TOC entry
+    for (const item of toc) {
+      expect(html).toContain(`id="${item.id}"`);
+      expect(html).toContain(`href="#${item.id}"`);
+    }
+
+    expect(html).toContain('<h2 id="first-section">');
+    expect(html).toContain('<h2 id="first-section-1">');
+    expect(html).toContain('<h2 id="مقدمة">');
+    expect(html).toContain('<h2 id="مقدمة-1">');
+  });
+
+  it('renders structured plain text for lists, checklists and tables (Phase D)', () => {
+    const document = doc([
+      {
+        type: 'list',
+        listType: 'bullet',
+        children: [
+          { type: 'listitem', children: [{ type: 'text', text: 'Apple' }] },
+          { type: 'listitem', children: [{ type: 'text', text: 'Banana' }] },
+        ],
+      },
+      {
+        type: 'list',
+        listType: 'number',
+        start: 1,
+        children: [
+          { type: 'listitem', children: [{ type: 'text', text: 'Step 1' }] },
+          { type: 'listitem', children: [{ type: 'text', text: 'Step 2' }] },
+        ],
+      },
+      {
+        type: 'list',
+        listType: 'check',
+        children: [
+          { type: 'listitem', checked: true, children: [{ type: 'text', text: 'Done' }] },
+          { type: 'listitem', checked: false, children: [{ type: 'text', text: 'Todo' }] },
+        ],
+      },
+      {
+        type: 'table',
+        children: [
+          {
+            type: 'tablerow',
+            children: [
+              { type: 'tablecell', children: [{ type: 'text', text: 'Col 1' }] },
+              { type: 'tablecell', children: [{ type: 'text', text: 'Col 2' }] },
+            ],
+          },
+          {
+            type: 'tablerow',
+            children: [
+              { type: 'tablecell', children: [{ type: 'text', text: 'Val 1' }] },
+              { type: 'tablecell', children: [{ type: 'text', text: 'Val 2' }] },
+            ],
+          },
+        ],
+      },
+    ]);
+
+    const plain = renderStudioDocumentToPlainText(document);
+    expect(plain).toContain('• Apple\n• Banana');
+    expect(plain).toContain('1. Step 1\n2. Step 2');
+    expect(plain).toContain('[x] Done\n[ ] Todo');
+    expect(plain).toContain('Col 1\tCol 2\nVal 1\tVal 2');
+  });
+
+  it('renders table cell direction attribute on th and td (Phase D)', () => {
+    const tableDoc = doc([
+      {
+        type: 'table',
+        children: [
+          {
+            type: 'tablerow',
+            children: [
+              {
+                type: 'tablecell',
+                headerState: 1,
+                direction: 'rtl',
+                children: [{ type: 'text', text: 'رأس الجدول' }],
+              },
+              {
+                type: 'tablecell',
+                direction: 'rtl',
+                children: [{ type: 'text', text: 'بيانات' }],
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+
+    const html = renderStudioDocumentToHtml(tableDoc);
+    expect(html).toContain('<th dir="rtl">');
+    expect(html).toContain('<td dir="rtl">');
+  });
 });
 
 describe('editor-to-public rendering fidelity (STU-R04)', () => {

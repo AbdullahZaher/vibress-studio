@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, Component, ErrorInfo, ReactNode } from 'react';
+import { useEffect, useRef, useMemo, useCallback, Component, ErrorInfo, ReactNode } from 'react';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
@@ -153,9 +153,14 @@ function EditorAccessibleNamePlugin() {
  * selection/undo stack) when the parent merely echoes an onChange snapshot.
  * The current document is preserved if incoming content cannot be parsed.
  */
-function DocumentSyncPlugin({ document, onError }: {
+function DocumentSyncPlugin({
+  document,
+  onError,
+  isStaleEcho,
+}: {
   document: StudioDocument;
   onError?: (error: Error) => void;
+  isStaleEcho: (incomingJson: string) => boolean;
 }) {
   const [editor] = useLexicalComposerContext();
   const lastApplied = useRef<string | null>(null);
@@ -165,7 +170,16 @@ function DocumentSyncPlugin({ document, onError }: {
     if (incoming === lastApplied.current) return;
     try {
       const current = serializeStudioDocument(editor.getEditorState().toJSON().root);
-      if (JSON.stringify(current.root) !== incoming) {
+      const currentJson = JSON.stringify(current.root);
+      if (currentJson !== incoming) {
+        // If the incoming document matches an earlier snapshot this editor instance
+        // already emitted in the past (an out-of-order autosave response or stale
+        // external echo), do NOT overwrite the newer local edits!
+        if (isStaleEcho(incoming)) {
+          lastApplied.current = incoming;
+          return;
+        }
+
         const next = editor.parseEditorState(JSON.stringify({
           root: { ...document.root, version: 1 },
         }));
@@ -175,7 +189,7 @@ function DocumentSyncPlugin({ document, onError }: {
     } catch (error) {
       onError?.(error instanceof Error ? error : new Error('Unable to load Studio document'));
     }
-  }, [editor, document, onError]);
+  }, [editor, document, onError, isStaleEcho]);
   return null;
 }
 
@@ -205,6 +219,12 @@ export function VibressStudio({
   dir,
   className = '',
 }: VibressStudioProps) {
+  const emittedSnapshotsRef = useRef<Set<string>>(new Set());
+
+  const isStaleEcho = useCallback((incomingJson: string) => {
+    return emittedSnapshotsRef.current.has(incomingJson);
+  }, []);
+
   const { parsedDoc, migrationError } = useMemo(() => {
     try {
       const doc = migrateDocument(value);
@@ -383,13 +403,19 @@ export function VibressStudio({
               {showWordCount && <WordCountPlugin />}
               <EditorAccessibleNamePlugin />
               <EditorEditablePlugin readOnly={readOnly} />
-              <DocumentSyncPlugin document={parsedDoc} onError={onError} />
+              <DocumentSyncPlugin document={parsedDoc} onError={onError} isStaleEcho={isStaleEcho} />
               {onEditorReady && <EditorReadyPlugin onReady={onEditorReady} />}
               {onChange && (
                 <OnChangePlugin
                   onChange={(editorState) => {
                     const rootNode = editorState.toJSON().root;
                     const studioDoc = serializeStudioDocument(rootNode);
+                    const rootJson = JSON.stringify(studioDoc.root);
+                    emittedSnapshotsRef.current.add(rootJson);
+                    if (emittedSnapshotsRef.current.size > 50) {
+                      const first = emittedSnapshotsRef.current.values().next().value;
+                      if (first !== undefined) emittedSnapshotsRef.current.delete(first);
+                    }
                     onChange(studioDoc);
                   }}
                 />

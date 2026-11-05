@@ -154,13 +154,21 @@ function renderNodeToMarkdown(node: unknown): string {
     }
 
     case 'code': {
-      const lang = typeof n.language === 'string' && n.language ? n.language : '';
-      return `\`\`\`${lang}\n${renderChildren()}\n\`\`\``;
+      const rawLang = typeof n.language === 'string' && n.language ? n.language.trim() : '';
+      const lang = rawLang.replace(/[^a-zA-Z0-9_#-]/g, '');
+      const content = renderChildren();
+      const maxConsecutiveBackticks = (content.match(/`+/g) || []).reduce((max, m) => Math.max(max, m.length), 0);
+      const fenceLength = Math.max(3, maxConsecutiveBackticks + 1);
+      const fence = '`'.repeat(fenceLength);
+      return `${fence}${lang}\n${content}\n${fence}`;
     }
 
     case 'studio-card': {
       if (n.cardType === 'divider') return '---';
-      if (n.cardType === 'markdown') return (n.cardData?.markdown as string | undefined) || '';
+      if (n.cardType === 'markdown') {
+        const raw = typeof n.cardData?.markdown === 'string' ? n.cardData.markdown : '';
+        return sanitizeHtml(raw);
+      }
       if (n.cardType === 'html') {
         // Markdown may be consumed by renderers that enable raw HTML. Export
         // only safe readable text, never executable card markup.
@@ -174,8 +182,12 @@ function renderNodeToMarkdown(node: unknown): string {
         const safeSrc = escapeMarkdownUrl(rawSrc);
         const alt = escapeMarkdownLabel(typeof n.cardData?.alt === 'string' ? n.cardData.alt : '');
         const caption = typeof n.cardData?.caption === 'string' && n.cardData.caption.trim() ? n.cardData.caption.trim() : '';
+        const rawHref = n.cardData?.href;
+        const safeHref = typeof rawHref === 'string' && isSafeUrl(rawHref) ? escapeMarkdownUrl(rawHref) : '';
         if (safeSrc && safeSrc !== '#') {
-          return caption ? `![${alt}](${safeSrc})\n*${escapeMarkdownLabel(caption)}*` : `![${alt}](${safeSrc})`;
+          const imgMd = `![${alt}](${safeSrc})`;
+          const linkWrapped = safeHref && safeHref !== '#' ? `[${imgMd}](${safeHref})` : imgMd;
+          return caption ? `${linkWrapped}\n*${escapeMarkdownLabel(caption)}*` : linkWrapped;
         }
         return `[Card: image]`;
       }

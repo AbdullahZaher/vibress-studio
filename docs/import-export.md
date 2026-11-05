@@ -29,14 +29,14 @@ The following matrix documents the exact transformation applied when exporting a
 | **Numbered List** | `1. Item`, `2. Item` | **Lossless:** Preserves ordinal sequence numbers. |
 | **Checklist** | `- [ ] Pending`, `- [x] Completed` | **Lossless:** Standard GFM task list syntax. |
 | **Blockquote** | `> Quote text` | **Lossless** |
-| **Code Block** | ````lang\ncode\n```` | **Lossless:** Preserves language identifier. |
+| **Code Block** | ````lang\ncode\n```` | **Lossless & Secure:** Preserves sanitized language identifier; dynamically expands fence length when code contains backticks to prevent premature escape. |
 | **Link** | `[Label](url)` | **Safe & Lossless:** Validates URL protocol; escapes label `[` and `]`, percent-encodes spaces, escapes parentheses in URL. |
 | **Table** | `\| H1 \| H2 \|\n\| --- \| --- \|\n\| C1 \| C2 \|` | **Semantic Fallback:** Emits standard GFM table. Cell formatting (spans, cell colors) is flattened. Newlines within cells are converted to `<br />`. |
 | **Direction (RTL / LTR)** | Emits clean text | **Lossy:** Standard Markdown does not have native block direction syntax. Unicode bidirectional marks and script detection govern client display. |
 | **Divider Card** | `---` | **Lossless:** Standard Markdown thematic break. |
-| **Markdown Card** | `cardData.markdown` | **Lossless:** Literal Markdown string. |
+| **Markdown Card** | `sanitizeHtml(cardData.markdown)` | **Lossless & Secure:** Preserves Markdown syntax while sanitizing embedded raw HTML tags against injection. |
 | **HTML Card** | Safe readable text or `[Card: html]` | **Lossy/Safe:** Never emits raw untrusted HTML card markup into Markdown. |
-| **Image Card** | `![alt](src)` followed by `*caption*` if present | **Semantic Fallback:** Image URL and alt text survive losslessly. Layout widths (`wide`, `full`) and intrinsic pixel dimensions are omitted. |
+| **Image Card** | `![alt](src)` or `[![alt](src)](href)` followed by `*caption*` if present | **Semantic Fallback:** Image URL, alt text, hyperlink, and caption survive losslessly. Layout widths (`wide`, `full`) and intrinsic pixel dimensions are omitted. |
 | **Gallery Card** | Sequence of `![alt](src)` followed by `*caption*` | **Semantic Fallback:** Every image in the gallery is emitted as an individual Markdown image link. |
 | **Video Card** | `[▶ Caption](src)` | **Semantic Fallback:** Safe link with player affordance indicator. |
 | **Audio Card** | `[🎵 Title](src)` | **Semantic Fallback:** Safe link with audio affordance indicator. |
@@ -70,7 +70,12 @@ When importing arbitrary or sanitized HTML into a `StudioDocument`:
 | `<pre>` | `code` | Code block container. |
 | `<hr>` | `studio-card` (`divider`) | Horizontal separator card. |
 | `<table>` | `table` with `tablerow` & `tablecell` | Retains header cells (`<th>`), row/col spans (bounded positive integers 1–1000), cell and table `dir` attributes. Empty cells receive empty paragraphs. |
-| `<figure>` with `<img>` & `<figcaption>` | `studio-card` (`image`) | Extracts `src`, `alt`, and `caption` into card data. |
+| `<figure>` with `<img>` & `<figcaption>` | `studio-card` (`image`) | Extracts `src`, `alt`, optional `href` (if wrapped in `<a>`), layout width (`wide`/`full` or numeric), and rich `<figcaption>` content as both plain `caption` and sanitized `captionHtml`. |
+| `<figure class="kg-gallery-card">` | `studio-card` (`gallery`) | Extracts gallery image items, alt text, layout width, and rich caption. |
+| `<figure class="kg-video-card">` | `studio-card` (`video`) | Extracts video `src`, `poster`, layout width, and caption. |
+| `<div class="kg-callout-card">` | `studio-card` (`callout`) | Extracts callout text, emoji, and background color theme. |
+| `<div class="kg-button-card">` | `studio-card` (`button`) | Extracts button text, destination URL, and alignment. |
+| `<figure class="kg-bookmark-card">` | `studio-card` (`bookmark`) | Extracts bookmark URL, title, and description. |
 | `<details>` with `<summary>` | `studio-card` (`toggle`) | Extracts summary text as `heading` and details body as `content`. |
 | `<br>` | `linebreak` | Hard line break. |
 | `dir="rtl"` / `dir="ltr"` | `direction: "rtl" \| "ltr"` | Propagated down tree to ensure bilingual fidelity. |
@@ -80,7 +85,9 @@ When importing arbitrary or sanitized HTML into a `StudioDocument`:
 ## 4. Verification and Regression Testing
 
 The import and export conversions are verified in the following automated test suites:
-- `packages/studio-markdown/src/__tests__/markdown-export.test.ts`: GFM tables, checklists, code blocks, card fallbacks, and RTL export.
+- `packages/studio-markdown/src/__tests__/markdown-export.test.ts`: GFM tables, checklists, code fences with backtick expansion, language sanitization, card fallbacks, and RTL export.
 - `packages/studio-testing/security/markdown-security.test.ts`: Malicious URLs, escaping, and protocol injection.
 - `tests/html-import-regressions.test.ts`: Complex nested HTML, tables, bidirectional text, and figure/details parsing.
+- `tests/html-roundtrip.test.ts`: Bidirectional round-trip fidelity between HTML and StudioDocument across all card types and rich captions.
+- `packages/studio-renderer/src/__tests__/renderer.test.ts`: HTML and plain-text output, deterministic heading IDs matching Table of Contents, and structured plain-text formatting for tables and lists.
 - `e2e/specs/06-import-export.spec.ts`: End-to-end browser import/export round-trip workflows.
