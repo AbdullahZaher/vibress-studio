@@ -36,6 +36,12 @@ function resolveCaption(data: { caption?: unknown; captionHtml?: string }): stri
   return '';
 }
 
+/** Render rich captions through the same public HTML allowlist as other cards. */
+function safeMediaCaption(data: { caption?: unknown; captionHtml?: string }): string {
+  const caption = resolveCaption(data);
+  return caption ? sanitizeHtml(caption) : '';
+}
+
 // 1. Image Card
 export const ImageCardSchema = z.object({
   assetId: z.string().optional(),
@@ -154,11 +160,12 @@ export const AudioCardDefinition: StudioCardDefinition<AudioCardData> = {
   renderHtml: (data) => {
     const src = sanitizeUrl(data.src);
     const title = data.title ? `<div class="title">${escapeHtml(data.title)}</div>` : '';
-    return `<div class="kg-card kg-audio-card">${title}<audio src="${src}" controls></audio></div>`;
+    const caption = safeMediaCaption(data);
+    return `<div class="kg-card kg-audio-card">${title}<audio src="${src}" controls></audio>${caption ? `<div class="studio-media-caption">${caption}</div>` : ''}</div>`;
   },
   renderPlainText: (data) => {
-    const capStr = resolveCaption(data);
-    return data.title || capStr || data.src || '';
+    const caption = stripHtml(safeMediaCaption(data));
+    return [data.title, caption].filter(Boolean).join('\n') || data.src || '';
   },
 };
 
@@ -181,11 +188,12 @@ export const FileCardDefinition: StudioCardDefinition<FileCardData> = {
     const src = sanitizeUrl(data.src);
     const name = escapeHtml(data.fileName);
     const size = data.fileSize ? ` <span class="size">(${escapeHtml(data.fileSize)})</span>` : '';
-    return `<div class="kg-card kg-file-card"><a href="${src}" download>${name}${size}</a></div>`;
+    const caption = safeMediaCaption(data);
+    return `<div class="kg-card kg-file-card"><a href="${src}" download>${name}${size}</a>${caption ? `<div class="studio-media-caption">${caption}</div>` : ''}</div>`;
   },
   renderPlainText: (data) => {
-    const capStr = resolveCaption(data);
-    return data.fileName || capStr || data.src || '';
+    const caption = stripHtml(safeMediaCaption(data));
+    return [data.fileName, caption].filter(Boolean).join('\n') || data.src || '';
   },
 };
 
@@ -233,16 +241,16 @@ export const EmbedCardDefinition: StudioCardDefinition<EmbedCardData> = {
     // safe external link. Arbitrary user-supplied iframe markup is never
     // trusted — the final output sanitizer enforces this a second time.
     const provider = getEmbedProvider(data.url);
-    const capStr = resolveCaption(data);
-    const captionHtml = capStr ? `<figcaption>${sanitizeHtml(capStr)}</figcaption>` : '';
+    const caption = safeMediaCaption(data);
+    const captionHtml = caption ? `<figcaption>${caption}</figcaption>` : '';
     if (provider) {
       return `<figure class="kg-card kg-embed-card"><iframe src="${escapeHtml(provider.embedUrl)}" title="${escapeHtml(data.url)}" loading="lazy" allowfullscreen></iframe>${captionHtml}</figure>`;
     }
     return `<figure class="kg-card kg-embed-card"><a href="${sanitizeUrl(data.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(data.url)}</a>${captionHtml}</figure>`;
   },
   renderPlainText: (data) => {
-    const capStr = resolveCaption(data);
-    return data.url || capStr || '';
+    const caption = stripHtml(safeMediaCaption(data));
+    return [data.url, caption].filter(Boolean).join('\n');
   },
 };
 
