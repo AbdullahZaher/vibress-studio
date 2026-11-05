@@ -17,12 +17,37 @@ interface Props {
   cardData: GalleryCardData;
 }
 
+/** Identity is a non-empty durable asset ID, otherwise the durable URL.
+ * Existing gallery items are never filtered or rewritten by an additive action.
+ */
+function appendGalleryImages(
+  existing: unknown[],
+  additions: Array<{ src: string; alt: string; assetId?: string | undefined }>
+): unknown[] {
+  const identity = (item: unknown): string | null => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+    const entry = item as Record<string, unknown>;
+    if (typeof entry.assetId === 'string' && entry.assetId.trim()) return `asset:${entry.assetId.trim()}`;
+    return typeof entry.src === 'string' && entry.src.trim() ? `url:${entry.src.trim()}` : null;
+  };
+  const seen = new Set(existing.map(identity).filter((id): id is string => id !== null));
+  const merged = [...existing];
+  for (const image of additions) {
+    const id = identity(image);
+    if (!id || seen.has(id)) continue;
+    merged.push(image);
+    seen.add(id);
+  }
+  return merged;
+}
+
 export function GalleryCardEditor({ nodeKey, cardData }: Props) {
   const [editor] = useLexicalComposerContext();
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
   const { uploadMedia, requestMedia } = useStudioMedia();
   const [uploading, setUploading] = useState(false);
   const [failedFiles, setFailedFiles] = useState<File[]>([]);
+  const [pickerError, setPickerError] = useState(false);
 
   const isPopulated = cardData.images && cardData.images.length > 0;
 
@@ -62,10 +87,10 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
           if (node instanceof StudioCardNode && node.isAttached()) {
             const currentData = node.getCardData();
             const currentImages = Array.isArray(currentData.images) ? currentData.images : [];
-            node.setCardData({
-              ...currentData,
-              images: [...currentImages, ...newImages],
-            });
+            const mergedImages = appendGalleryImages(currentImages, newImages);
+            if (mergedImages.length !== currentImages.length) {
+              node.setCardData({ ...currentData, images: mergedImages });
+            }
           }
         });
       })
@@ -75,30 +100,40 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
 
   const handleChangeFromLibrary = useCallback(async () => {
     if (!requestMedia) return;
-    const payload = await requestMedia({
-      cardType: 'gallery',
-      source: 'library',
-    });
-    if (!payload || !Array.isArray(payload.images)) return;
-    // The host may include stale layout/caption metadata in the picker response.
-    // Accept only durable image assets and preserve all current author fields.
-    const images = payload.images.flatMap((item: unknown) => {
-      if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
-      const record = item as Record<string, unknown>;
-      if (!isDurableMediaUrl(record.src)) return [];
-      return [{
-        src: record.src.trim(),
-        alt: typeof record.alt === 'string' ? record.alt : '',
-        assetId: typeof record.assetId === 'string' ? record.assetId : undefined,
-      }];
-    });
-    if (images.length === 0) return;
-    editor.update(() => {
-      const node = $getNodeByKey(nodeKey);
-      if (node instanceof StudioCardNode && node.isAttached()) {
-        node.setCardData({ ...node.getCardData(), images });
-      }
-    });
+    setPickerError(false);
+    try {
+      const payload = await requestMedia({ cardType: 'gallery', source: 'library' });
+      if (!payload) return; // Cancellation must be a no-op.
+      const requested = Array.isArray(payload.images)
+        ? payload.images
+        : isDurableMediaUrl(payload.src) ? [payload] : [];
+      const images = requested.flatMap((item: unknown) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+        const record = item as Record<string, unknown>;
+        if (!isDurableMediaUrl(record.src)) return [];
+        if (record.assetId != null && (typeof record.assetId !== 'string' || !record.assetId.trim())) return [];
+        return [{
+          src: record.src.trim(),
+          alt: typeof record.alt === 'string' ? record.alt : '',
+          assetId: typeof record.assetId === 'string' ? record.assetId.trim() : undefined,
+        }];
+      });
+      if (!images.length) return;
+      editor.update(() => {
+        const node = $getNodeByKey(nodeKey);
+        if (!(node instanceof StudioCardNode) || !node.isAttached()) return;
+        // The author's latest node state owns existing images and metadata,
+        // even if the picker resolved after unrelated edits.
+        const currentData = node.getCardData();
+        const existing = Array.isArray(currentData.images) ? currentData.images : [];
+        const merged = appendGalleryImages(existing, images);
+        if (merged.length !== existing.length) {
+          node.setCardData({ ...currentData, images: merged });
+        }
+      });
+    } catch {
+      setPickerError(true);
+    }
   }, [editor, nodeKey, requestMedia]);
 
   const handleMetadataUpdate = useCallback(
@@ -199,6 +234,11 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
           }}
         />
         {uploadFailure}
+        {pickerError && (
+          <div role="alert">Could not open the media library. Existing images were preserved.
+            <button type="button" onClick={() => setPickerError(false)}>Dismiss</button>
+          </div>
+        )}
       </div>
     );
   }
@@ -274,6 +314,11 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
         />
       </figure>
       {uploadFailure}
+      {pickerError && (
+        <div role="alert">Could not open the media library. Existing images were preserved.
+          <button type="button" onClick={() => setPickerError(false)}>Dismiss</button>
+        </div>
+      )}
     </>
   );
 }
