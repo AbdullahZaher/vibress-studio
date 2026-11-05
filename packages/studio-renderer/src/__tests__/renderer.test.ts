@@ -179,6 +179,32 @@ describe('renderStudioDocumentToHtml — all Studio cards', () => {
     expect(evil).toContain('https://evil.example/embed/x');
   });
 
+  it('uses the same safe embed policy for approved, unknown, invalid and legacy HTML data', () => {
+    const provider = renderStudioDocumentToHtml(doc([
+      card('embed', {
+        url: 'https://vimeo.com/12345',
+        html: '<iframe src="https://untrusted.example/embed"></iframe>',
+        caption: 'Approved video',
+      }),
+    ]));
+    expect(provider).toContain('https://player.vimeo.com/video/12345');
+    expect(provider).not.toContain('untrusted.example');
+
+    const external = renderStudioDocumentToHtml(doc([
+      card('embed', { url: 'https://example.org/watch', html: '<script>alert(1)</script>' }),
+    ]));
+    expect(external).toContain('href="https://example.org/watch"');
+    expect(external).not.toContain('<iframe');
+    expect(external).not.toContain('<script');
+
+    const invalid = renderStudioDocumentToHtml(doc([
+      card('embed', { url: 'javascript:alert(1)', html: '<iframe src="https://vimeo.com/12345"></iframe>' }),
+    ]));
+    expect(invalid).toContain('Unsupported or unsafe embed URL.');
+    expect(invalid).not.toContain('<iframe');
+    expect(invalid).not.toContain('href="javascript:');
+  });
+
   it('renders button card as a link', () => {
     const html = renderStudioDocumentToHtml(doc([
       card('button', { text: 'Buy now', url: 'https://store.example/p' }),
