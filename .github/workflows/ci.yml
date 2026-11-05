@@ -56,6 +56,9 @@ jobs:
       - name: Verify package exports
         run: pnpm verify:package-exports
 
+      - name: Smoke ESM/CJS consumers, SSR and CSS export paths
+        run: pnpm verify:consumer-imports
+
       - name: Security regression tests
         run: pnpm test:security
 
