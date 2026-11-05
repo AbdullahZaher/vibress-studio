@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useCallback, Component, ErrorInfo, ReactNode } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback, Component, ErrorInfo, ReactNode } from 'react';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
@@ -255,6 +255,7 @@ export function VibressStudio({
 }: VibressStudioProps) {
   const hasLocalEditsRef = useRef(false);
   const lastObservedEditorRootRef = useRef<string | null>(null);
+  const [snapshotError, setSnapshotError] = useState<Error | null>(null);
 
   const hasLocalEdits = useCallback(() => hasLocalEditsRef.current, []);
   const onExternalApplied = useCallback((rootJson: string) => {
@@ -398,6 +399,12 @@ export function VibressStudio({
       <StudioUploadContext.Provider value={{ uploadMedia }}>
         <StudioMediaContext.Provider value={mediaContextValue}>
         <div className={`vibress-studio-editor ${className || ''}`} dir={dir}>
+          {snapshotError && (
+            <div role="alert" aria-live="polite" className="studio-snapshot-error">
+              <strong>Document not saved:</strong> {snapshotError.message}
+              {' '}The current draft remains in the editor. Reduce its size before saving.
+            </div>
+          )}
           <fieldset disabled={readOnly} style={{ minWidth: 0, margin: 0, padding: 0, border: 0 }}>
           <LexicalComposer initialConfig={initialConfig}>
             <div className="vibress-studio-canvas" style={{ position: 'relative', minHeight: '30vh' }}>
@@ -455,12 +462,22 @@ export function VibressStudio({
               <OnChangePlugin
                 onChange={(editorState, _editor, tags) => {
                   if (tags.has(STUDIO_EXTERNAL_SYNC_TAG)) return;
-                  const studioDoc = serializeStudioDocument(editorState.toJSON().root);
-                  const rootJson = JSON.stringify(studioDoc.root);
-                  if (rootJson === lastObservedEditorRootRef.current) return;
-                  lastObservedEditorRootRef.current = rootJson;
-                  hasLocalEditsRef.current = true;
-                  onChange?.(studioDoc);
+                  // A rejected snapshot must never be emitted to host autosave,
+                  // and the active Lexical editor state must never be reset.
+                  try {
+                    const studioDoc = serializeStudioDocument(editorState.toJSON().root);
+                    const rootJson = JSON.stringify(studioDoc.root);
+                    if (rootJson === lastObservedEditorRootRef.current) return;
+                    lastObservedEditorRootRef.current = rootJson;
+                    hasLocalEditsRef.current = true;
+                    setSnapshotError(null);
+                    onChange?.(studioDoc);
+                  } catch (error) {
+                    const recoverable = error instanceof Error ? error : new Error(String(error));
+                    hasLocalEditsRef.current = true;
+                    setSnapshotError(recoverable);
+                    onError?.(recoverable);
+                  }
                 }}
               />
             </div>
