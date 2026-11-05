@@ -22,7 +22,7 @@ import { WordCountPlugin } from './plugins/WordCountPlugin';
 import { STUDIO_CORE_NODES } from '@vibress/studio-nodes';
 import { StudioCardNode } from '@vibress/studio-cards';
 import { ReactStudioCardNode } from './nodes/ReactStudioCardNode';
-import { StudioDocument, migrateDocument, CURRENT_STUDIO_VERSION, StudioMigrationError } from '@vibress/studio-core';
+import { StudioDocument, migrateDocument, CURRENT_STUDIO_VERSION, StudioMigrationError, type DocumentResourceLimits } from '@vibress/studio-core';
 import { serializeStudioDocument } from '@vibress/studio-serializer';
 import type { StudioPluginRegistry } from '@vibress/studio-plugin-sdk';
 import { StudioPluginContext } from './plugin-context';
@@ -78,6 +78,8 @@ function assertEditorCanPreserveDocument(document: StudioDocument, rawDocument: 
 
 export interface VibressStudioProps {
   value?: unknown;
+  /** Optional shared input/output resource policy; defaults to 5 MiB/50k nodes/depth 64. */
+  resourceLimits?: DocumentResourceLimits;
   /** Host persistence revision metadata. An autosave revision increment never
    * authorizes replacing newer local edits. */
   revisionId?: string | number;
@@ -236,6 +238,7 @@ function EditorEditablePlugin({ readOnly }: { readOnly: boolean }) {
 
 export function VibressStudio({
   value,
+  resourceLimits,
   revisionId,
   replacementId,
   onChange,
@@ -269,14 +272,14 @@ export function VibressStudio({
 
   const { parsedDoc, migrationError } = useMemo(() => {
     try {
-      const doc = migrateDocument(value);
+      const doc = migrateDocument(value, resourceLimits);
       assertEditorCanPreserveDocument(doc, value);
       return { parsedDoc: doc, migrationError: null };
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       return { parsedDoc: null, migrationError: error };
     }
-  }, [value]);
+  }, [value, resourceLimits]);
 
   useEffect(() => {
     if (migrationError && onError) {
@@ -465,7 +468,7 @@ export function VibressStudio({
                   // A rejected snapshot must never be emitted to host autosave,
                   // and the active Lexical editor state must never be reset.
                   try {
-                    const studioDoc = serializeStudioDocument(editorState.toJSON().root);
+                    const studioDoc = serializeStudioDocument(editorState.toJSON().root, resourceLimits);
                     const rootJson = JSON.stringify(studioDoc.root);
                     if (rootJson === lastObservedEditorRootRef.current) return;
                     lastObservedEditorRootRef.current = rootJson;
