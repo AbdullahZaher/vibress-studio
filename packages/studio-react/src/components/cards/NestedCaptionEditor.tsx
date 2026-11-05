@@ -84,6 +84,9 @@ export function NestedCaptionEditor({
   // Keep unsupported persisted caption JSON intact until the author explicitly
   // approves a fallback. A successful load must never silently rewrite it.
   const invalidCaptionJsonRef = useRef<string | null>(null);
+  // After explicit recovery, ignore the old invalid prop until the host
+  // echoes the replacement snapshot (which may be asynchronous).
+  const approvedRecoveryJsonRef = useRef<string | null>(null);
 
   const [captionEditor] = useState(() => {
     const editor = createEditor({
@@ -153,12 +156,14 @@ export function NestedCaptionEditor({
       // Avoid parsing the same corrupt JSON repeatedly while the recoverable
       // warning is shown. A newly provided, valid external caption can load.
       if (recoveryRequired && invalidCaptionJsonRef.current === jsonString) return;
+      if (approvedRecoveryJsonRef.current === jsonString) return;
       if (jsonString !== lastEmittedJsonRef.current) {
         try {
           const parsed = captionEditor.parseEditorState(jsonString);
           captionEditor.setEditorState(parsed);
           lastEmittedJsonRef.current = jsonString;
           invalidCaptionJsonRef.current = null;
+          approvedRecoveryJsonRef.current = null;
           if (recoveryRequired) setRecoveryRequired(false);
           return;
         } catch (err) {
@@ -198,6 +203,7 @@ export function NestedCaptionEditor({
   const recoverAsText = () => {
     // This is an explicit author action: the unsupported raw JSON stays
     // untouched until this point and can be recovered through onError.
+    approvedRecoveryJsonRef.current = invalidCaptionJsonRef.current;
     invalidCaptionJsonRef.current = null;
     const state = captionEditor.getEditorState();
     state.read(() => {
