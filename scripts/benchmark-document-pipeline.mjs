@@ -9,11 +9,13 @@
 import os from 'node:os';
 import { performance } from 'node:perf_hooks';
 import { execFileSync } from 'node:child_process';
-import { createDefaultStudioDocument } from '@vibress/studio-core';
-import { serializeStudioDocument } from '@vibress/studio-serializer';
-import { renderStudioDocumentToHtml } from '@vibress/studio-renderer';
-import { studioDocumentToMarkdown } from '@vibress/studio-markdown';
-import { htmlToStudioDocument } from '@vibress/studio-html';
+// The root package does not directly depend on workspace packages;
+// import the built ESM consumer entries by their documented artifact paths.
+import { createDefaultStudioDocument } from '../packages/studio-core/dist/index.mjs';
+import { serializeStudioDocument } from '../packages/studio-serializer/dist/index.mjs';
+import { renderStudioDocumentToHtml } from '../packages/studio-renderer/dist/index.mjs';
+import { studioDocumentToMarkdown } from '../packages/studio-markdown/dist/index.mjs';
+import { htmlToStudioDocument } from '../packages/studio-html/dist/index.mjs';
 
 function sha() {
   if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA;
