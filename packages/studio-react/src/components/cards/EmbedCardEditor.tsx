@@ -6,6 +6,7 @@ import { EmbedCardData, StudioCardNode } from '@vibress/studio-cards';
 import { getEmbedProvider, sanitizeStudioHtml } from '@vibress/studio-utils';
 
 import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { captionMetadataPatch } from './caption-metadata';
 import { UrlPlaceholder } from '../ui/UrlPlaceholder';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
 import { EmbedMetadataPopover } from '../ui/media-popovers/EmbedMetadataPopover';
@@ -37,32 +38,33 @@ export function EmbedCardEditor({ nodeKey, cardData }: Props) {
     (data: { url: string; caption: string }) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
+          const currentData = node.getCardData();
           node.setCardData({
-            ...cardData,
+            ...currentData,
             url: data.url,
-            caption: data.caption,
-            captionHtml: data.caption,
+            ...captionMetadataPatch(node.getCardData(), data.caption),
           });
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   const handleWidthChange = useCallback(
     (newWidth: 'regular' | 'wide' | 'full') => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
+          const currentData = node.getCardData();
           node.setCardData({
-            ...cardData,
+            ...currentData,
             width: newWidth,
           });
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   const handleDelete = useCallback(() => {
@@ -78,16 +80,17 @@ export function EmbedCardEditor({ nodeKey, cardData }: Props) {
     (captionJSON: Record<string, unknown>, captionHtml: string) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
+          const currentData = node.getCardData();
           node.setCardData({
-            ...cardData,
+            ...currentData,
             caption: captionJSON,
             captionHtml,
           });
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   const extendedData = cardData as EmbedCardData & { width?: 'regular' | 'wide' | 'full'; captionHtml?: string };
@@ -180,19 +183,21 @@ export function EmbedCardEditor({ nodeKey, cardData }: Props) {
         )}
       </div>
 
-      {captionStr ? (
-        <figcaption className="mt-1 text-center text-xs text-muted-foreground">
-          {captionStr}
-        </figcaption>
-      ) : (
-        <NestedCaptionEditor
-          initialCaptionJSON={
-            typeof cardData.caption === 'object' ? cardData.caption : undefined
-          }
-          onChange={onCaptionChange}
-          placeholder="Type caption for embed (optional)"
-        />
-      )}
+      <NestedCaptionEditor
+        initialCaptionJSON={
+          typeof cardData.caption === 'object' && cardData.caption !== null
+            ? (cardData.caption as Record<string, unknown>)
+            : undefined
+        }
+        initialCaptionText={captionStr}
+        captionHtml={
+          typeof extendedData.captionHtml === 'string'
+            ? extendedData.captionHtml
+            : undefined
+        }
+        onChange={onCaptionChange}
+        placeholder="Type caption for embed (optional)"
+      />
     </figure>
   );
 }
