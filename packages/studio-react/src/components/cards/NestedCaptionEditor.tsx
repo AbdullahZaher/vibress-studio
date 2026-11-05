@@ -81,6 +81,9 @@ export function NestedCaptionEditor({
 
   const lastEmittedJsonRef = useRef<string>('');
   const lastEmittedHtmlRef = useRef<string>('');
+  // Keep unsupported persisted caption JSON intact until the author explicitly
+  // approves a fallback. A successful load must never silently rewrite it.
+  const invalidCaptionJsonRef = useRef<string | null>(null);
 
   const [captionEditor] = useState(() => {
     const editor = createEditor({
@@ -110,6 +113,7 @@ export function NestedCaptionEditor({
         editor.setEditorState(parsed);
         initialized = true;
       } catch (err) {
+        invalidCaptionJsonRef.current = JSON.stringify(initialCaptionJSON);
         if (onError) {
           onError(err instanceof Error ? err : new Error(String(err)), initialCaptionJSON);
         }
@@ -135,20 +139,29 @@ export function NestedCaptionEditor({
     return editor;
   });
 
+  const [recoveryRequired, setRecoveryRequired] = useState(invalidCaptionJsonRef.current !== null);
+
   useEffect(() => {
-    captionEditor.setEditable(!isReadOnly);
-  }, [captionEditor, isReadOnly]);
+    captionEditor.setEditable(!isReadOnly && !recoveryRequired);
+  }, [captionEditor, isReadOnly, recoveryRequired]);
 
   useEffect(() => {
     if (initialCaptionJSON && Object.keys(initialCaptionJSON).length > 0) {
       const jsonString = JSON.stringify(initialCaptionJSON);
+      // Avoid parsing the same corrupt JSON repeatedly while the recoverable
+      // warning is shown. A newly provided, valid external caption can load.
+      if (recoveryRequired && invalidCaptionJsonRef.current === jsonString) return;
       if (jsonString !== lastEmittedJsonRef.current) {
         try {
           const parsed = captionEditor.parseEditorState(jsonString);
           captionEditor.setEditorState(parsed);
           lastEmittedJsonRef.current = jsonString;
+          invalidCaptionJsonRef.current = null;
+          if (recoveryRequired) setRecoveryRequired(false);
           return;
         } catch (err) {
+          invalidCaptionJsonRef.current = jsonString;
+          setRecoveryRequired(true);
           if (onError) {
             onError(err instanceof Error ? err : new Error(String(err)), initialCaptionJSON);
           }
@@ -178,7 +191,25 @@ export function NestedCaptionEditor({
       );
       lastEmittedHtmlRef.current = cleanText;
     }
-  }, [initialCaptionJSON, initialCaptionText, captionEditor, onError]);
+  }, [initialCaptionJSON, initialCaptionText, captionEditor, onError, recoveryRequired]);
+
+  const recoverAsText = () => {
+    // This is an explicit author action: the unsupported raw JSON stays
+    // untouched until this point and can be recovered through onError.
+    invalidCaptionJsonRef.current = null;
+    const state = captionEditor.getEditorState();
+    state.read(() => {
+      const text = $getRoot().getTextContent();
+      const html = text.trim() ? sanitizeStudioHtml($generateHtmlFromNodes(captionEditor, null)) : '';
+      const json = text.trim()
+        ? (state.toJSON() as unknown as Record<string, unknown>)
+        : {};
+      lastEmittedJsonRef.current = JSON.stringify(json);
+      lastEmittedHtmlRef.current = html;
+      onChange(json, html);
+    });
+    setRecoveryRequired(false);
+  };
 
   if (isReadOnly) {
     const displayHtml = captionHtml;
@@ -201,6 +232,14 @@ export function NestedCaptionEditor({
   return (
     <LexicalNestedComposer initialEditor={captionEditor}>
       <div className="vibress-caption-editor relative mt-2 text-center text-xs text-muted-foreground">
+        {recoveryRequired && (
+          <div role="alert" className="mb-2 rounded-md border border-amber-500 p-2 text-start">
+            <p>Saved caption data could not be read safely. The original is preserved. Review the recovered text before replacing it.</p>
+            <button type="button" onClick={recoverAsText} className="mt-1 rounded border px-2 py-1 font-medium">
+              Use recovered text
+            </button>
+          </div>
+        )}
         <RichTextPlugin
           contentEditable={
             <ContentEditable
@@ -218,6 +257,7 @@ export function NestedCaptionEditor({
         <HistoryPlugin />
         <OnChangePlugin
           onChange={(editorState: EditorState, editor) => {
+            if (recoveryRequired) return;
             editorState.read(() => {
               const text = $getRoot().getTextContent();
               const trimmed = text.trim();
