@@ -7,18 +7,18 @@
 
 ## Context and verified evidence
 
-Both repositories contain a `packages/studio-*` workspace, but they are **not interchangeable**. On 2026-11-03 the observed primary SHAs were:
+Both repositories contain a `packages/studio-*` workspace, but they are **not interchangeable**. Historical observed SHAs on 2026-11-03 were:
 
 - Standalone main: `8d1de75987fff78cd12e19564f1db9dafaa75e4c`.
 - Vibress host main: `0fcd4cfa383216a1092ff25ea26ad04edbe876a9`.
 
-The host `@vibress/studio-react` is version `1.2.0`; the standalone package declares `0.1.0` and `private: true`. The host exports WebSocket/memory Yjs collaboration, a shared media context, a floating media toolbar and six metadata popovers that standalone does not export. Its `VibressStudio` supports `collaboration`, `enableAi`, `onAiGenerate` and `allowUnsplash`, whereas the standalone source does not. Host `PostEditor` and `PageEditor` implement persisted autosave and conflict behavior.
+The host `@vibress/studio-react` is version `1.2.0`; the standalone package declares `0.1.0` and `private: true`. Both now contain media context, media toolbars/popovers and opt-in AI callbacks. The host additionally provides WebSocket/memory Yjs collaboration and host-specific editor state/persistence integration not exposed by standalone Studio. Standalone implements a different `replacementId` synchronization contract. Host `PostEditor` and `PageEditor` own persistence and conflict behavior; that behavior has not been demonstrated interchangeable with standalone.
 
 The two repositories retain `schema: 'vibress-studio'`, `version: 1` and legacy-card normalization, but card Zod default behaviors differ and must be tested with old persisted content. Source trees and version numbers are evidence of divergence, *not* proof that every runtime flow is broken.
 
 ## Decision
 
-**Option B: Vibress monorepo is the canonical implementation for the _currently shipped runtime_** until an automated, tested extraction/release workflow has been introduced and approved.
+**Proposed Option B (not yet approved): Vibress monorepo remains the runtime reference for currently shipped host functionality.** Do not treat this recommendation as permission to sync, merge or deploy until maintainers explicitly approve this ADR and a tested extraction/release workflow.
 
 1. Production-facing editor, card/runtime integrations and document behavior continue to be maintained in `AbdullahZaher/vibress`. Do not replace them with the older standalone files.
 2. `AbdullahZaher/vibress-studio` is a **downstream compatibility/distribution target**, not a competing place to independently redesign persisted content or integration contracts.
@@ -31,7 +31,7 @@ The two repositories retain `schema: 'vibress-studio'`, `version: 1` and legacy-
 ## Alternatives examined
 
 - **A. Standalone canonical immediately:** rejected for the active runtime because copying its current `VibressStudio` into the host drops host-only features and existing regression safeguards.
-- **B. Host canonical with extraction:** selected to protect deployed functionality and allow a future reusable standalone distribution.
+- **B. Host canonical with extraction:** preferred proposal, pending owner sign-off, to protect deployed functionality and allow a future reusable standalone distribution.
 - **Indefinite dual-authoritative editing:** rejected; persistent divergence makes compatibility and bug fixes unverifiable.
 
 ## Explicit compatibility invariants
@@ -64,3 +64,9 @@ No runtime behavior is changed by this decision. To reverse it, draft a new ADR,
 - [Host post persistence](https://github.com/AbdullahZaher/vibress/blob/main/apps/admin/src/components/PostEditor.tsx)
 - [Host page persistence](https://github.com/AbdullahZaher/vibress/blob/main/apps/admin/src/components/PageEditor.tsx)
 - [UX roadmap (documentation PR #1)](https://github.com/AbdullahZaher/vibress-studio/blob/docs/studio-global-quality-roadmap-20261103/docs/roadmaps/global-ux-quality-roadmap.md)
+
+## 2026-11-05 verification checkpoint (informational; ADR remains Proposed)
+
+- Host main reference: `b33fb1ab597bfabb8861516132cf8bad567f0bf1`; standalone assessment PR #28 reference: `36445d0288bed112e84944b838bea7373589d5bc`.
+- Host autosave remediation is proposed separately in [Vibress PR #124](https://github.com/AbdullahZaher/vibress/pull/124), with no merge authorization or assumed runtime parity.
+- To approve this ADR, require an owner sign-off, bidirectional document/card fixture checks, pinned Lexical and Yjs compatibility evidence, two-client collaboration/persistence tests, and a reversible migration path.
