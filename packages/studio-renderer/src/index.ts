@@ -11,20 +11,31 @@ export interface RenderOptions {
 }
 
 export class HeadingSlugTracker {
-  private seenSlugs = new Map<string, number>();
+  private nextSuffix = new Map<string, number>();
+  private usedIds = new Set<string>();
 
   allocate(rawText: string): string {
     const trimmed = rawText.trim();
     let baseSlug = slugifyHeading(trimmed);
     if (!baseSlug && trimmed) baseSlug = 'heading';
     if (!baseSlug) return '';
-    const count = this.seenSlugs.get(baseSlug) || 0;
-    this.seenSlugs.set(baseSlug, count + 1);
-    return count > 0 ? `${baseSlug}-${count}` : baseSlug;
+
+    // An explicit heading "foo-1" can collide with a repeated "foo".
+    // Reserve every emitted id, not just counters per normalized title.
+    let suffix = this.nextSuffix.get(baseSlug) ?? 0;
+    let candidate = suffix === 0 ? baseSlug : `${baseSlug}-${suffix}`;
+    while (this.usedIds.has(candidate)) {
+      suffix += 1;
+      candidate = `${baseSlug}-${suffix}`;
+    }
+    this.nextSuffix.set(baseSlug, suffix + 1);
+    this.usedIds.add(candidate);
+    return candidate;
   }
 
   reset(): void {
-    this.seenSlugs.clear();
+    this.nextSuffix.clear();
+    this.usedIds.clear();
   }
 }
 
