@@ -164,3 +164,44 @@ acceptance is recorded. The production-only audit reports no known advisories;
 that result must not be described as a clean full-toolchain audit. Security and
 toolchain owners must review reachability, isolate development servers and
 untrusted build inputs, and test compatible patched versions before release.
+
+
+## Browser frame baseline
+
+`pnpm benchmark:editor`: 14/14 scenarios completed, with all twenty entered
+characters retained per scenario. Measured at clean source
+`642ce9187c238262386c7dd07a2644931a488232`, macOS/Apple M4 Pro,
+Chromium 151.0.7922.34. Desktop viewport 1440×900; mobile emulation 390×844,
+4x CPU throttling. Synthetic image requests use a deterministic local response.
+These are single-run, 20-sample frame proxies on a shared workstation, not
+physical mobile, INP, isolated key-processing or memory-leak measurements.
+
+| Scenario | Desktop mount ms | Desktop typing p95 ms | Emulated mobile mount ms | Emulated mobile typing p95 ms |
+| --- | ---: | ---: | ---: | ---: |
+| empty | 69.8 | 16.3 | 203.6 | 18.8 |
+| 1000-words | 57.5 | 16.6 | 245.5 | 41.4 |
+| 5000-words | 80.0 | 28.3 | 347.0 | 124.1 |
+| 20000-words | 162.2 | 91.6 | 703.8 | 360.8 |
+| mixed-5000 | 124.4 | 53.0 | 541.4 | 219.9 |
+| table-5000 | 190.9 | 125.6 | 828.3 | 468.5 |
+| media-5000 | 164.3 | 50.7 | 725.6 | 234.3 |
+
+The table/media/long-form cases show higher frame latency, especially under CPU
+throttling. They require profiling before optimization and budget acceptance;
+there is no before/after improvement claim. Frame p95 cannot be compared directly
+to the proposed key-processing or INP budgets. [Raw reports](data/editor-frame-baseline-2026-11-05.json)
+include fixture hash, commit, browser, method and environment. Comparator file
+loading was exercised by comparing this set to itself at ratio 1; that checks the
+command path, not an independent regression baseline.
+
+
+## Packed artifact manifest
+
+The final runtime-only consumer/rollback exercise passed and recorded SHA-256
+checksums and sizes for thirteen candidate and thirteen previous tarballs.
+[Raw package report](data/packed-consumer-rollback-2026-11-05.json) names the exact
+source commits. Its dirty flag reflects the concurrently added evidence documents;
+package source was unchanged from `642ce9187c238262386c7dd07a2644931a488232`.
+The strict NodeNext check was rerun and still fails in upstream declarations.
+Checksums identify the exercised local artifacts; a release pipeline must generate
+and retain its own manifest from a clean candidate checkout.

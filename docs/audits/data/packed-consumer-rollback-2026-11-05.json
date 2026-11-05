@@ -1,0 +1,148 @@
+{
+  "candidateCommit": "642ce9187c238262386c7dd07a2644931a488232",
+  "workingTreeDirty": false,
+  "packages": 13,
+  "cleanInstall": "pass",
+  "esm": "pass",
+  "cjs": "pass",
+  "types": "not checked (--runtime-only)",
+  "css": "pass",
+  "typeResolution": null,
+  "artifacts": [
+    {
+      "name": "@vibress/studio-card-definitions",
+      "bytes": 10636,
+      "sha256": "c304919581eb532ddb642e3ba899f81d2385157e0407bcd717247b4361b1f7ff"
+    },
+    {
+      "name": "@vibress/studio-cards",
+      "bytes": 5062,
+      "sha256": "9ac570617ebe1231a8cbd6c6d4638c51f429eddfe4e026fb59986313365ab990"
+    },
+    {
+      "name": "@vibress/studio-core",
+      "bytes": 38870,
+      "sha256": "d4441b76d7bfe028caff1645a190ea6841123b55650b4c3db6ebc54ddaa39ff6"
+    },
+    {
+      "name": "@vibress/studio-html",
+      "bytes": 23610,
+      "sha256": "880ff9bb4da7c79dfc0f6ecfd6fb9dea0c28a5f7852daff7e10b61850e7b97ec"
+    },
+    {
+      "name": "@vibress/studio-markdown",
+      "bytes": 13581,
+      "sha256": "657b7d921f165b255b7b176ae84adba89fd90da3ef58a092a954ca746833b9c3"
+    },
+    {
+      "name": "@vibress/studio-nodes",
+      "bytes": 6552,
+      "sha256": "c69415c66d5c9958775887d25fe58443e8053cb559a908b8fa21a69905a0604b"
+    },
+    {
+      "name": "@vibress/studio-plugin-sdk",
+      "bytes": 6213,
+      "sha256": "dcecc39405d50cf7350a64610236fbdfa4fe92482f6ad58ab6762eb83a9a6319"
+    },
+    {
+      "name": "@vibress/studio-react",
+      "bytes": 219333,
+      "sha256": "50ae88dac9fd96069410bcc5eecca98a0c0bde56a2e266394521ed5beabaf393"
+    },
+    {
+      "name": "@vibress/studio-renderer",
+      "bytes": 26630,
+      "sha256": "a5db19665cf3194250fe07ca9942182bf029e164cfaff989d274340132d8dcb9"
+    },
+    {
+      "name": "@vibress/studio-serializer",
+      "bytes": 4811,
+      "sha256": "e30b2c71d76b1dd5ccf76ad6eee6fb64e7dd4b1ea5a6c9c58ec765ba0362fc24"
+    },
+    {
+      "name": "@vibress/studio-testing",
+      "bytes": 4667,
+      "sha256": "1c23c52a646413743d5d1669d6c0a16882fe3ff9d9d329d3b1df54b11795e739"
+    },
+    {
+      "name": "@vibress/studio-transforms",
+      "bytes": 3661,
+      "sha256": "86bd751ade4408eee46b7ba1dd3ec00789c72697015c323cc3bccbbcff10ac76"
+    },
+    {
+      "name": "@vibress/studio-utils",
+      "bytes": 26726,
+      "sha256": "84a9197d6eef2d11c8ac0f2cfdee185db25ba5042895508715045ee7a6abfed7"
+    }
+  ],
+  "rollback": "pass",
+  "baselineArtifacts": [
+    {
+      "name": "@vibress/studio-card-definitions",
+      "bytes": 10539,
+      "sha256": "28a144e0fb7aa1efc4b3e59bf2638d01a5233a6db2660e6e1e9df222e31969a1"
+    },
+    {
+      "name": "@vibress/studio-cards",
+      "bytes": 5062,
+      "sha256": "9ac570617ebe1231a8cbd6c6d4638c51f429eddfe4e026fb59986313365ab990"
+    },
+    {
+      "name": "@vibress/studio-core",
+      "bytes": 27656,
+      "sha256": "b395bf33974f20d7707831ad92125ee8a4e5ceb63a2d88ce33adfe64a9ca1b65"
+    },
+    {
+      "name": "@vibress/studio-html",
+      "bytes": 15762,
+      "sha256": "bb994c0083481731e6c6bf5ad8a26866b52ed3c04397dd3cea8dd4dc760f90d5"
+    },
+    {
+      "name": "@vibress/studio-markdown",
+      "bytes": 13581,
+      "sha256": "657b7d921f165b255b7b176ae84adba89fd90da3ef58a092a954ca746833b9c3"
+    },
+    {
+      "name": "@vibress/studio-nodes",
+      "bytes": 4683,
+      "sha256": "3c8920f99be50b244f31ec918d0b376e665d9e2f917ccd4554eec65939f41208"
+    },
+    {
+      "name": "@vibress/studio-plugin-sdk",
+      "bytes": 2891,
+      "sha256": "6ce26483549aff5a50e307c8079eea3fc17a53c7b8e984f0bb91eff9b8e97d0c"
+    },
+    {
+      "name": "@vibress/studio-react",
+      "bytes": 185755,
+      "sha256": "ba86cf44f437b2c512cf648d6ca1f61dbbb9edda5bb38cb2a5311aa4a215512a"
+    },
+    {
+      "name": "@vibress/studio-renderer",
+      "bytes": 26567,
+      "sha256": "6144a5c1c383f77c833df95b0c82c5f562d6d52f1faef2f3263f5feddd82ce8c"
+    },
+    {
+      "name": "@vibress/studio-serializer",
+      "bytes": 3989,
+      "sha256": "6d8362e181e154f0d1d9f8ca025ac6f27f25d019e69e53a9465e0931b400d927"
+    },
+    {
+      "name": "@vibress/studio-testing",
+      "bytes": 3230,
+      "sha256": "3119a71124051247db9bbb8df2a858cd2390a61a44714f60b8ed47f3c83ee2b3"
+    },
+    {
+      "name": "@vibress/studio-transforms",
+      "bytes": 3661,
+      "sha256": "86bd751ade4408eee46b7ba1dd3ec00789c72697015c323cc3bccbbcff10ac76"
+    },
+    {
+      "name": "@vibress/studio-utils",
+      "bytes": 19901,
+      "sha256": "beb584b8e3a53447923a46f4a79e78159d976293a97a5c5acec221a3fa18551d"
+    }
+  ],
+  "baselineCommit": "b86c8e66f1e615eed756b4335de4950b29114181",
+  "rollbackScope": "clean package reinstall and v1/legacy-compatible saved content; not a deployed host rollback"
+}
