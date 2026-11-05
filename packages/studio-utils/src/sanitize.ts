@@ -277,7 +277,8 @@ function sanitizeNode(node: P5Node): P5Node[] {
       attr.value = sanitized;
       return true;
     }
-    if (name.startsWith('data-') || name === 'srcdoc' || name === 'formaction' || name === 'xlink:href') return false;
+    if (name.startsWith('data-') && !GLOBAL_ATTRS.has(name)) return false;
+    if (name === 'srcdoc' || name === 'formaction' || name === 'xlink:href') return false;
 
     if (name === 'class') {
       // Only allow class names that look like layout/theme classes.

@@ -31,6 +31,37 @@ describe('renderStudioDocumentToHtml — all Studio cards', () => {
     expect(html).toContain('<a href="https://example.com">link</a>');
   });
 
+  it('enforces rel="noopener noreferrer" on target="_blank" links (STU-401)', () => {
+    const html1 = renderStudioDocumentToHtml(doc([
+      { type: 'link', url: 'https://example.com', target: '_blank', children: [{ type: 'text', text: 'External' }] },
+    ]));
+    expect(html1).toContain('target="_blank"');
+    expect(html1).toContain('rel="noopener noreferrer"');
+
+    // Combines with existing rel attributes safely
+    const html2 = renderStudioDocumentToHtml(doc([
+      { type: 'link', url: 'https://example.com', target: '_blank', rel: 'nofollow', children: [{ type: 'text', text: 'External Nofollow' }] },
+    ]));
+    expect(html2).toContain('target="_blank"');
+    expect(html2).toContain('rel="nofollow noopener noreferrer"');
+
+    // Standard links without target="_blank" do not get forced rel
+    const html3 = renderStudioDocumentToHtml(doc([
+      { type: 'link', url: 'https://example.com', children: [{ type: 'text', text: 'Internal' }] },
+    ]));
+    expect(html3).not.toContain('target="_blank"');
+    expect(html3).not.toContain('rel=');
+  });
+
+  it('sanitizes code block language identifiers against attribute breakout (STU-202)', () => {
+    const html = renderStudioDocumentToHtml(doc([
+      { type: 'code', language: 'typescript"><script>alert(1)</script>', children: [{ type: 'text', text: 'const x = 1;' }] },
+    ]));
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('data-language="typescriptscriptalert1script"');
+    expect(html).toContain('const x = 1;');
+  });
+
   it('renders image card', () => {
     const html = renderStudioDocumentToHtml(doc([
       card('image', { src: '/content/media/a/b.png', alt: 'Alt text', caption: 'A caption', width: 'wide' }),

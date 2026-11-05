@@ -202,10 +202,16 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
       return `<tr>${renderChildren()}</tr>`;
 
     case 'tablecell': {
-      const isHeader = n.headerState && n.headerState !== 0;
+      const isHeader = Boolean(n.headerState && n.headerState !== 0);
       const tag = isHeader ? 'th' : 'td';
-      const colSpan = n.colSpan && Number(n.colSpan) > 1 ? ` colspan="${n.colSpan}"` : '';
-      const rowSpan = n.rowSpan && Number(n.rowSpan) > 1 ? ` rowspan="${n.rowSpan}"` : '';
+      const colSpanVal = typeof n.colSpan === 'number' && Number.isInteger(n.colSpan) && n.colSpan > 1
+        ? n.colSpan
+        : (typeof n.colSpan === 'string' && /^\d+$/.test(n.colSpan) && parseInt(n.colSpan, 10) > 1 ? parseInt(n.colSpan, 10) : null);
+      const rowSpanVal = typeof n.rowSpan === 'number' && Number.isInteger(n.rowSpan) && n.rowSpan > 1
+        ? n.rowSpan
+        : (typeof n.rowSpan === 'string' && /^\d+$/.test(n.rowSpan) && parseInt(n.rowSpan, 10) > 1 ? parseInt(n.rowSpan, 10) : null);
+      const colSpan = colSpanVal ? ` colspan="${colSpanVal}"` : '';
+      const rowSpan = rowSpanVal ? ` rowspan="${rowSpanVal}"` : '';
       let style = '';
       if (typeof n.backgroundColor === 'string' && isSafeCssColor(n.backgroundColor)) {
         style = `background-color: ${n.backgroundColor}`;
@@ -222,19 +228,28 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
 
     case 'link': {
       const url = sanitizeUrl(n.url || '#');
-      const relAttr = n.rel ? ` rel="${escapeHtml(n.rel)}"` : '';
-      const targetAttr = n.target ? ` target="${escapeHtml(n.target)}"` : '';
+      const target = typeof n.target === 'string' && n.target.trim() ? n.target.trim() : '';
+      let rel = typeof n.rel === 'string' && n.rel.trim() ? n.rel.trim() : '';
+      if (target === '_blank') {
+        const tokens = new Set(rel.split(/\s+/).filter(Boolean));
+        tokens.add('noopener');
+        tokens.add('noreferrer');
+        rel = Array.from(tokens).join(' ');
+      }
+      const relAttr = rel ? ` rel="${escapeHtml(rel)}"` : '';
+      const targetAttr = target ? ` target="${escapeHtml(target)}"` : '';
       return `<a href="${url}"${relAttr}${targetAttr}>${renderChildren()}</a>`;
     }
 
     case 'code': {
-      const lang = typeof n.language === 'string' && n.language ? escapeHtml(n.language) : '';
-      const langAttr = lang ? ` data-language="${lang}"` : '';
+      const rawLang = typeof n.language === 'string' ? n.language.trim() : '';
+      const safeLang = rawLang.replace(/[^a-zA-Z0-9_#-]/g, '');
+      const langAttr = safeLang ? ` data-language="${escapeHtml(safeLang)}"` : '';
       const codeHtml = renderChildren();
       const copyBtn = options.interactiveControls
         ? '<button type="button" class="studio-code-copy-btn" aria-label="Copy code">Copy</button>'
         : '';
-      return `<div class="studio-code-block"${langAttr}><div class="studio-code-header"><span class="studio-code-lang">${lang || 'code'}</span>${copyBtn}</div><pre><code>${codeHtml}</code></pre></div>`;
+      return `<div class="studio-code-block"${langAttr}><div class="studio-code-header"><span class="studio-code-lang">${escapeHtml(safeLang || 'code')}</span>${copyBtn}</div><pre><code>${codeHtml}</code></pre></div>`;
     }
 
     // Handle Studio Card Nodes (canonical type after normalization)
