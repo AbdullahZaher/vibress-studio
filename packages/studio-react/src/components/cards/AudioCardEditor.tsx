@@ -8,6 +8,7 @@ import { NestedCaptionEditor } from './NestedCaptionEditor';
 import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
+import { isDurableMediaUrl, mergeDurableMediaAsset } from '../../utils/mergeDurableMedia';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
 import { AudioMetadataPopover } from '../ui/media-popovers/AudioMetadataPopover';
 
@@ -34,18 +35,15 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
     Promise.resolve()
       .then(() => uploadMedia(selectedFile, 'audio'))
       .then((payload) => {
-        if (!payload || typeof payload.src !== 'string') {
+        if (!payload || !isDurableMediaUrl(payload.src)) {
           setUploadError(true);
           return;
         }
         editor.update(() => {
           const node = $getNodeByKey(nodeKey);
           if (node instanceof StudioCardNode && node.isAttached()) {
-            node.setCardData({
-              ...node.getCardData(),
-              ...payload,
-              title: selectedFile.name,
-            });
+            const next = mergeDurableMediaAsset(node.getCardData(), payload, 'audio', selectedFile.name);
+            if (next) node.setCardData(next);
           }
         });
       })
@@ -63,14 +61,12 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
       cardType: 'audio',
       source: 'library',
     });
-    if (!payload) return;
+    if (!payload || !isDurableMediaUrl(payload.src)) return;
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
       if (node instanceof StudioCardNode && node.isAttached()) {
-        node.setCardData({
-          ...node.getCardData(),
-          ...payload,
-        });
+        const next = mergeDurableMediaAsset(node.getCardData(), payload, 'audio');
+        if (next) node.setCardData(next);
       }
     });
   }, [editor, nodeKey, requestMedia]);
