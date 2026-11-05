@@ -133,96 +133,54 @@ export type StudioTableNode = z.infer<typeof StudioTableNodeSchema>;
 
 export const StudioCardNodeDataSchema = z.object({
   type: z.literal('studio-card'),
-  cardType: z.string(),
+  cardType: z.string().min(1),
   cardData: z.record(z.string(), z.unknown()).default({}),
   version: z.number().optional(),
 }).passthrough();
 export type StudioCardNode = z.infer<typeof StudioCardNodeDataSchema>;
 
-const VALID_HEADING_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
-const VALID_LIST_TYPES = new Set(['bullet', 'number', 'check']);
-
 export function isStudioTextNode(node: unknown): node is StudioTextNode {
-  if (typeof node !== 'object' || node === null) return false;
-  const n = node as Record<string, unknown>;
-  return n.type === 'text' && typeof n.text === 'string';
+  return StudioTextNodeSchema.safeParse(node).success;
 }
 
 export function isStudioHeadingNode(node: unknown): node is StudioHeadingNode {
-  if (typeof node !== 'object' || node === null) return false;
-  const n = node as Record<string, unknown>;
-  return (
-    n.type === 'heading' &&
-    typeof n.tag === 'string' &&
-    VALID_HEADING_TAGS.has(n.tag.toLowerCase()) &&
-    Array.isArray(n.children)
-  );
+  return StudioHeadingNodeSchema.safeParse(node).success;
 }
 
 export function isStudioParagraphNode(node: unknown): node is StudioParagraphNode {
-  if (typeof node !== 'object' || node === null) return false;
-  const n = node as Record<string, unknown>;
-  return n.type === 'paragraph' && Array.isArray(n.children);
+  return StudioParagraphNodeSchema.safeParse(node).success;
 }
 
 export function isStudioLinkNode(node: unknown): node is StudioLinkNode {
-  if (typeof node !== 'object' || node === null) return false;
-  const n = node as Record<string, unknown>;
-  return n.type === 'link' && typeof n.url === 'string' && Array.isArray(n.children);
+  return StudioLinkNodeSchema.safeParse(node).success;
 }
 
 export function isStudioListNode(node: unknown): node is StudioListNode {
-  if (typeof node !== 'object' || node === null) return false;
-  const n = node as Record<string, unknown>;
-  return (
-    n.type === 'list' &&
-    typeof n.listType === 'string' &&
-    VALID_LIST_TYPES.has(n.listType) &&
-    Array.isArray(n.children)
-  );
+  return StudioListNodeSchema.safeParse(node).success;
 }
 
 export function isStudioListItemNode(node: unknown): node is StudioListItemNode {
-  if (typeof node !== 'object' || node === null) return false;
-  const n = node as Record<string, unknown>;
-  return n.type === 'listitem' && Array.isArray(n.children);
+  return StudioListItemNodeSchema.safeParse(node).success;
 }
 
 export function isStudioCodeNode(node: unknown): node is StudioCodeNode {
-  if (typeof node !== 'object' || node === null) return false;
-  const n = node as Record<string, unknown>;
-  return n.type === 'code' && Array.isArray(n.children);
+  return StudioCodeNodeSchema.safeParse(node).success;
 }
 
 export function isStudioTableNode(node: unknown): node is StudioTableNode {
-  if (typeof node !== 'object' || node === null) return false;
-  const n = node as Record<string, unknown>;
-  return n.type === 'table' && Array.isArray(n.children);
+  return StudioTableNodeSchema.safeParse(node).success;
 }
 
 export function isStudioTableRowNode(node: unknown): node is StudioTableRowNode {
-  if (typeof node !== 'object' || node === null) return false;
-  const n = node as Record<string, unknown>;
-  return n.type === 'tablerow' && Array.isArray(n.children);
+  return StudioTableRowNodeSchema.safeParse(node).success;
 }
 
 export function isStudioTableCellNode(node: unknown): node is StudioTableCellNode {
-  if (typeof node !== 'object' || node === null) return false;
-  const n = node as Record<string, unknown>;
-  return n.type === 'tablecell' && Array.isArray(n.children);
+  return StudioTableCellNodeSchema.safeParse(node).success;
 }
 
 export function isStudioCardNode(node: unknown): node is StudioCardNode {
-  if (typeof node !== 'object' || node === null) return false;
-  const n = node as Record<string, unknown>;
-  return (
-    n.type === 'studio-card' &&
-    typeof n.cardType === 'string' &&
-    n.cardType.trim().length > 0 &&
-    typeof n.cardData === 'object' &&
-    n.cardData !== null &&
-    !Array.isArray(n.cardData)
-  );
+  return StudioCardNodeDataSchema.safeParse(node).success;
 }
 
 // ============================================================================
@@ -268,33 +226,82 @@ export function getUtf8ByteLength(str: string): number {
     return new TextEncoder().encode(str).length;
   }
   let bytes = 0;
-  for (let i = 0; i < str.length; i++) {
+  const len = str.length;
+  for (let i = 0; i < len; i++) {
     const code = str.charCodeAt(i);
-    if (code < 0x80) bytes += 1;
-    else if (code < 0x800) bytes += 2;
-    else if (code >= 0xd800 && code <= 0xdbff) {
-      bytes += 4;
-      i++;
-    } else bytes += 3;
+    if (code < 0x80) {
+      bytes += 1;
+    } else if (code < 0x800) {
+      bytes += 2;
+    } else if (code >= 0xd800 && code <= 0xdbff) {
+      if (i + 1 < len) {
+        const next = str.charCodeAt(i + 1);
+        if (next >= 0xdc00 && next <= 0xdfff) {
+          bytes += 4;
+          i++;
+          continue;
+        }
+      }
+      // Unpaired high surrogate -> WHATWG TextEncoder emits U+FFFD (3 bytes in UTF-8)
+      bytes += 3;
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      // Unpaired low surrogate -> WHATWG TextEncoder emits U+FFFD (3 bytes in UTF-8)
+      bytes += 3;
+    } else {
+      bytes += 3;
+    }
   }
   return bytes;
 }
 
-function getJsonStringByteLength(str: string): number {
-  let extraEscapes = 0;
-  for (let i = 0; i < str.length; i++) {
+export function getJsonStringByteLength(str: string): number {
+  let bytes = 2; // Opening and closing JSON quotes ""
+  const len = str.length;
+
+  for (let i = 0; i < len; i++) {
     const code = str.charCodeAt(i);
+
     if (code === 34 || code === 92) {
-      extraEscapes += 1;
+      // \" or \\
+      bytes += 2;
     } else if (code < 32) {
+      // Control characters
       if (code === 8 || code === 9 || code === 10 || code === 12 || code === 13) {
-        extraEscapes += 1;
+        // \b, \t, \n, \f, \r
+        bytes += 2;
       } else {
-        extraEscapes += 5;
+        // \u00xx
+        bytes += 6;
       }
+    } else if (code < 0x80) {
+      // ASCII 0x20 - 0x7E
+      bytes += 1;
+    } else if (code < 0x800) {
+      // 2-byte UTF-8
+      bytes += 2;
+    } else if (code >= 0xd800 && code <= 0xdbff) {
+      // High surrogate
+      if (i + 1 < len) {
+        const next = str.charCodeAt(i + 1);
+        if (next >= 0xdc00 && next <= 0xdfff) {
+          // Valid surrogate pair -> 4-byte UTF-8 character in JSON output
+          bytes += 4;
+          i++;
+          continue;
+        }
+      }
+      // Unpaired high surrogate -> JSON.stringify escapes as \udxxx (6 ASCII bytes)
+      bytes += 6;
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      // Unpaired low surrogate -> JSON.stringify escapes as \udxxx (6 ASCII bytes)
+      bytes += 6;
+    } else {
+      // 3-byte UTF-8 (0x800 - 0xFFFF except surrogates)
+      bytes += 3;
     }
   }
-  return 2 + getUtf8ByteLength(str) + extraEscapes;
+
+  return bytes;
 }
 
 function checkObjectResourceLimits(
