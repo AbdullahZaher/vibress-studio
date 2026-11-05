@@ -45,7 +45,8 @@
 .vibress-studio-placeholder {
   pointer-events: none;
   user-select: none;
-  color: var(--vb-studio-foreground-subtle);
+  /* Readable on light and dark surfaces; the subtle token fails AA on white. */
+  color: var(--vb-studio-foreground-muted, #475569);
   font-size: var(--vb-studio-text-lg);
   line-height: var(--vb-studio-leading-relaxed);
   max-width: var(--vb-studio-measure-reading, 740px);
