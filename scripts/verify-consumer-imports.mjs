@@ -7,7 +7,6 @@
  */
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 
 async function packageEntries(name) {
@@ -46,8 +45,6 @@ for (const name of ['styles.css', 'tokens.css']) {
   const requireFromReact = createRequire(new URL('../packages/studio-react/package.json', import.meta.url));
   const entry = requireFromReact.resolve(`@vibress/studio-react/${name}`);
   assert.ok(existsSync(entry), `CSS public export unavailable: ${name}`);
-  assert.ok(fileURLToPath(new URL(`../packages/studio-react/dist/styles/${name === 'styles.css' ? 'studio.css' : name}`, import.meta.url)),
-    'CSS artifact path must be a valid file path');
 }
 
 assert.equal(typeof globalThis.document, 'undefined');
