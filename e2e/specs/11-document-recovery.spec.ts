@@ -2,6 +2,35 @@ import { test, expect } from '@playwright/test';
 import { editorContenteditable, focusEditor, openHarness, studio } from './helpers';
 import { readFileSync } from 'node:fs';
 
+for (const fixture of [
+  { name: 'empty object', root: {} },
+  { name: 'empty children', root: { children: [] } },
+  { name: 'article', root: { children: [{ type: 'paragraph', version: 1, direction: 'rtl', format: '', indent: 0,
+    children: [{ type: 'text', version: 1, text: 'مسودة English', format: 1, detail: 0, mode: 'normal', style: '' }] }] } },
+]) {
+  test(`historical ${fixture.name} root loads, edits and reopens its saved snapshot`, async ({ page }) => {
+    await openHarness(page);
+    await studio(page).syncValue({ version: 1, root: fixture.root });
+    const editable = editorContenteditable(page);
+    await expect(editable).toBeVisible();
+    if (fixture.name === 'article') await expect(editable).toContainText('مسودة English');
+    await editable.locator('p').first().click();
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.insertText(' continued مرحبا');
+    await expect.poll(async () => JSON.stringify(await studio(page).getDoc())).toContain('continued مرحبا');
+    const saved = await studio(page).getDoc();
+    expect(saved.root.type).toBe('root');
+    // Native caret placement within bidi text differs across engines. Removing
+    // only the new insertion must recover the entire original article text.
+    if (fixture.name === 'article') expect(JSON.stringify(saved).replace(' continued مرحبا', '')).toContain('مسودة English');
+    await page.reload();
+    await expect(editable).toBeVisible();
+    await studio(page).syncValue(saved);
+    await expect(editable).toContainText('continued مرحبا');
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+}
+
 test('invalid host updates pause editing and retain the mounted draft through recovery', async ({ page }, testInfo) => {
   await openHarness(page);
   await focusEditor(page);

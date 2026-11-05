@@ -89,6 +89,58 @@ distinguish a delayed autosave response from an intentional document restore.
    the rejected source and any recoverable local draft, and manage in-flight
    saves: editor recovery does not cancel requests or confirm durable storage.
 
+### Ordered envelope metadata
+
+Root equality is not full-document equality. To change publication metadata or
+unknown envelope/editor fields without resetting author content, pass the additive
+`metadataRevision` prop alongside the complete validated `value` envelope:
+
+```tsx
+<VibressStudio value={authoritativeSnapshot} metadataRevision={metadataSequence}
+  replacementId={documentSessionId} onChange={handleLocalDraft} />
+```
+
+The host assigns a **non-negative safe integer**, strictly increasing for each
+authoritative metadata snapshot within one `replacementId` epoch. Attach the
+sequence assigned to that snapshot at its source; never assign a fresh sequence
+based on response arrival order. Reject responses from a different document epoch
+in the host. Studio accepts only a greater sequence, even if the supplied root is
+an old autosave snapshot. Equal, older, omitted, negative, fractional, and unsafe
+sequences cannot update the envelope. The first value loads normally; a changed
+`replacementId` explicitly replaces the document and starts a new sequence.
+
+A metadata acknowledgment changes only the source envelope used by the next real
+local edit. It does not call `setEditorState`, clear dirty tracking, change selection
+or undo history, or emit `onChange`. `revisionId` remains informational. Once this
+ordered contract is used, an unsequenced update cannot fall back to automatic
+external root loading; use `replacementId` for replacement. Invalid schema,
+unsupported content, and resource errors do not consume either authorization.
+
+Without this ordering prop, an identical-root metadata update remains ambiguous
+and is ignored. Existing hosts keep their previous content synchronization behavior;
+they must adopt this contract to acknowledge metadata safely. The envelope is a
+complete snapshot, not a partial merge patch: include unknown fields that must
+survive. This prop does not implement server-side concurrency or persistence.
+
+### Gallery identity and media request ownership
+
+Picker/upload appends reject a new item when **either** its non-empty durable asset
+ID or its exact trimmed URL already exists in the gallery or earlier in that
+operation. Query parameters are significant; filenames are never identities.
+Existing order, repeated images, alt text, captions, layout, width and unknown
+metadata are untouched. Picker append does not offer an intentional-repeat command;
+existing authored repetitions remain valid and survive save/reload.
+
+Single-media replacement requests supersede previous requests immediately,
+including their upload busy state. Only the active request can change content or
+show its error; obsolete upload completion cannot clear a newer upload indicator.
+Gallery additions are additive and retain independent upload leases. Host picker
+callbacks may throw synchronously or reject asynchronously; Studio shows a
+retryable error and preserves current media. `null` is cancellation. Unsafe or
+transient URLs cannot be persisted. Completion after deletion/unmount cannot
+restore a card or update its component state. Hosts still own cancellation of
+network work and cleanup of unused durable uploads.
+
 `uploadMedia(file, cardType)` and `requestMedia({ cardType, source })` are host callbacks, returning durable `{ assetId, src, ... }` asset references or `null` for cancellation. Only the host can guarantee persistence and authorization. Never store `blob:` object URLs or temporary previews. Mock adapters are for tests and the playground only.
 
 ### Host recovery export
@@ -119,6 +171,13 @@ AI is opt-in using `enableAi` and `onAiGenerate`. The callback may be supplied f
 ## Document and serialization contract
 
 Documents use `schema: 'vibress-studio'`, `version: 1`. Legacy `react-studio-card` nodes normalize to `studio-card`. `migrateDocument` accepts supported legacy shapes and can throw for invalid persisted data; the host must **retain the original** and avoid overwriting it with a new empty document on errors.
+
+Historical v1 roots may omit `type`. Migration restores it only when the root
+contains a `children` array or is an empty object. An empty object becomes
+`{ type: 'root', children: [] }`. Existing children and root metadata remain
+intact; input is not mutated. Direct validation remains strict, and explicit
+wrong types, invalid children and ambiguous wrappers require recovery. Limits
+are rechecked on the repaired document. This does not rewrite host database rows.
 
 Persisted validation retains unknown envelope/editor/node metadata. Editable
 admission is stricter: known nodes must have supported fields, versions and
@@ -173,8 +232,9 @@ The Vibress host has Yjs collaboration exports and host-driven session lifecycle
 
 `pnpm verify:host-compatibility --host /path/to/vibress --ref IMMUTABLE_SHA`
 compares committed host core source against the same persisted fixtures, without
-reading dirty host files. It currently reports differences in envelope metadata
-and rejection of invalid/foreign content. Its scope excludes editor commands,
+reading dirty host files, including relative source imports from the same commit.
+At host `05446c782ab37db60d4cf6082184c2233934c2bc`, seven fixtures pass and two
+differ: future document versions and envelope extensions. Its scope excludes editor commands,
 public rendering, Yjs and host services; passing it alone would not prove parity.
 
 ## Host release verification

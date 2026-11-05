@@ -722,6 +722,27 @@ export function assertStudioDocumentEditable(document: StudioDocument, rawDocume
   }
 }
 
+/** Restore only the unambiguous structural fields omitted by historical roots.
+ * Explicit types and incomplete roots containing other data require recovery. */
+function migrateLegacyRoot(root: unknown): unknown {
+  if (!root || typeof root !== 'object' || Array.isArray(root) || 'type' in root) return root;
+  if ('children' in root && Array.isArray(root.children)) return { ...root, type: 'root' };
+  if (Object.keys(root).length === 0) return { type: 'root', children: [] };
+  return root;
+}
+
+function validateMigratedDocument(candidate: unknown, original: unknown, limits?: DocumentResourceLimits): StudioDocument {
+  try {
+    checkDocumentResourceLimits(candidate, limits);
+    return validateStudioDocument(candidate);
+  } catch (error) {
+    if (isStudioMigrationError(error)) {
+      throw new StudioMigrationError(error.message, original, error.code);
+    }
+    throw error;
+  }
+}
+
 export function migrateDocument(rawDoc: unknown, limits?: DocumentResourceLimits): StudioDocument {
   if (rawDoc === undefined || rawDoc === null) {
     return createEmptyStudioDocument();
@@ -770,15 +791,8 @@ export function migrateDocument(rawDoc: unknown, limits?: DocumentResourceLimits
     // Canonical Studio document envelope
     if (obj.schema === 'vibress-studio') {
       if (obj.root && typeof obj.root === 'object') {
-        try {
-          return validateStudioDocument(normalizeStudioDocument(rawDoc));
-        } catch (validationErr) {
-          throw new StudioMigrationError(
-            `Invalid persisted Studio document: ${validationErr instanceof Error ? validationErr.message : String(validationErr)}`,
-            rawDoc,
-            'INVALID_DOCUMENT'
-          );
-        }
+        const root = obj.version === CURRENT_STUDIO_VERSION ? migrateLegacyRoot(obj.root) : obj.root;
+        return validateMigratedDocument(normalizeStudioDocument({ ...obj, root }), rawDoc, limits);
       }
       throw new StudioMigrationError(
         'Invalid persisted Studio document: root must be an object',
@@ -798,21 +812,14 @@ export function migrateDocument(rawDoc: unknown, limits?: DocumentResourceLimits
 
     // Legacy Batch 2 format: { root: ... } without schema envelope
     if (obj.root && typeof obj.root === 'object') {
-      const docCandidate: StudioDocument = {
+      const docCandidate = {
         schema: STUDIO_SCHEMA_NAME,
         version: CURRENT_STUDIO_VERSION,
         editor: { lexicalVersion: '0.13.1' },
-        root: normalizeStudioDocument(obj.root as StudioDocument['root']),
+        root: normalizeStudioDocument(obj.version === undefined || obj.version === CURRENT_STUDIO_VERSION
+          ? migrateLegacyRoot(obj.root) : obj.root),
       };
-      try {
-        return validateStudioDocument(docCandidate);
-      } catch (validationErr) {
-        throw new StudioMigrationError(
-          `Invalid legacy Studio document root: ${validationErr instanceof Error ? validationErr.message : String(validationErr)}`,
-          rawDoc,
-          'INVALID_DOCUMENT'
-        );
-      }
+      return validateMigratedDocument(docCandidate, rawDoc, limits);
     }
 
     // Object is neither a Studio document nor a recognized legacy format

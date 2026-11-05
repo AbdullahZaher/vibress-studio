@@ -49,7 +49,100 @@ function readCard(editor: LexicalEditor) {
   });
 }
 
+async function setCardSource(editor: LexicalEditor, src: string) {
+  await act(async () => { editor.update(() => {
+    const node = $getRoot().getFirstChild() as StudioCardNode;
+    node.setCardData({ ...node.getCardData(), src, alt: 'Current author metadata', custom: { preserved: true } });
+  }, { discrete: true }); });
+}
+
 describe.each(['image', 'video', 'audio', 'file'])('actual %s card upload lifecycle (STU-501/STU-502)', (cardType) => {
+  it.each(['selected', 'canceled'])('releases a superseded upload after a %s library operation (CR-03)', async outcome => {
+    const upload = deferred<Record<string, unknown> | null>();
+    const picker = deferred<Record<string, unknown> | null>();
+    const view = mount(cardType, { uploadMedia: () => upload.promise, requestMedia: () => picker.promise });
+    view.chooseFile();
+    await act(async () => {});
+    // A card can become populated while its upload is pending (e.g. undo or
+    // another editor integration). Exercise its actual library toolbar.
+    const setSource = async (src: string) => { await act(async () => {
+      view.editor().update(() => {
+        const node = $getRoot().getFirstChild() as StudioCardNode;
+        node.setCardData({ ...node.getCardData(), src, alt: 'Live metadata' });
+      }, { discrete: true });
+    }); };
+    await setSource('/assets/current.png');
+    fireEvent.click(screen.getByRole('button', { name: `Change ${cardType} from library` }));
+    await act(async () => { picker.resolve(outcome === 'selected' ? { src: '/assets/library.png', assetId: 'library' } : null); await picker.promise; });
+    expect(readCard(view.editor()).src).toBe(outcome === 'selected' ? '/assets/library.png' : '/assets/current.png');
+    await act(async () => { upload.resolve({ src: '/assets/obsolete.png' }); await upload.promise; });
+    expect(readCard(view.editor()).src).toBe(outcome === 'selected' ? '/assets/library.png' : '/assets/current.png');
+    expect(readCard(view.editor()).alt).toBe('Live metadata');
+    await setSource('');
+    expect(screen.queryByText('Uploading...')).toBeNull();
+    expect(view.container.querySelector<HTMLInputElement>('input[type="file"]')!.disabled).toBe(false);
+  });
+
+  it.each(['sync', 'async', 'invalid'])('handles %s picker failures after superseding an upload and allows retry', async failure => {
+    const upload = deferred<Record<string, unknown> | null>();
+    const requestMedia = vi.fn().mockImplementationOnce(() => {
+      if (failure === 'sync') throw new Error('Synchronous host error');
+      return failure === 'async' ? Promise.reject(new Error('Async host error')) : Promise.resolve({ src: 'javascript:alert(1)' });
+    }).mockResolvedValueOnce({ src: '/assets/retry-library.png', assetId: 'retry-library' });
+    const view = mount(cardType, { uploadMedia: () => upload.promise, requestMedia });
+    view.chooseFile(); await act(async () => {});
+    await setCardSource(view.editor(), '/assets/current.png');
+    fireEvent.click(screen.getByRole('button', { name: `Change ${cardType} from library` }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Could not select media'));
+    await act(async () => { upload.resolve({ src: '/assets/obsolete.png' }); await upload.promise; });
+    expect(readCard(view.editor()).src).toBe('/assets/current.png');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry media selection' }));
+    await waitFor(() => expect(readCard(view.editor()).src).toBe('/assets/retry-library.png'));
+    expect(readCard(view.editor())).toMatchObject({ alt: 'Current author metadata', custom: { preserved: true }, assetId: 'retry-library' });
+    expect(screen.queryByRole('alert')).toBeNull();
+    await setCardSource(view.editor(), '');
+    expect(screen.queryByText('Uploading...')).toBeNull();
+  });
+
+  it.each(['obsolete-first', 'newest-first'])('settles two uploads %s without stale overwrite or clearing a newer busy lease', async order => {
+    const first = deferred<Record<string, unknown> | null>();
+    const second = deferred<Record<string, unknown> | null>();
+    const uploadMedia = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const view = mount(cardType, { uploadMedia, requestMedia: async () => null });
+    view.chooseFile(); await act(async () => {});
+    await setCardSource(view.editor(), '/assets/current.png');
+    fireEvent.click(screen.getByRole('button', { name: `Change ${cardType} from library` }));
+    await act(async () => {});
+    await setCardSource(view.editor(), '');
+    view.chooseFile(); await act(async () => {});
+    expect(uploadMedia).toHaveBeenCalledTimes(2);
+    const resolveFirst = async () => { await act(async () => { first.resolve({ src: '/assets/stale.png' }); await first.promise; }); };
+    const resolveSecond = async () => { await act(async () => { second.resolve({ src: '/assets/newest.png', assetId: 'newest' }); await second.promise; }); };
+    if (order === 'obsolete-first') {
+      await resolveFirst();
+      expect(screen.getByText('Uploading...')).toBeTruthy();
+      expect(readCard(view.editor()).src).toBe('');
+      await resolveSecond();
+    } else { await resolveSecond(); await resolveFirst(); }
+    expect(readCard(view.editor()).src).toBe('/assets/newest.png');
+    await setCardSource(view.editor(), '');
+    expect(screen.queryByText('Uploading...')).toBeNull();
+    expect(view.container.querySelector<HTMLInputElement>('input[type="file"]')!.disabled).toBe(false);
+  });
+
+  it.each(['deleted', 'unmounted'])('ignores a late library completion after the card is %s', async outcome => {
+    const picker = deferred<Record<string, unknown> | null>();
+    const view = mount(cardType, { requestMedia: () => picker.promise }, '/assets/current.png');
+    fireEvent.click(screen.getByRole('button', { name: `Change ${cardType} from library` }));
+    const editor = view.editor();
+    if (outcome === 'deleted') await act(async () => { editor.update(() => { $getRoot().clear(); }, { discrete: true }); });
+    else view.unmount();
+    const before = editor.getEditorState().toJSON(); const emissions = view.onChange.mock.calls.length;
+    await act(async () => { picker.resolve({ src: '/assets/late.png' }); await picker.promise; });
+    expect(editor.getEditorState().toJSON()).toEqual(before);
+    expect(view.onChange).toHaveBeenCalledTimes(emissions);
+  });
+
   it('treats an adapter cancellation as a no-op rather than an upload failure', async () => {
     const uploadMedia = vi.fn().mockResolvedValue(null);
     const view = mount(cardType, { uploadMedia });
@@ -143,6 +236,22 @@ describe('image host adapter edge cases', () => {
 });
 
 describe('actual gallery uploads', () => {
+  it('retains an in-flight gallery upload when a concurrent picker addition completes', async () => {
+    const upload = deferred<Record<string, unknown> | null>();
+    const view = mount('gallery', { uploadMedia: () => upload.promise, requestMedia: async () => ({ src: '/assets/picked.png', assetId: 'picked' }) });
+    view.chooseFile(); await act(async () => {});
+    await act(async () => { view.editor().update(() => {
+      const node = $getRoot().getFirstChild() as StudioCardNode;
+      node.setCardData({ ...node.getCardData(), images: [{ src: '/assets/existing.png', alt: 'Existing' }] });
+    }, { discrete: true }); });
+    fireEvent.click(screen.getByRole('button', { name: 'Add images from library' }));
+    await waitFor(() => expect(readCard(view.editor()).images).toHaveLength(2));
+    await act(async () => { upload.resolve({ src: '/assets/uploaded.png', assetId: 'uploaded' }); await upload.promise; });
+    await waitFor(() => expect(readCard(view.editor()).images).toHaveLength(3));
+    expect((readCard(view.editor()).images as Array<{ src: string }>).map(x => x.src))
+      .toEqual(['/assets/existing.png', '/assets/picked.png', '/assets/uploaded.png']);
+  });
+
   it('does not present canceled files as failed uploads', async () => {
     const uploadMedia = vi.fn().mockResolvedValue(null);
     const view = mount('gallery', { uploadMedia });

@@ -3,7 +3,7 @@
  * Does not read dirty host files, execute host services or assert runtime parity. */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -17,10 +17,18 @@ const ref = arg('--ref');
 if (!host || !ref) throw new Error('Usage: verify-host-compatibility.mjs --host PATH --ref IMMUTABLE_COMMIT');
 const git = args => execFileSync('git', ['-C', resolve(host), ...args], { encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 });
 const hostCommit = git(['rev-parse', '--verify', ref + '^{commit}']).trim();
-const source = git(['show', hostCommit + ':packages/studio-core/src/index.ts']);
 const directory = mkdtempSync(join(tmpdir(), 'studio-host-contract-'));
 try {
-  const result = await build({ stdin: { contents: source, loader: 'ts', sourcefile: 'host-core.ts', resolveDir: join(repo, 'packages/studio-core') },
+  // Materialize the immutable core source tree, including relative imports.
+  // Resolving against the standalone tree could accidentally mix two runtimes.
+  const corePath = 'packages/studio-core/src';
+  for (const file of git(['ls-tree', '-r', '--name-only', hostCommit, '--', corePath]).trim().split('\n')) {
+    if (!file) continue;
+    const destination = join(directory, file);
+    mkdirSync(dirname(destination), { recursive: true });
+    writeFileSync(destination, git(['show', hostCommit + ':' + file]));
+  }
+  const result = await build({ entryPoints: [join(directory, corePath, 'index.ts')],
     bundle: true, write: false, format: 'esm', platform: 'node', target: 'node24',
     nodePaths: [join(repo, 'packages/studio-core/node_modules')],
   });

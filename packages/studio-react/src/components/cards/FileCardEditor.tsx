@@ -9,6 +9,8 @@ import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
 import { isDurableMediaUrl, mergeDurableMediaAsset } from '../../utils/mergeDurableMedia';
+import { MediaPickerError } from '../ui/MediaPickerError';
+import { useCardMediaPicker } from '../../utils/useCardMediaPicker';
 import { useMediaRequestGuard } from '../../utils/useMediaRequestGuard';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
 import { FileMetadataPopover } from '../ui/media-popovers/FileMetadataPopover';
@@ -23,8 +25,7 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
   const [editor] = useLexicalComposerContext();
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
   const { uploadMedia, requestMedia } = useStudioMedia();
-  const [uploading, setUploading] = useState(false);
-  const beginRequest = useMediaRequestGuard();
+  const { uploading, beginRequest } = useMediaRequestGuard();
   const [uploadError, setUploadError] = useState(false);
   const [retryFile, setRetryFile] = useState<File | null>(null);
 
@@ -32,10 +33,10 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
 
   const attemptUpload = (selectedFile: File) => {
     if (!uploadMedia || uploading || !editor.isEditable()) return;
-    const isCurrent = beginRequest();
+    const isCurrent = beginRequest(true, true);
+    picker.dismiss();
     setRetryFile(selectedFile);
     setUploadError(false);
-    setUploading(true);
     Promise.resolve()
       .then(() => isCurrent() ? uploadMedia(selectedFile, 'file') : null)
       .then((payload) => {
@@ -55,30 +56,18 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
         });
       })
       .catch(() => { if (isCurrent()) setUploadError(true); })
-      .finally(() => { if (isCurrent()) setUploading(false); });
+      .finally(isCurrent.finish);
   };
 
   const onFileSelect = (files: File[]) => {
     if (files[0]) attemptUpload(files[0]);
   };
 
-  const handleChangeFromLibrary = useCallback(async () => {
-    if (!requestMedia || !editor.isEditable()) return;
-    const isCurrent = beginRequest();
-    const payload = await requestMedia({
-      cardType: 'file',
-      source: 'library',
-    });
-    if (!isCurrent() || !payload || !isDurableMediaUrl(payload.src)) return;
-    editor.update(() => {
-          if (!isCurrent()) return;
-      const node = $getNodeByKey(nodeKey);
-      if (node instanceof StudioCardNode && node.isAttached()) {
-        const next = mergeDurableMediaAsset(node.getCardData(), payload, 'file');
-        if (next) node.setCardData(next);
-      }
-    });
-  }, [editor, nodeKey, requestMedia, beginRequest]);
+  const picker = useCardMediaPicker(editor, nodeKey, 'file', beginRequest, requestMedia,
+    useCallback(() => setUploadError(false), []));
+  const handleChangeFromLibrary = useCallback(() => picker.pick('library'), [picker.pick]);
+  const pickerFailure = picker.failedSource !== null ? <MediaPickerError
+    onRetry={() => { void picker.pick(picker.failedSource!); }} onDismiss={picker.dismiss} /> : null;
 
   const handleMetadataUpdate = useCallback(
     (data: { fileName: string; caption: string }) => {
@@ -124,6 +113,7 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
   if (!isPopulated) {
     return (
       <div>
+        {pickerFailure}
         <CardPlaceholder
           iconType="file"
           title="File"
@@ -175,6 +165,7 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
         transition: 'outline 0.1s ease',
       }}
     >
+      {pickerFailure}
       <StudioMediaFloatingToolbar
         onChange={requestMedia ? handleChangeFromLibrary : undefined}
         changeLabel="Change"

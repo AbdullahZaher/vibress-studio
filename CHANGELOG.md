@@ -2,6 +2,12 @@
 
 ## Unreleased — production readiness program
 
+- Preserve ordered host envelope metadata without resetting editor history
+  (`metadataRevision`); deduplicate gallery appends by asset ID or exact URL.
+- Release superseded upload leases and make picker failures retryable.
+
+- Load historical v1 roots missing their discriminator without losing children;
+  retain ambiguous malformed roots for recovery and recheck repaired size limits.
 - Preserve active drafts/history on rejected external document updates; add
   host-owned recovery export and Arabic/English recovery messages.
 - Preserve envelope metadata, reject invalid roots/foreign schemas/non-JSON

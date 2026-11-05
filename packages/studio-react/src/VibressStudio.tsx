@@ -51,6 +51,12 @@ export interface VibressStudioProps {
    * document switch, authorized remote update). Change this token only for an
    * intentional replacement, never for autosave acknowledgments. */
   replacementId?: string | number;
+  /** Authorizes envelope-only updates using a monotonically increasing safe
+   * integer (>= 0) within one replacementId epoch. The host must attach the
+   * sequence assigned to that metadata snapshot, not its response arrival order.
+   * Never authorizes a root replacement. Omitted/equal/older values cannot
+   * update metadata. A changed replacementId starts a new sequence. */
+  metadataRevision?: number;
   onChange?: (doc: StudioDocument) => void;
   /** Optional host integration for editor-specific commands; null on cleanup. */
   onEditorReady?: (editor: LexicalEditor | null) => void;
@@ -138,23 +144,30 @@ const STUDIO_EXTERNAL_SYNC_TAG = 'studio-external-sync';
  * Preserve the author's live draft in either case. Hosts must change
  * replacementId to explicitly authorize switching/reloading this document.
  * revisionId is informational only; incrementing it must not lose draft edits.
+ * metadataRevision authorizes ordered envelope-only acknowledgments, never roots.
  */
 function DocumentSyncPlugin({
   document,
   replacementId,
+  metadataRevision,
   onError,
   hasLocalEdits,
   onExternalApplied,
+  onMetadataApplied,
 }: {
   document: StudioDocument | null;
   replacementId?: string | number;
+  metadataRevision?: number;
   onError?: (error: Error) => void;
   hasLocalEdits: () => boolean;
   onExternalApplied: (document: StudioDocument) => void;
+  onMetadataApplied: (document: StudioDocument) => void;
 }) {
   const [editor] = useLexicalComposerContext();
   const lastObservedIncoming = useRef<string | null>(null);
   const lastReplacementId = useRef<string | number | undefined>(replacementId);
+  const acceptedMetadataRevision = useRef(-1);
+  const orderedMetadata = useRef(false);
 
   useEffect(() => {
     // Keep this plugin mounted during recovery so rejected replacements do
@@ -165,6 +178,19 @@ function DocumentSyncPlugin({
     const isExplicitReplacement =
       replacementId !== undefined && replacementId !== lastReplacementId.current;
 
+    const validMetadataRevision = metadataRevision !== undefined &&
+      Number.isSafeInteger(metadataRevision) && metadataRevision >= 0;
+    if (!isFirstDocument && !isExplicitReplacement &&
+        (metadataRevision !== undefined || orderedMetadata.current)) {
+      // An ordered metadata snapshot authorizes only its envelope. Its root
+      // may be an old autosave snapshot, even before the first local edit.
+      if (validMetadataRevision && metadataRevision > acceptedMetadataRevision.current) {
+        onMetadataApplied(document);
+        acceptedMetadataRevision.current = metadataRevision;
+        orderedMetadata.current = true;
+      }
+      return;
+    }
     if (incoming === lastObservedIncoming.current && !isExplicitReplacement) return;
 
     try {
@@ -194,13 +220,15 @@ function DocumentSyncPlugin({
 
       lastObservedIncoming.current = incoming;
       lastReplacementId.current = replacementId;
+      acceptedMetadataRevision.current = validMetadataRevision ? metadataRevision : -1;
+      orderedMetadata.current = metadataRevision !== undefined;
       if (isFirstDocument || isExplicitReplacement || currentJson !== incoming) {
         onExternalApplied(document);
       }
     } catch (error) {
       onError?.(error instanceof Error ? error : new Error('Unable to load Studio document'));
     }
-  }, [editor, document, replacementId, onError, hasLocalEdits, onExternalApplied]);
+  }, [editor, document, replacementId, metadataRevision, onError, hasLocalEdits, onExternalApplied, onMetadataApplied]);
 
   return null;
 }
@@ -219,6 +247,7 @@ export function VibressStudio({
   resourceLimits,
   revisionId,
   replacementId,
+  metadataRevision,
   onChange,
   onEditorReady,
   readOnly = false,
@@ -253,6 +282,12 @@ export function VibressStudio({
     acceptedDocumentRef.current = document;
     setSnapshotError(null);
     hasLocalEditsRef.current = false;
+  }, []);
+
+  const onMetadataApplied = useCallback((document: StudioDocument) => {
+    // Do not reset dirty tracking, selection, history, or the observed root.
+    // Serialization combines this admitted envelope with the live editor root.
+    acceptedDocumentRef.current = document;
   }, []);
 
   // revisionId is an acknowledgment/revision label for the host. It is never
@@ -420,9 +455,11 @@ export function VibressStudio({
               <DocumentSyncPlugin
                 document={parsedDoc}
                 replacementId={replacementId}
+                metadataRevision={metadataRevision}
                 onError={onError}
                 hasLocalEdits={hasLocalEdits}
                 onExternalApplied={onExternalApplied}
+                onMetadataApplied={onMetadataApplied}
               />
               <EditorReadyPlugin onReady={handleEditorReady} />
               <OnChangePlugin

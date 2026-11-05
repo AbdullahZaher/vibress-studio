@@ -8,6 +8,7 @@ import { NestedCaptionEditor } from './NestedCaptionEditor';
 import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
+import { appendGalleryImages } from '../../utils/appendGalleryImages';
 import { useMediaRequestGuard } from '../../utils/useMediaRequestGuard';
 import { isDurableMediaUrl } from '../../utils/mergeDurableMedia';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
@@ -18,36 +19,11 @@ interface Props {
   cardData: GalleryCardData;
 }
 
-/** Identity is a non-empty durable asset ID, otherwise the durable URL.
- * Existing gallery items are never filtered or rewritten by an additive action.
- */
-function appendGalleryImages(
-  existing: unknown[],
-  additions: Array<{ src: string; alt: string; assetId?: string | undefined }>
-): unknown[] {
-  const identity = (item: unknown): string | null => {
-    if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
-    const entry = item as Record<string, unknown>;
-    if (typeof entry.assetId === 'string' && entry.assetId.trim()) return `asset:${entry.assetId.trim()}`;
-    return typeof entry.src === 'string' && entry.src.trim() ? `url:${entry.src.trim()}` : null;
-  };
-  const seen = new Set(existing.map(identity).filter((id): id is string => id !== null));
-  const merged = [...existing];
-  for (const image of additions) {
-    const id = identity(image);
-    if (!id || seen.has(id)) continue;
-    merged.push(image);
-    seen.add(id);
-  }
-  return merged;
-}
-
 export function GalleryCardEditor({ nodeKey, cardData }: Props) {
   const [editor] = useLexicalComposerContext();
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
   const { uploadMedia, requestMedia } = useStudioMedia();
-  const [uploading, setUploading] = useState(false);
-  const beginRequest = useMediaRequestGuard();
+  const { uploading, beginRequest } = useMediaRequestGuard();
   const [failedFiles, setFailedFiles] = useState<File[]>([]);
   const [pickerError, setPickerError] = useState(false);
 
@@ -55,9 +31,8 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
 
   const onFileSelect = (files: File[]) => {
     if (files.length === 0 || !uploadMedia || uploading || !editor.isEditable()) return;
-    const isCurrent = beginRequest(false);
+    const isCurrent = beginRequest(false, true);
     setFailedFiles([]);
-    setUploading(true);
     Promise.all(
       files.map(async (selectedFile) => {
         try {
@@ -101,7 +76,7 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
         });
       })
       .catch(() => { if (isCurrent()) setFailedFiles(files); })
-      .finally(() => { if (isCurrent()) setUploading(false); });
+      .finally(isCurrent.finish);
   };
 
   const handleChangeFromLibrary = useCallback(async () => {

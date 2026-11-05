@@ -9,6 +9,8 @@ import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
 import { isDurableMediaUrl, mergeDurableMediaAsset } from '../../utils/mergeDurableMedia';
+import { MediaPickerError } from '../ui/MediaPickerError';
+import { useCardMediaPicker } from '../../utils/useCardMediaPicker';
 import { useMediaRequestGuard } from '../../utils/useMediaRequestGuard';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
 import { AudioMetadataPopover } from '../ui/media-popovers/AudioMetadataPopover';
@@ -22,8 +24,7 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
   const [editor] = useLexicalComposerContext();
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
   const { uploadMedia, requestMedia } = useStudioMedia();
-  const [uploading, setUploading] = useState(false);
-  const beginRequest = useMediaRequestGuard();
+  const { uploading, beginRequest } = useMediaRequestGuard();
   const [uploadError, setUploadError] = useState(false);
   const [retryFile, setRetryFile] = useState<File | null>(null);
 
@@ -31,10 +32,10 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
 
   const attemptUpload = (selectedFile: File) => {
     if (!uploadMedia || uploading || !editor.isEditable()) return;
-    const isCurrent = beginRequest();
+    const isCurrent = beginRequest(true, true);
+    picker.dismiss();
     setRetryFile(selectedFile);
     setUploadError(false);
-    setUploading(true);
     Promise.resolve()
       .then(() => isCurrent() ? uploadMedia(selectedFile, 'audio') : null)
       .then((payload) => {
@@ -54,30 +55,18 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
         });
       })
       .catch(() => { if (isCurrent()) setUploadError(true); })
-      .finally(() => { if (isCurrent()) setUploading(false); });
+      .finally(isCurrent.finish);
   };
 
   const onFileSelect = (files: File[]) => {
     if (files[0]) attemptUpload(files[0]);
   };
 
-  const handleChangeFromLibrary = useCallback(async () => {
-    if (!requestMedia || !editor.isEditable()) return;
-    const isCurrent = beginRequest();
-    const payload = await requestMedia({
-      cardType: 'audio',
-      source: 'library',
-    });
-    if (!isCurrent() || !payload || !isDurableMediaUrl(payload.src)) return;
-    editor.update(() => {
-          if (!isCurrent()) return;
-      const node = $getNodeByKey(nodeKey);
-      if (node instanceof StudioCardNode && node.isAttached()) {
-        const next = mergeDurableMediaAsset(node.getCardData(), payload, 'audio');
-        if (next) node.setCardData(next);
-      }
-    });
-  }, [editor, nodeKey, requestMedia, beginRequest]);
+  const picker = useCardMediaPicker(editor, nodeKey, 'audio', beginRequest, requestMedia,
+    useCallback(() => setUploadError(false), []));
+  const handleChangeFromLibrary = useCallback(() => picker.pick('library'), [picker.pick]);
+  const pickerFailure = picker.failedSource !== null ? <MediaPickerError
+    onRetry={() => { void picker.pick(picker.failedSource!); }} onDismiss={picker.dismiss} /> : null;
 
   const handleMetadataUpdate = useCallback(
     (data: { title: string; caption: string }) => {
@@ -123,6 +112,7 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
   if (!isPopulated) {
     return (
       <div>
+        {pickerFailure}
         <CardPlaceholder
           iconType="audio"
           title="Audio"
@@ -174,6 +164,7 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
         transition: 'outline 0.1s ease',
       }}
     >
+      {pickerFailure}
       <StudioMediaFloatingToolbar
         onChange={requestMedia ? handleChangeFromLibrary : undefined}
         changeLabel="Change"
