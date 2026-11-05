@@ -78,13 +78,13 @@ function assertEditorCanPreserveDocument(document: StudioDocument, rawDocument: 
 
 export interface VibressStudioProps {
   value?: unknown;
-  /**
-   * Optional revision or transaction identifier (e.g. revision hash, timestamp, or version number)
-   * provided by the host. When revisionId changes, the incoming document is treated as
-   * an intentional external update or restoration, even if its content was previously emitted
-   * by this editor instance (e.g. restoring an earlier revision A after edit B).
-   */
+  /** Host persistence revision metadata. An autosave revision increment never
+   * authorizes replacing newer local edits. */
   revisionId?: string | number;
+  /** Explicit host command to replace the editor document (revision restore,
+   * document switch, authorized remote update). Change this token only for an
+   * intentional replacement, never for autosave acknowledgments. */
+  replacementId?: string | number;
   onChange?: (doc: StudioDocument) => void;
   /** Optional host integration for editor-specific commands; null on cleanup. */
   onEditorReady?: (editor: LexicalEditor | null) => void;
@@ -160,65 +160,67 @@ function EditorAccessibleNamePlugin() {
  * selection/undo stack) when the parent merely echoes an onChange snapshot.
  * The current document is preserved if incoming content cannot be parsed.
  */
+const STUDIO_EXTERNAL_SYNC_TAG = 'studio-external-sync';
+
+/**
+ * Once local content has changed, an unversioned incoming value is ambiguous:
+ * it might be an old autosave response or a legitimate external replacement.
+ * Preserve the author's live draft in either case. Hosts must change
+ * replacementId to explicitly authorize switching/reloading this document.
+ * revisionId is informational only; incrementing it must not lose draft edits.
+ */
 function DocumentSyncPlugin({
   document,
-  revisionId,
+  replacementId,
   onError,
-  isStaleEcho,
-  onResetEmittedHistory,
+  hasLocalEdits,
+  onExternalApplied,
 }: {
   document: StudioDocument;
-  revisionId?: string | number;
+  replacementId?: string | number;
   onError?: (error: Error) => void;
-  isStaleEcho: (incomingJson: string) => boolean;
-  onResetEmittedHistory: () => void;
+  hasLocalEdits: () => boolean;
+  onExternalApplied: (rootJson: string) => void;
 }) {
   const [editor] = useLexicalComposerContext();
-  const lastApplied = useRef<string | null>(null);
-  const lastAppliedRevisionId = useRef<string | number | undefined>(revisionId);
+  const lastObservedIncoming = useRef<string | null>(null);
+  const lastReplacementId = useRef<string | number | undefined>(replacementId);
 
   useEffect(() => {
     const incoming = JSON.stringify(document.root);
-    const isExplicitRevisionChange =
-      revisionId !== undefined && revisionId !== lastAppliedRevisionId.current;
+    const isExplicitReplacement =
+      replacementId !== undefined && replacementId !== lastReplacementId.current;
 
-    if (incoming === lastApplied.current && !isExplicitRevisionChange) return;
+    if (incoming === lastObservedIncoming.current && !isExplicitReplacement) return;
 
     try {
       const current = serializeStudioDocument(editor.getEditorState().toJSON().root);
       const currentJson = JSON.stringify(current.root);
 
-      if (currentJson === incoming && !isExplicitRevisionChange) {
-        lastApplied.current = incoming;
-        lastAppliedRevisionId.current = revisionId;
-        return;
-      }
-
       if (currentJson !== incoming) {
-        // If the incoming document matches an earlier snapshot this editor instance
-        // already emitted in the past (an out-of-order autosave response or stale
-        // external echo), do NOT overwrite the newer local edits!
-        if (!isExplicitRevisionChange && isStaleEcho(incoming)) {
-          lastApplied.current = incoming;
+        if (!isExplicitReplacement && hasLocalEdits()) {
+          // Never infer "new external document" from unseen JSON: an old echo
+          // can arrive after arbitrary numbers of newer local edits.
+          lastObservedIncoming.current = incoming;
+          lastReplacementId.current = replacementId;
           return;
         }
 
         const next = editor.parseEditorState(JSON.stringify({
           root: { ...document.root, version: 1 },
         }));
-        editor.setEditorState(next);
+        editor.setEditorState(next, { tag: STUDIO_EXTERNAL_SYNC_TAG });
       }
 
-      lastApplied.current = incoming;
-      lastAppliedRevisionId.current = revisionId;
-
-      if (isExplicitRevisionChange) {
-        onResetEmittedHistory();
+      lastObservedIncoming.current = incoming;
+      lastReplacementId.current = replacementId;
+      if (isExplicitReplacement || currentJson !== incoming) {
+        onExternalApplied(incoming);
       }
     } catch (error) {
       onError?.(error instanceof Error ? error : new Error('Unable to load Studio document'));
     }
-  }, [editor, document, revisionId, onError, isStaleEcho, onResetEmittedHistory]);
+  }, [editor, document, replacementId, onError, hasLocalEdits, onExternalApplied]);
 
   return null;
 }
@@ -235,6 +237,7 @@ function EditorEditablePlugin({ readOnly }: { readOnly: boolean }) {
 export function VibressStudio({
   value,
   revisionId,
+  replacementId,
   onChange,
   onEditorReady,
   readOnly = false,
@@ -250,21 +253,18 @@ export function VibressStudio({
   dir,
   className = '',
 }: VibressStudioProps) {
-  const emittedSnapshotsRef = useRef<Set<string>>(new Set());
+  const hasLocalEditsRef = useRef(false);
+  const lastObservedEditorRootRef = useRef<string | null>(null);
 
-  const onResetEmittedHistory = useCallback(() => {
-    emittedSnapshotsRef.current.clear();
+  const hasLocalEdits = useCallback(() => hasLocalEditsRef.current, []);
+  const onExternalApplied = useCallback((rootJson: string) => {
+    lastObservedEditorRootRef.current = rootJson;
+    hasLocalEditsRef.current = false;
   }, []);
 
-  const isStaleEcho = useCallback((incomingJson: string) => {
-    return emittedSnapshotsRef.current.has(incomingJson);
-  }, []);
-
-  const hostRevisionId = revisionId ?? (
-    value && typeof value === 'object' && 'revisionId' in value
-      ? (value as { revisionId?: string | number }).revisionId
-      : undefined
-  );
+  // revisionId is an acknowledgment/revision label for the host. It is never
+  // interpreted as an authorized replacement. See replacementId above.
+  void revisionId;
 
   const { parsedDoc, migrationError } = useMemo(() => {
     try {
@@ -446,27 +446,23 @@ export function VibressStudio({
               <EditorEditablePlugin readOnly={readOnly} />
               <DocumentSyncPlugin
                 document={parsedDoc}
-                revisionId={hostRevisionId}
+                replacementId={replacementId}
                 onError={onError}
-                isStaleEcho={isStaleEcho}
-                onResetEmittedHistory={onResetEmittedHistory}
+                hasLocalEdits={hasLocalEdits}
+                onExternalApplied={onExternalApplied}
               />
               {onEditorReady && <EditorReadyPlugin onReady={onEditorReady} />}
-              {onChange && (
-                <OnChangePlugin
-                  onChange={(editorState) => {
-                    const rootNode = editorState.toJSON().root;
-                    const studioDoc = serializeStudioDocument(rootNode);
-                    const rootJson = JSON.stringify(studioDoc.root);
-                    emittedSnapshotsRef.current.add(rootJson);
-                    if (emittedSnapshotsRef.current.size > 50) {
-                      const first = emittedSnapshotsRef.current.values().next().value;
-                      if (first !== undefined) emittedSnapshotsRef.current.delete(first);
-                    }
-                    onChange(studioDoc);
-                  }}
-                />
-              )}
+              <OnChangePlugin
+                onChange={(editorState, _editor, tags) => {
+                  if (tags.has(STUDIO_EXTERNAL_SYNC_TAG)) return;
+                  const studioDoc = serializeStudioDocument(editorState.toJSON().root);
+                  const rootJson = JSON.stringify(studioDoc.root);
+                  if (rootJson === lastObservedEditorRootRef.current) return;
+                  lastObservedEditorRootRef.current = rootJson;
+                  hasLocalEditsRef.current = true;
+                  onChange?.(studioDoc);
+                }}
+              />
             </div>
           </LexicalComposer>
           </fieldset>

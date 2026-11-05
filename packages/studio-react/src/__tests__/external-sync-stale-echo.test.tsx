@@ -101,21 +101,20 @@ describe('VibressStudio external synchronization and stale echo protection (Phas
       expect($getRoot().getTextContent()).toBe('Hello world!');
     });
 
-    // 5. Genuine external update arrives from another user / server reload
-    const genuineExternalDoc = createDefaultStudioDocument('Completely new external article');
+    // No explicit replacement ID: protect local content.
     await act(async () => {
-      rerender(
-        <VibressStudio
-          value={genuineExternalDoc}
-          onChange={onChange}
-          onEditorReady={(ed) => {
-            editorInstance = ed;
-          }}
-        />
-      );
+      rerender(<VibressStudio value={genuineExternalDoc} onChange={onChange}
+        onEditorReady={(ed) => { editorInstance = ed; }} />);
+    });
+    editor.getEditorState().read(() => {
+      expect($getRoot().getTextContent()).toBe('Hello world!');
     });
 
-    // The genuine external update MUST be applied
+    // The host deliberately switches documents with a new replacement token.
+    await act(async () => {
+      rerender(<VibressStudio value={genuineExternalDoc} replacementId="external-article-1"
+        onChange={onChange} onEditorReady={(ed) => { editorInstance = ed; }} />);
+    });
     editor.getEditorState().read(() => {
       expect($getRoot().getTextContent()).toBe('Completely new external article');
     });
@@ -175,167 +174,86 @@ describe('VibressStudio external synchronization and stale echo protection (Phas
     });
   });
 
-  it('allows intentional external revision restoration from B back to A via revisionId prop (Finding 1)', async () => {
+  it('does not treat changing autosave revisionId as permission to overwrite local work', async () => {
     let editorInstance: LexicalEditor | null = null;
-    let latestEmittedDoc: StudioDocument | null = null;
-
-    const onChange = vi.fn((doc: StudioDocument) => {
-      latestEmittedDoc = doc;
-    });
-
-    const initialDoc = createDefaultStudioDocument('Initial');
-
+    const snapshots: StudioDocument[] = [];
+    const onChange = vi.fn((doc: StudioDocument) => snapshots.push(doc));
     const { rerender } = render(
-      <VibressStudio
-        value={initialDoc}
-        revisionId="rev-0"
-        onChange={onChange}
-        onEditorReady={(ed) => {
-          editorInstance = ed;
-        }}
-      />
+      <VibressStudio value={createDefaultStudioDocument('Initial')} revisionId={1}
+        onChange={onChange} onEditorReady={(ed) => { editorInstance = ed; }} />
     );
-
     const editor = editorInstance as unknown as LexicalEditor;
-
-    // 1. Edit to A
-    await act(async () => {
-      editor.update(() => {
-        const root = $getRoot();
-        root.clear();
-        const p = $createParagraphNode();
-        p.append($createTextNode('Revision A Content'));
-        root.append(p);
+    for (const text of ['Edit A', 'Edit B']) {
+      await act(async () => {
+        editor.update(() => {
+          const root = $getRoot();
+          root.clear();
+          root.append($createParagraphNode().append($createTextNode(text)));
+        });
       });
-    });
+    }
+    const stale = snapshots.find((doc) =>
+      JSON.stringify(doc.root).includes('Edit A')
+    );
+    expect(stale).toBeDefined();
 
-    const docA = latestEmittedDoc;
-    expect(docA).not.toBeNull();
-
-    // 2. Edit to B
+    // Host increments the persisted revision on an old save acknowledgment.
     await act(async () => {
-      editor.update(() => {
-        const root = $getRoot();
-        root.clear();
-        const p = $createParagraphNode();
-        p.append($createTextNode('Revision B Content'));
-        root.append(p);
-      });
+      rerender(<VibressStudio value={stale} revisionId={2}
+        onChange={onChange} onEditorReady={(ed) => { editorInstance = ed; }} />);
     });
-
-    const docB = latestEmittedDoc;
-    expect(docB).not.toBeNull();
-
-    // Editor is at Revision B
     editor.getEditorState().read(() => {
-      expect($getRoot().getTextContent()).toBe('Revision B Content');
+      expect($getRoot().getTextContent()).toBe('Edit B');
     });
 
-    // 3. Stale autosave echo for A arrives without new revisionId -> ignored
+    // A controlled document restore requires a *separate* explicit token.
     await act(async () => {
-      rerender(
-        <VibressStudio
-          value={docA}
-          revisionId="rev-0"
-          onChange={onChange}
-          onEditorReady={(ed) => {
-            editorInstance = ed;
-          }}
-        />
-      );
+      rerender(<VibressStudio value={stale} revisionId={3} replacementId="restore-a"
+        onChange={onChange} onEditorReady={(ed) => { editorInstance = ed; }} />);
     });
-
     editor.getEditorState().read(() => {
-      expect($getRoot().getTextContent()).toBe('Revision B Content');
-    });
-
-    // 4. Intentional revision restoration: Host explicitly passes new revisionId="rev-restore-A"
-    await act(async () => {
-      rerender(
-        <VibressStudio
-          value={docA}
-          revisionId="rev-restore-A"
-          onChange={onChange}
-          onEditorReady={(ed) => {
-            editorInstance = ed;
-          }}
-        />
-      );
-    });
-
-    // CRITICAL: The intentional restoration MUST be applied!
-    editor.getEditorState().read(() => {
-      expect($getRoot().getTextContent()).toBe('Revision A Content');
+      expect($getRoot().getTextContent()).toBe('Edit A');
     });
   });
 
-  it('allows intentional external restoration via document.revisionId property', async () => {
+  it('does not permit document.revisionId metadata to authorize a destructive restore', async () => {
     let editorInstance: LexicalEditor | null = null;
-    let latestEmittedDoc: StudioDocument | null = null;
-
-    const onChange = vi.fn((doc: StudioDocument) => {
-      latestEmittedDoc = doc;
-    });
-
-    const initialDoc = createDefaultStudioDocument('Initial');
-
+    const initialDoc = createDefaultStudioDocument('Loaded');
+    const onChange = vi.fn();
     const { rerender } = render(
-      <VibressStudio
-        value={initialDoc}
-        onChange={onChange}
-        onEditorReady={(ed) => {
-          editorInstance = ed;
-        }}
-      />
+      <VibressStudio value={initialDoc} onChange={onChange}
+        onEditorReady={(ed) => { editorInstance = ed; }} />
     );
-
     const editor = editorInstance as unknown as LexicalEditor;
-
-    // Edit 1
     await act(async () => {
       editor.update(() => {
-        const root = $getRoot();
-        root.clear();
-        const p = $createParagraphNode();
-        p.append($createTextNode('Original Version'));
-        root.append(p);
+        $getRoot().clear().append($createParagraphNode().append($createTextNode('Unsaved draft')));
       });
     });
-    const docOriginal = latestEmittedDoc;
-
-    // Edit 2
+    const oldWithNewRevision = { ...initialDoc, revisionId: 78 };
     await act(async () => {
-      editor.update(() => {
-        const root = $getRoot();
-        root.clear();
-        const p = $createParagraphNode();
-        p.append($createTextNode('Modified Version'));
-        root.append(p);
-      });
+      rerender(<VibressStudio value={oldWithNewRevision} onChange={onChange}
+        onEditorReady={(ed) => { editorInstance = ed; }} />);
     });
-
-    expect(docOriginal).not.toBeNull();
-
-    // Intentional restoration by attaching revisionId to document object
-    const restoredDoc = {
-      ...(docOriginal as unknown as StudioDocument),
-      revisionId: 'restore-tx-99',
-    };
-
-    await act(async () => {
-      rerender(
-        <VibressStudio
-          value={restoredDoc}
-          onChange={onChange}
-          onEditorReady={(ed) => {
-            editorInstance = ed;
-          }}
-        />
-      );
-    });
-
     editor.getEditorState().read(() => {
-      expect($getRoot().getTextContent()).toBe('Original Version');
+      expect($getRoot().getTextContent()).toBe('Unsaved draft');
+    });
+  });
+
+  it('applies genuinely new external documents before the author edits', async () => {
+    let editorInstance: LexicalEditor | null = null;
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <VibressStudio value={createDefaultStudioDocument('First')} onChange={onChange}
+        onEditorReady={(ed) => { editorInstance = ed; }} />
+    );
+    const editor = editorInstance as unknown as LexicalEditor;
+    await act(async () => {
+      rerender(<VibressStudio value={createDefaultStudioDocument('Server update')} onChange={onChange}
+        onEditorReady={(ed) => { editorInstance = ed; }} />);
+    });
+    editor.getEditorState().read(() => {
+      expect($getRoot().getTextContent()).toBe('Server update');
     });
   });
 
@@ -479,7 +397,7 @@ describe('VibressStudio external synchronization and stale echo protection (Phas
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 
-  it('evicts oldest entries from emitted snapshots history when size exceeds 50', async () => {
+  it('preserves newer content even when an autosave echo arrives after more than 50 edits', async () => {
     let editorInstance: LexicalEditor | null = null;
     let latestEmittedDoc: StudioDocument | null = null;
 
@@ -530,9 +448,8 @@ describe('VibressStudio external synchronization and stale echo protection (Phas
       expect($getRoot().getTextContent()).toBe('Edit 53');
     });
 
-    // Since edit1Doc was pushed 52 edits ago, it has been evicted from the 50-item cache.
-    // If edit1Doc arrives now without revisionId, it is treated as a new external document
-    // because it is no longer in the bounded history!
+    // History length cannot make old autosave content an authorized external replacement.
+    // An old echo remains untrusted after any number of local edits.
     await act(async () => {
       rerender(
         <VibressStudio
@@ -546,7 +463,7 @@ describe('VibressStudio external synchronization and stale echo protection (Phas
     });
 
     editor.getEditorState().read(() => {
-      expect($getRoot().getTextContent()).toBe('Edit 1');
+      expect($getRoot().getTextContent()).toBe('Edit 53');
     });
   });
 });
