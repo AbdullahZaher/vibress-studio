@@ -1,4 +1,8 @@
-import { StudioDocument, createDefaultStudioDocument, createEmptyStudioDocument } from '@vibress/studio-core';
+import {
+  StudioDocument, createDefaultStudioDocument, createEmptyStudioDocument,
+  checkDocumentResourceLimits, getUtf8ByteLength, resolveResourceLimits,
+  StudioMigrationError, type DocumentResourceLimits,
+} from '@vibress/studio-core';
 import { sanitizeHtml, sanitizeInlineStyle } from '@vibress/studio-utils';
 import { parseFragment, serialize, type DefaultTreeAdapterMap } from 'parse5';
 
@@ -517,18 +521,29 @@ function blockNodes(node: HtmlChild, inherited: Direction = null): StudioNode[] 
 }
 
 /** Parse sanitized HTML into durable Lexical-compatible document nodes. */
-export function htmlToStudioDocument(htmlInput: string): StudioDocument {
+export function htmlToStudioDocument(htmlInput: string, limits?: DocumentResourceLimits): StudioDocument {
   if (!htmlInput || typeof htmlInput !== 'string') return createEmptyStudioDocument();
+  // Reject oversized source *before* HTML parsing/sanitization allocates a DOM.
+  // Output is checked again below because small markup can expand into many AST nodes.
+  const budget = resolveResourceLimits(limits);
+  if (getUtf8ByteLength(htmlInput) > budget.maxSizeBytes) {
+    throw new StudioMigrationError(
+      'HTML import exceeds the configured document size limit.',
+      htmlInput,
+      'RESOURCE_LIMIT_EXCEEDED'
+    );
+  }
   const cleanHtml = sanitizeHtml(htmlInput.trim());
   if (!cleanHtml) return createEmptyStudioDocument();
   const children = blocksFromChildren(parseFragment(cleanHtml).childNodes);
-  if (!children.length) {
-    return createDefaultStudioDocument(cleanHtml.replace(/<[^>]+>/g, '').trim());
-  }
-  return {
-    schema: 'vibress-studio',
-    version: 1,
-    editor: { lexicalVersion: '0.13.1' },
-    root: { type: 'root', children, direction: null, format: '', indent: 0, version: 1 },
-  };
+  const doc: StudioDocument = !children.length
+    ? createDefaultStudioDocument(cleanHtml.replace(/<[^>]+>/g, '').trim())
+    : {
+      schema: 'vibress-studio',
+      version: 1,
+      editor: { lexicalVersion: '0.13.1' },
+      root: { type: 'root', children, direction: null, format: '', indent: 0, version: 1 },
+    };
+  checkDocumentResourceLimits(doc, limits);
+  return doc;
 }
