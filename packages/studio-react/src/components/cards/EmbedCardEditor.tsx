@@ -3,9 +3,11 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import { NodeKey, $getNodeByKey } from 'lexical';
 import { EmbedCardData, StudioCardNode } from '@vibress/studio-cards';
-import { getEmbedProvider, sanitizeStudioHtml } from '@vibress/studio-utils';
+import { sanitizeStudioHtml } from '@vibress/studio-utils';
+import { resolveStudioEmbedDestination } from './embed-destination';
 
 import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { captionMetadataPatch } from './caption-metadata';
 import { UrlPlaceholder } from '../ui/UrlPlaceholder';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
 import { EmbedMetadataPopover } from '../ui/media-popovers/EmbedMetadataPopover';
@@ -37,32 +39,33 @@ export function EmbedCardEditor({ nodeKey, cardData }: Props) {
     (data: { url: string; caption: string }) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
+          const currentData = node.getCardData();
           node.setCardData({
-            ...cardData,
+            ...currentData,
             url: data.url,
-            caption: data.caption,
-            captionHtml: data.caption,
+            ...captionMetadataPatch(node.getCardData(), data.caption),
           });
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   const handleWidthChange = useCallback(
     (newWidth: 'regular' | 'wide' | 'full') => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
+          const currentData = node.getCardData();
           node.setCardData({
-            ...cardData,
+            ...currentData,
             width: newWidth,
           });
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   const handleDelete = useCallback(() => {
@@ -78,16 +81,17 @@ export function EmbedCardEditor({ nodeKey, cardData }: Props) {
     (captionJSON: Record<string, unknown>, captionHtml: string) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
+          const currentData = node.getCardData();
           node.setCardData({
-            ...cardData,
+            ...currentData,
             caption: captionJSON,
             captionHtml,
           });
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   const extendedData = cardData as EmbedCardData & { width?: 'regular' | 'wide' | 'full'; captionHtml?: string };
@@ -112,8 +116,7 @@ export function EmbedCardEditor({ nodeKey, cardData }: Props) {
     );
   }
 
-  const embedInfo = cardData.url ? getEmbedProvider(cardData.url) : null;
-  const embedSrc = embedInfo?.embedUrl || cardData.url || '';
+  const embedDestination = resolveStudioEmbedDestination(cardData.url);
   const sanitizedHtml = cardData.html ? sanitizeStudioHtml(cardData.html) : '';
 
   const captionStr =
@@ -164,35 +167,48 @@ export function EmbedCardEditor({ nodeKey, cardData }: Props) {
             className="absolute top-0 left-0 w-full h-full"
             dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
           />
-        ) : embedSrc ? (
+        ) : embedDestination.kind === 'iframe' ? (
           <iframe
             className="absolute top-0 left-0 w-full h-full"
-            src={embedSrc}
+            src={embedDestination.url}
             frameBorder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             title="Embedded content"
           />
+        ) : embedDestination.kind === 'external-link' ? (
+          <div className="absolute inset-0 flex items-center justify-center p-4 text-center">
+            <a
+              href={embedDestination.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm underline text-foreground"
+            >
+              Open external content
+            </a>
+          </div>
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
-            No embed URL provided.
+          <div role="status" className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
+            Unsupported or unsafe embed URL.
           </div>
         )}
       </div>
 
-      {captionStr ? (
-        <figcaption className="mt-1 text-center text-xs text-muted-foreground">
-          {captionStr}
-        </figcaption>
-      ) : (
-        <NestedCaptionEditor
-          initialCaptionJSON={
-            typeof cardData.caption === 'object' ? cardData.caption : undefined
-          }
-          onChange={onCaptionChange}
-          placeholder="Type caption for embed (optional)"
-        />
-      )}
+      <NestedCaptionEditor
+        initialCaptionJSON={
+          typeof cardData.caption === 'object' && cardData.caption !== null
+            ? (cardData.caption as Record<string, unknown>)
+            : undefined
+        }
+        initialCaptionText={captionStr}
+        captionHtml={
+          typeof extendedData.captionHtml === 'string'
+            ? extendedData.captionHtml
+            : undefined
+        }
+        onChange={onCaptionChange}
+        placeholder="Type caption for embed (optional)"
+      />
     </figure>
   );
 }

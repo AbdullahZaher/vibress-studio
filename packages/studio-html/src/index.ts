@@ -193,7 +193,7 @@ function blockNodes(node: HtmlChild, inherited: Direction = null): StudioNode[] 
     return [{
       type: 'studio-card',
       cardType: 'toggle',
-      cardData: { title, content },
+      cardData: { heading: title, content },
       version: 1,
     }];
   }

@@ -5,8 +5,10 @@ import { NodeKey, $getNodeByKey } from 'lexical';
 import { AudioCardData, StudioCardNode } from '@vibress/studio-cards';
 
 import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
+import { isDurableMediaUrl, mergeDurableMediaAsset } from '../../utils/mergeDurableMedia';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
 import { AudioMetadataPopover } from '../ui/media-popovers/AudioMetadataPopover';
 
@@ -33,18 +35,15 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
     Promise.resolve()
       .then(() => uploadMedia(selectedFile, 'audio'))
       .then((payload) => {
-        if (!payload || typeof payload.src !== 'string') {
+        if (!payload || !isDurableMediaUrl(payload.src)) {
           setUploadError(true);
           return;
         }
         editor.update(() => {
           const node = $getNodeByKey(nodeKey);
-          if (node instanceof StudioCardNode) {
-            node.setCardData({
-              ...node.getCardData(),
-              ...payload,
-              title: selectedFile.name,
-            });
+          if (node instanceof StudioCardNode && node.isAttached()) {
+            const next = mergeDurableMediaAsset(node.getCardData(), payload, 'audio', selectedFile.name);
+            if (next) node.setCardData(next);
           }
         });
       })
@@ -62,39 +61,36 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
       cardType: 'audio',
       source: 'library',
     });
-    if (!payload) return;
+    if (!payload || !isDurableMediaUrl(payload.src)) return;
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
-      if (node instanceof StudioCardNode) {
-        node.setCardData({
-          ...cardData,
-          ...payload,
-        });
+      if (node instanceof StudioCardNode && node.isAttached()) {
+        const next = mergeDurableMediaAsset(node.getCardData(), payload, 'audio');
+        if (next) node.setCardData(next);
       }
     });
-  }, [editor, nodeKey, cardData, requestMedia]);
+  }, [editor, nodeKey, requestMedia]);
 
   const handleMetadataUpdate = useCallback(
     (data: { title: string; caption: string }) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
           node.setCardData({
-            ...cardData,
+            ...node.getCardData(),
             title: data.title,
-            caption: data.caption,
-            captionHtml: data.caption,
+            ...captionMetadataPatch(node.getCardData(), data.caption),
           });
         }
       });
     },
-    [editor, nodeKey, cardData]
+    [editor, nodeKey]
   );
 
   const handleDelete = useCallback(() => {
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
-      if (node) {
+      if (node && node.isAttached()) {
         node.remove();
       }
     });
@@ -104,7 +100,7 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
     (captionJSON: Record<string, unknown>, captionHtml: string) => {
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
-        if (node instanceof StudioCardNode) {
+        if (node instanceof StudioCardNode && node.isAttached()) {
           node.setCardData({
             ...node.getCardData(),
             caption: captionJSON,
@@ -191,19 +187,21 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
 
       {cardData.title && <div className="text-sm font-semibold">{cardData.title}</div>}
       <audio src={cardData.src} controls className="w-full" />
-      {captionStr ? (
-        <figcaption className="mt-1 text-center text-xs text-muted-foreground">
-          {captionStr}
-        </figcaption>
-      ) : (
-        <NestedCaptionEditor
-          initialCaptionJSON={
-            typeof cardData.caption === 'object' ? cardData.caption : undefined
-          }
-          onChange={onCaptionChange}
-          placeholder="Type caption for audio (optional)"
-        />
-      )}
+      <NestedCaptionEditor
+        initialCaptionJSON={
+          typeof cardData.caption === 'object' && cardData.caption !== null
+            ? (cardData.caption as Record<string, unknown>)
+            : undefined
+        }
+        initialCaptionText={captionStr}
+        captionHtml={
+          typeof (cardData as { captionHtml?: string }).captionHtml === 'string'
+            ? (cardData as { captionHtml?: string }).captionHtml
+            : undefined
+        }
+        onChange={onCaptionChange}
+        placeholder="Type caption for audio (optional)"
+      />
     </figure>
   );
 }

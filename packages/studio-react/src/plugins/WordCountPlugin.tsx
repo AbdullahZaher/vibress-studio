@@ -11,16 +11,46 @@ export interface WordCountStats {
 export interface WordCountPluginProps {
   showReadingTime?: boolean;
   className?: string;
+  debounceMs?: number;
+}
+
+/**
+ * Counts non-whitespace word tokens without allocating an array of strings.
+ * Operates in O(N) time and O(1) space to prevent GC pressure on large documents.
+ */
+export function countWords(text: string): number {
+  if (!text) return 0;
+  let count = 0;
+  const re = /\S+/g;
+  while (re.exec(text) !== null) {
+    count++;
+  }
+  return count;
+}
+
+/**
+ * Calculates words, character count, and estimated reading time (200 wpm standard).
+ */
+export function calculateWordCountStats(text: string): WordCountStats {
+  const characters = text.length;
+  const words = countWords(text);
+  const readingTimeMinutes = Math.max(1, Math.ceil(words / 200));
+
+  return { words, characters, readingTimeMinutes };
 }
 
 /**
  * Ghost-inspired Editorial Word Count & Reading Time Indicator.
- * Docks subtly at the bottom corner of the editor canvas, updating
- * efficiently via the Lexical root listener without impacting typing latency.
+ * Docks subtly at the bottom corner of the editor canvas.
+ * Optimized for large-document responsiveness (STU-R16):
+ *  - Ignores pure selection changes (dirtyElements/dirtyLeaves == 0)
+ *  - Debounces calculations during rapid typing
+ *  - Uses non-blocking scheduling to avoid main-thread typing latency
  */
 export function WordCountPlugin({
   showReadingTime = true,
   className = '',
+  debounceMs = 150,
 }: WordCountPluginProps): React.ReactElement {
   const [editor] = useLexicalComposerContext();
   const [stats, setStats] = useState<WordCountStats>({
@@ -30,19 +60,60 @@ export function WordCountPlugin({
   });
 
   useEffect(() => {
-    return editor.registerUpdateListener(({ editorState }) => {
-      editorState.read(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let idleId: number | null = null;
+
+    const computeAndSetStats = () => {
+      editor.getEditorState().read(() => {
         const root = $getRoot();
         const text = root.getTextContent();
-        const trimmed = text.trim();
-        const words = trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0;
-        const characters = text.length;
-        const readingTimeMinutes = Math.max(1, Math.ceil(words / 200));
-
-        setStats({ words, characters, readingTimeMinutes });
+        const nextStats = calculateWordCountStats(text);
+        setStats(nextStats);
       });
+    };
+
+    // Calculate initial state immediately
+    computeAndSetStats();
+
+    const unregister = editor.registerUpdateListener(({ dirtyElements, dirtyLeaves }) => {
+      // If no elements or leaves were modified, this is a pure selection / caret change.
+      // Word counts cannot change on selection alone; skip full document re-traversal.
+      if (dirtyElements.size === 0 && dirtyLeaves.size === 0) {
+        return;
+      }
+
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      if (idleId && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+        (window as Window & { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(idleId);
+        idleId = null;
+      }
+
+      timeoutId = setTimeout(() => {
+        if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+          idleId = (window as Window & {
+            requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number;
+          }).requestIdleCallback(
+            () => {
+              computeAndSetStats();
+            },
+            { timeout: 250 }
+          );
+        } else {
+          computeAndSetStats();
+        }
+      }, debounceMs);
     });
-  }, [editor]);
+
+    return () => {
+      unregister();
+      if (timeoutId) clearTimeout(timeoutId);
+      if (idleId && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+        (window as Window & { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(idleId);
+      }
+    };
+  }, [editor, debounceMs]);
 
   const formattedWords = useMemo(() => stats.words.toLocaleString(), [stats.words]);
 

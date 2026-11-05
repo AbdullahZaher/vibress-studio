@@ -109,7 +109,7 @@ describe('studioDocumentToMarkdown — GFM Tables, Checklists, Code and Cards (S
         }),
         card('file', {
           src: 'https://example.com/annual-report.pdf',
-          title: '2026 Annual Report',
+          fileName: '2026 Annual Report',
         }),
         card('bookmark', {
           url: 'https://vibress.org',
@@ -121,7 +121,7 @@ describe('studioDocumentToMarkdown — GFM Tables, Checklists, Code and Cards (S
           text: 'Remember to verify your publication settings before going live.',
         }),
         card('toggle', {
-          title: 'Is my data preserved?',
+          heading: 'Is my data preserved?',
           content: 'Yes, Vibress Studio implements strict zero-loss AST normalization.',
         }),
         card('button', {
@@ -200,4 +200,26 @@ describe('studioDocumentToMarkdown — GFM Tables, Checklists, Code and Cards (S
     expect(md).toContain('# دليل النشر والتحرير');
     expect(md).toContain('مرحباً بكم في منصة **Vibress Studio** للنشر الرقمي المستقل.');
   });
+  it('never emits executable HTML card source as raw Markdown', () => {
+    const md = studioDocumentToMarkdown(doc([
+      card('html', { html: '<img src="x" onerror="alert(1)"><script>alert(2)</script><p>Safe</p>' }),
+    ]));
+    expect(md).toContain('HTML card:');
+    expect(md).toContain('Safe');
+    expect(md).not.toContain('<script');
+    expect(md).not.toContain('onerror=');
+  });
+
+  it('escapes toggle headings and body and uses canonical fileName', () => {
+    const md = studioDocumentToMarkdown(doc([
+      card('file', { src: 'https://example.com/doc.pdf', fileName: 'مستند.pdf' }),
+      card('toggle', { heading: '<img src=x onerror=evil()>', content: '<script>alert(1)</script>' }),
+    ]));
+    expect(md).toContain('[📎 مستند.pdf](https://example.com/doc.pdf)');
+    expect(md).toContain('&lt;img');
+    expect(md).toContain('&lt;script');
+    expect(md).not.toContain('<script');
+    expect(md).not.toContain('onerror=evil()><');
+  });
+
 });

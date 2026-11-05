@@ -117,7 +117,7 @@ describe('HTML table import and RTL round-trip', () => {
     ) as { type: string; cardType: string; cardData: Record<string, unknown> } | undefined;
 
     expect(toggleCard).toBeDefined();
-    expect(toggleCard?.cardData.title).toBe('Click to view FAQ');
+    expect(toggleCard?.cardData.heading).toBe('Click to view FAQ');
     expect(toggleCard?.cardData.content).toBe('Detailed answer text here');
   });
 });

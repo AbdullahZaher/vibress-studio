@@ -1,5 +1,5 @@
 import { migrateDocument } from '@vibress/studio-core';
-import { parseMarkdownToHtml, isSafeUrl } from '@vibress/studio-utils';
+import { parseMarkdownToHtml, isSafeUrl, sanitizeHtml, stripHtml, escapeHtml } from '@vibress/studio-utils';
 
 export { parseMarkdownToHtml };
 
@@ -161,7 +161,13 @@ function renderNodeToMarkdown(node: unknown): string {
     case 'studio-card': {
       if (n.cardType === 'divider') return '---';
       if (n.cardType === 'markdown') return (n.cardData?.markdown as string | undefined) || '';
-      if (n.cardType === 'html') return (n.cardData?.html as string | undefined) || '';
+      if (n.cardType === 'html') {
+        // Markdown may be consumed by renderers that enable raw HTML. Export
+        // only safe readable text, never executable card markup.
+        const raw = typeof n.cardData?.html === 'string' ? n.cardData.html : '';
+        const readable = stripHtml(sanitizeHtml(raw));
+        return readable ? `> HTML card: ${escapeHtml(readable)}` : '[Card: html]';
+      }
 
       if (n.cardType === 'image') {
         const rawSrc = n.cardData?.src;
@@ -219,8 +225,8 @@ function renderNodeToMarkdown(node: unknown): string {
       if (n.cardType === 'file') {
         const rawSrc = n.cardData?.src;
         const safeSrc = escapeMarkdownUrl(rawSrc);
-        const title = typeof n.cardData?.title === 'string' && n.cardData.title.trim()
-          ? n.cardData.title.trim()
+        const title = typeof n.cardData?.fileName === 'string' && n.cardData.fileName.trim()
+          ? n.cardData.fileName.trim()
           : 'Download file';
         if (safeSrc && safeSrc !== '#') {
           return `[📎 ${escapeMarkdownLabel(title)}](${safeSrc})`;
@@ -263,9 +269,9 @@ function renderNodeToMarkdown(node: unknown): string {
       }
 
       if (n.cardType === 'toggle') {
-        const title = typeof n.cardData?.title === 'string' ? n.cardData.title : 'Details';
+        const title = typeof n.cardData?.heading === 'string' ? n.cardData.heading : 'Details';
         const content = typeof n.cardData?.content === 'string' ? n.cardData.content : '';
-        return `<details><summary>${escapeMarkdownLabel(title)}</summary>\n\n${content}\n\n</details>`;
+        return `<details><summary>${escapeHtml(title)}</summary>\n\n${escapeHtml(content)}\n\n</details>`;
       }
 
       if (n.cardType === 'embed') {

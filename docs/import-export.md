@@ -9,7 +9,7 @@ This document establishes the **authoritative Loss Matrix and conversion boundar
 ## 1. Document Architecture & Conversion Guarantees
 
 - **Canonical Schema:** Persisted and runtime state uses schema `vibress-studio`, version `1`.
-- **Zero Content Loss:** Content is never silently dropped, wiped, or truncated during conversion.
+- **Explicitly Lossy Conversion:** The canonical document is preserved in Studio; HTML/Markdown conversions can omit layout, unknown nodes and unsupported card data. Never overwrite the original persisted document using a lossy export.
 - **Strict Allowlisted Sanitization:** Untrusted HTML and Markdown input is sanitized using strict allowlists (`sanitizeHtml`, `parseMarkdownToHtml`, `isSafeUrl`, `escapeMarkdownUrl`). Executable URLs (`javascript:`, `vbscript:`, `data:text/html`), raw script tags, and malicious event handlers are rejected at the boundary.
 - **Safe Fallbacks:** Elements or cards that cannot be represented natively in plain Markdown degrade deterministically to readable semantic text representations.
 
@@ -35,15 +35,15 @@ The following matrix documents the exact transformation applied when exporting a
 | **Direction (RTL / LTR)** | Emits clean text | **Lossy:** Standard Markdown does not have native block direction syntax. Unicode bidirectional marks and script detection govern client display. |
 | **Divider Card** | `---` | **Lossless:** Standard Markdown thematic break. |
 | **Markdown Card** | `cardData.markdown` | **Lossless:** Literal Markdown string. |
-| **HTML Card** | `cardData.html` | **Preserved:** Emits stored sanitized HTML string. |
+| **HTML Card** | Safe readable text or `[Card: html]` | **Lossy/Safe:** Never emits raw untrusted HTML card markup into Markdown. |
 | **Image Card** | `![alt](src)` followed by `*caption*` if present | **Semantic Fallback:** Image URL and alt text survive losslessly. Layout widths (`wide`, `full`) and intrinsic pixel dimensions are omitted. |
 | **Gallery Card** | Sequence of `![alt](src)` followed by `*caption*` | **Semantic Fallback:** Every image in the gallery is emitted as an individual Markdown image link. |
 | **Video Card** | `[▶ Caption](src)` | **Semantic Fallback:** Safe link with player affordance indicator. |
 | **Audio Card** | `[🎵 Title](src)` | **Semantic Fallback:** Safe link with audio affordance indicator. |
-| **File Card** | `[📎 Title](src)` | **Semantic Fallback:** Safe download link with attachment affordance indicator. |
+| **File Card** | `[📎 fileName](src)` | **Semantic Fallback:** Safe download link with attachment affordance indicator. |
 | **Bookmark Card** | `[Title](url)` followed by `> Description` | **Semantic Fallback:** Rich preview card decomposes to primary link and blockquote description. |
 | **Callout Card** | `> emoji text` | **Semantic Fallback:** Converts to Markdown blockquote, preserving callout emoji and multi-line body. Color theme is omitted. |
-| **Toggle Card** | `<details><summary>Title</summary>\n\nContent\n\n</details>` | **Lossless HTML Extension:** Uses standard semantic HTML disclosure widget supported by all major Markdown renderers. |
+| **Toggle Card** | `<details><summary>heading</summary>…</details>` | **Lossy/Safe:** Encodes heading and content; requires a Markdown consumer that permits controlled HTML, otherwise renders literal markup. |
 | **Button Card** | `[Text](url)` | **Semantic Fallback:** Emits accessible Markdown link. |
 | **Embed Card** | `[Caption or Embed: url](url)` | **Semantic Fallback:** Emits verified provider link. |
 | **Unknown / Custom Card** | `[Card: cardType]` | **Safe Indicator:** Does not drop or crash; surfaces card identity. |
@@ -71,7 +71,7 @@ When importing arbitrary or sanitized HTML into a `StudioDocument`:
 | `<hr>` | `studio-card` (`divider`) | Horizontal separator card. |
 | `<table>` | `table` with `tablerow` & `tablecell` | Retains header cells (`<th>`), row/col spans (bounded positive integers 1–1000), cell and table `dir` attributes. Empty cells receive empty paragraphs. |
 | `<figure>` with `<img>` & `<figcaption>` | `studio-card` (`image`) | Extracts `src`, `alt`, and `caption` into card data. |
-| `<details>` with `<summary>` | `studio-card` (`toggle`) | Extracts summary text as `title` and details body as `content`. |
+| `<details>` with `<summary>` | `studio-card` (`toggle`) | Extracts summary text as `heading` and details body as `content`. |
 | `<br>` | `linebreak` | Hard line break. |
 | `dir="rtl"` / `dir="ltr"` | `direction: "rtl" \| "ltr"` | Propagated down tree to ensure bilingual fidelity. |
 
