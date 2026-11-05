@@ -19,7 +19,7 @@ test.describe('Mobile, RTL, Mixed-Script, and Accessibility (Phase C / STU-R14)'
         await page.setViewportSize({ width: vp.width, height: vp.height });
 
         // Ensure editor is mounted and visible
-        const editor = page.locator('[data-testid="studio-editor"] [contenteditable="true"]');
+        const editor = page.locator('[data-testid="studio-editor"] [contenteditable="true"][aria-label="Editor content"]');
         await expect(editor).toBeVisible();
 
         // Verify document and studio editor do not experience unwanted horizontal scroll overflow
@@ -63,7 +63,7 @@ test.describe('Mobile, RTL, Mixed-Script, and Accessibility (Phase C / STU-R14)'
       const studioContainer = page.locator('.vibress-studio-editor');
       await expect(studioContainer).toHaveAttribute('dir', 'rtl');
 
-      const editor = page.locator('[contenteditable="true"]');
+      const editor = page.locator('[contenteditable="true"][aria-label="Editor content"]');
       await expect(editor).toHaveAttribute('dir', 'rtl');
 
       // Type Arabic sentence
@@ -119,7 +119,7 @@ test.describe('Mobile, RTL, Mixed-Script, and Accessibility (Phase C / STU-R14)'
       // Press Enter to insert Heading 1
       await page.keyboard.press('Enter');
       await expect(menu).not.toBeVisible();
-      const h1 = page.locator('[contenteditable="true"] h1');
+      const h1 = page.locator('[contenteditable="true"][aria-label="Editor content"] h1');
       await expect(h1).toBeVisible();
     });
 
@@ -135,7 +135,7 @@ test.describe('Mobile, RTL, Mixed-Script, and Accessibility (Phase C / STU-R14)'
         );
       });
 
-      const codeElem = page.locator('[contenteditable="true"] pre, [contenteditable="true"] code').first();
+      const codeElem = page.locator('[contenteditable="true"][aria-label="Editor content"] pre, [contenteditable="true"][aria-label="Editor content"] code').first();
       await expect(codeElem).toBeVisible();
 
       // Verify code direction is strictly LTR and left-aligned regardless of document RTL
@@ -163,7 +163,7 @@ test.describe('Mobile, RTL, Mixed-Script, and Accessibility (Phase C / STU-R14)'
         );
       });
 
-      const table = page.locator('[contenteditable="true"] table');
+      const table = page.locator('[contenteditable="true"][aria-label="Editor content"] table');
       await expect(table).toBeVisible();
 
       const tableDir = await table.evaluate((el) => {

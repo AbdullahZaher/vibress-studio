@@ -1,9 +1,13 @@
 import { StudioDocument, validateStudioDocument, migrateDocument } from '@vibress/studio-core';
-import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-card-definitions';
-import { escapeHtml, sanitizeUrl, sanitizeStudioHtml } from '@vibress/studio-utils';
+import { STUDIO_CARD_DEFINITIONS, type StudioCardDefinition } from '@vibress/studio-card-definitions';
+import { escapeHtml, sanitizeUrl, sanitizeStudioHtml, sanitizeInlineStyle, isSafeCssColor } from '@vibress/studio-utils';
 
 export interface RenderOptions {
   target?: 'web' | 'email';
+  /** Optional trusted in-process plugin registry providing custom card definitions. */
+  pluginRegistry?: { getCard(type: string): StudioCardDefinition | undefined };
+  /** Only include UI controls if host supplies a working client enhancement. */
+  interactiveControls?: boolean;
 }
 
 export function renderStudioDocumentToHtml(docInput: unknown, options: RenderOptions = {}): string {
@@ -66,6 +70,15 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
     if (format & 2) text = `<em>${text}</em>`;
     if (format & 4) text = `<s>${text}</s>`;
     if (format & 8) text = `<u>${text}</u>`;
+    if (format & 32) text = `<sub>${text}</sub>`;
+    if (format & 64) text = `<sup>${text}</sup>`;
+
+    if (typeof n.style === 'string' && n.style.trim()) {
+      const safeStyle = sanitizeInlineStyle(n.style);
+      if (safeStyle) {
+        text = `<span style="${escapeHtml(safeStyle)}">${text}</span>`;
+      }
+    }
 
     return text;
   }
@@ -93,7 +106,8 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
           ((child as { type?: string }).type === 'studio-card')
       );
       if (hasBlockCard) return content;
-      const styleAttr = n.style ? ` style="${escapeHtml(String(n.style))}"` : '';
+      const safeStyle = typeof n.style === 'string' && n.style.trim() ? sanitizeInlineStyle(n.style) : '';
+      const styleAttr = safeStyle ? ` style="${escapeHtml(safeStyle)}"` : '';
       return content ? `<p${directionAttr}${styleAttr}>${content}</p>` : `<p${directionAttr}></p>`;
     }
 
@@ -102,7 +116,8 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
       const level = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tag.toLowerCase())
         ? tag.toLowerCase()
         : 'h2';
-      const styleAttr = n.style ? ` style="${escapeHtml(String(n.style))}"` : '';
+      const safeStyle = typeof n.style === 'string' && n.style.trim() ? sanitizeInlineStyle(n.style) : '';
+      const styleAttr = safeStyle ? ` style="${escapeHtml(safeStyle)}"` : '';
       const childrenHtml = renderChildren();
       const rawText = extractNodeText(n);
       const slug = slugifyHeading(rawText);
@@ -148,7 +163,17 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
       const tag = isHeader ? 'th' : 'td';
       const colSpan = n.colSpan && Number(n.colSpan) > 1 ? ` colspan="${n.colSpan}"` : '';
       const rowSpan = n.rowSpan && Number(n.rowSpan) > 1 ? ` rowspan="${n.rowSpan}"` : '';
-      const bg = n.backgroundColor ? ` style="background-color: ${escapeHtml(String(n.backgroundColor))}"` : '';
+      let style = '';
+      if (typeof n.backgroundColor === 'string' && isSafeCssColor(n.backgroundColor)) {
+        style = `background-color: ${n.backgroundColor}`;
+      }
+      if (typeof n.style === 'string' && n.style.trim()) {
+        const safe = sanitizeInlineStyle(n.style);
+        if (safe) {
+          style = style ? `${style}; ${safe}` : safe;
+        }
+      }
+      const bg = style ? ` style="${escapeHtml(style)}"` : '';
       return `<${tag}${colSpan}${rowSpan}${bg}>${renderChildren()}</${tag}>`;
     }
 
@@ -163,7 +188,10 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
       const lang = typeof n.language === 'string' && n.language ? escapeHtml(n.language) : '';
       const langAttr = lang ? ` data-language="${lang}"` : '';
       const codeHtml = renderChildren();
-      return `<div class="studio-code-block"${langAttr}><div class="studio-code-header"><span class="studio-code-lang">${lang || 'code'}</span><button type="button" class="studio-code-copy-btn" aria-label="Copy code">Copy</button></div><pre><code>${codeHtml}</code></pre></div>`;
+      const copyBtn = options.interactiveControls
+        ? '<button type="button" class="studio-code-copy-btn" aria-label="Copy code">Copy</button>'
+        : '';
+      return `<div class="studio-code-block"${langAttr}><div class="studio-code-header"><span class="studio-code-lang">${lang || 'code'}</span>${copyBtn}</div><pre><code>${codeHtml}</code></pre></div>`;
     }
 
     // Handle Studio Card Nodes (canonical type after normalization)
@@ -175,7 +203,7 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
       if (hasTransientMedia(cardData)) {
         return `<!-- Card skipped: ${escapeHtml(cardType || 'card')} (transient media) -->`;
       }
-      const def = cardType ? STUDIO_CARD_DEFINITIONS[cardType] : undefined;
+      const def = cardType ? (STUDIO_CARD_DEFINITIONS[cardType] || options.pluginRegistry?.getCard(cardType)) : undefined;
       if (def) {
         try {
           const validated = def.validate(cardData);
@@ -193,14 +221,14 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
   }
 }
 
-export function renderStudioDocumentToPlainText(docInput: unknown): string {
+export function renderStudioDocumentToPlainText(docInput: unknown, options: RenderOptions = {}): string {
   const doc = migrateDocument(docInput);
   if (!doc.root || !Array.isArray(doc.root.children)) {
     return '';
   }
 
   return doc.root.children
-    .map((node) => renderNodeToPlainText(node))
+    .map((node) => renderNodeToPlainText(node, options))
     .filter(Boolean)
     .join('\n\n');
 }
@@ -217,7 +245,7 @@ function hasTransientMedia(cardData: Record<string, unknown>): boolean {
   return candidates.some((v) => typeof v === 'string' && (v as string).toLowerCase().startsWith('blob:'));
 }
 
-function renderNodeToPlainText(node: unknown): string {
+function renderNodeToPlainText(node: unknown, options: RenderOptions = {}): string {
   if (!node || typeof node !== 'object') return '';
   const n = node as { type?: string; text?: string; format?: number; children?: unknown[]; tag?: string; listType?: string; url?: string; src?: string; alt?: string; cardType?: string; caption?: string; rel?: string; target?: string; cardData?: Record<string, unknown>; } & Record<string, unknown>;
 
@@ -232,7 +260,7 @@ function renderNodeToPlainText(node: unknown): string {
     if (hasTransientMedia(cardData)) {
       return '';
     }
-    const def = cardType ? STUDIO_CARD_DEFINITIONS[cardType] : undefined;
+    const def = cardType ? (STUDIO_CARD_DEFINITIONS[cardType] || options.pluginRegistry?.getCard(cardType)) : undefined;
     if (def) {
       try {
         const validated = def.validate(cardData);
@@ -245,7 +273,7 @@ function renderNodeToPlainText(node: unknown): string {
   }
 
   if (Array.isArray(n.children)) {
-    return n.children.map((child: unknown) => renderNodeToPlainText(child)).join('');
+    return n.children.map((child: unknown) => renderNodeToPlainText(child, options)).join('');
   }
 
   return '';

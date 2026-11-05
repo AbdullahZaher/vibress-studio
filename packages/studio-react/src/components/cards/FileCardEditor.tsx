@@ -5,8 +5,10 @@ import { NodeKey, $getNodeByKey } from 'lexical';
 import { FileCardData, StudioCardNode } from '@vibress/studio-cards';
 
 import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
+import { isDurableMediaUrl, mergeDurableMediaAsset } from '../../utils/mergeDurableMedia';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
 import { FileMetadataPopover } from '../ui/media-popovers/FileMetadataPopover';
 import { File as FileIcon, Download } from 'lucide-react';
@@ -34,14 +36,15 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
     Promise.resolve()
       .then(() => uploadMedia(selectedFile, 'file'))
       .then((payload) => {
-        if (!payload || typeof payload.src !== 'string') {
+        if (!payload || !isDurableMediaUrl(payload.src)) {
           setUploadError(true);
           return;
         }
         editor.update(() => {
           const node = $getNodeByKey(nodeKey);
           if (node instanceof StudioCardNode && node.isAttached()) {
-            node.setCardData({ ...node.getCardData(), ...payload });
+            const next = mergeDurableMediaAsset(node.getCardData(), payload, 'file', selectedFile.name);
+            if (next) node.setCardData(next);
           }
         });
       })
@@ -59,14 +62,12 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
       cardType: 'file',
       source: 'library',
     });
-    if (!payload) return;
+    if (!payload || !isDurableMediaUrl(payload.src)) return;
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
       if (node instanceof StudioCardNode && node.isAttached()) {
-        node.setCardData({
-          ...node.getCardData(),
-          ...payload,
-        });
+        const next = mergeDurableMediaAsset(node.getCardData(), payload, 'file');
+        if (next) node.setCardData(next);
       }
     });
   }, [editor, nodeKey, requestMedia]);
@@ -79,8 +80,7 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
           node.setCardData({
             ...node.getCardData(),
             fileName: data.fileName,
-            caption: data.caption,
-            captionHtml: data.caption,
+            ...captionMetadataPatch(node.getCardData(), data.caption),
           });
         }
       });
@@ -212,19 +212,21 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
           </a>
         )}
       </div>
-      {captionStr ? (
-        <figcaption className="mt-1 text-center text-xs text-muted-foreground">
-          {captionStr}
-        </figcaption>
-      ) : (
-        <NestedCaptionEditor
-          initialCaptionJSON={
-            typeof cardData.caption === 'object' ? cardData.caption : undefined
-          }
-          onChange={onCaptionChange}
-          placeholder="Type caption for file (optional)"
-        />
-      )}
+      <NestedCaptionEditor
+        initialCaptionJSON={
+          typeof cardData.caption === 'object' && cardData.caption !== null
+            ? (cardData.caption as Record<string, unknown>)
+            : undefined
+        }
+        initialCaptionText={captionStr}
+        captionHtml={
+          typeof (cardData as { captionHtml?: string }).captionHtml === 'string'
+            ? (cardData as { captionHtml?: string }).captionHtml
+            : undefined
+        }
+        onChange={onCaptionChange}
+        placeholder="Type caption for file (optional)"
+      />
     </figure>
   );
 }

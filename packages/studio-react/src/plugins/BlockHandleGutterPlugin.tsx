@@ -2,6 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   $getNodeByKey,
+  $getSelection,
+  $isRangeSelection,
+  SELECTION_CHANGE_COMMAND,
+  COMMAND_PRIORITY_LOW,
   $getNearestNodeFromDOMNode,
   $createParagraphNode,
   $isRootOrShadowRoot,
@@ -70,27 +74,23 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
         return;
       }
 
-      // Find top-level block element under editor root
-      let blockElem: HTMLElement | null = target;
-      while (blockElem && blockElem.parentElement && blockElem.parentElement !== rootElement) {
-        blockElem = blockElem.parentElement;
-      }
-
-      if (blockElem && blockElem.parentElement === rootElement) {
-        editor.getEditorState().read(() => {
-          if (!blockElem) return;
-          const node = $getNearestNodeFromDOMNode(blockElem);
-          if (node) {
-            let topNode: LexicalNode = node;
-            while (topNode.getParent() && !$isRootOrShadowRoot(topNode.getParent())) {
-              const parent = topNode.getParent();
-              if (parent) topNode = parent;
-            }
-            setHoveredNodeKey(topNode.getKey());
-            setTargetRect(blockElem.getBoundingClientRect());
-          }
-        });
-      }
+      // Resolve the nearest Lexical node from the actual hover target.
+      // A paragraph can be nested under a block decorator, so relying on
+      // the first direct DOM child of root is not sufficient.
+      editor.getEditorState().read(() => {
+        const node = $getNearestNodeFromDOMNode(target);
+        if (!node) return;
+        let topNode: LexicalNode = node;
+        while (topNode.getParent() && !$isRootOrShadowRoot(topNode.getParent())) {
+          const parent = topNode.getParent();
+          if (parent) topNode = parent;
+        }
+        const blockElement = editor.getElementByKey(topNode.getKey());
+        if (blockElement) {
+          setHoveredNodeKey(topNode.getKey());
+          setTargetRect(blockElement.getBoundingClientRect());
+        }
+      });
     },
     [editor, showMenu]
   );
@@ -101,6 +101,30 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
       document.removeEventListener('mousemove', handleMouseMove);
     };
   }, [handleMouseMove]);
+
+  // A selection-based fallback keeps the block handle discoverable for
+  // keyboard users and when DOM pointer events originate from nested editor
+  // decorations. This uses only the supported public Lexical APIs.
+  useEffect(() => editor.registerCommand(
+    SELECTION_CHANGE_COMMAND,
+    () => {
+      if (showMenu) return false;
+      const selection = $getSelection();
+      if (!$isRangeSelection(selection)) return false;
+      let node: LexicalNode = selection.anchor.getNode();
+      while (node.getParent() && !$isRootOrShadowRoot(node.getParent())) {
+        const parent = node.getParent();
+        if (parent) node = parent;
+      }
+      const element = editor.getElementByKey(node.getKey());
+      if (element && editor.getRootElement()?.contains(element)) {
+        setHoveredNodeKey(node.getKey());
+        setTargetRect(element.getBoundingClientRect());
+      }
+      return false;
+    },
+    COMMAND_PRIORITY_LOW,
+  ), [editor, showMenu]);
 
   // Click outside to close menu
   useEffect(() => {
@@ -298,14 +322,14 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
 
       <button
         type="button"
-        title="Drag to move, click for options"
-        aria-label="Block options"
+        title="Click for block actions (move up, move down, color, duplicate, delete)"
+        aria-label="Block actions"
         aria-haspopup="menu"
         aria-expanded={showMenu}
         onClick={() => setShowMenu(!showMenu)}
         className="notion-block-handle-btn"
         style={{
-          cursor: 'grab',
+          cursor: 'pointer',
           backgroundColor: showMenu ? 'var(--vb-studio-surface-muted, #e2e8f0)' : 'transparent',
         }}
       >

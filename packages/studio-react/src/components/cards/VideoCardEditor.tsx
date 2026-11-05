@@ -5,8 +5,10 @@ import { NodeKey, $getNodeByKey } from 'lexical';
 import { VideoCardData, StudioCardNode } from '@vibress/studio-cards';
 
 import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
+import { isDurableMediaUrl, mergeDurableMediaAsset } from '../../utils/mergeDurableMedia';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
 import { VideoMetadataPopover } from '../ui/media-popovers/VideoMetadataPopover';
 
@@ -33,18 +35,15 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
     Promise.resolve()
       .then(() => uploadMedia(selectedFile, 'video'))
       .then((payload) => {
-        if (!payload || typeof payload.src !== 'string') {
+        if (!payload || !isDurableMediaUrl(payload.src)) {
           setUploadError(true);
           return;
         }
         editor.update(() => {
           const node = $getNodeByKey(nodeKey);
           if (node instanceof StudioCardNode && node.isAttached()) {
-            node.setCardData({
-              ...node.getCardData(),
-              ...payload,
-              fileName: selectedFile.name,
-            });
+            const next = mergeDurableMediaAsset(node.getCardData(), payload, 'video', selectedFile.name);
+            if (next) node.setCardData(next);
           }
         });
       })
@@ -62,14 +61,12 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
       cardType: 'video',
       source: 'library',
     });
-    if (!payload) return;
+    if (!payload || !isDurableMediaUrl(payload.src)) return;
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
       if (node instanceof StudioCardNode && node.isAttached()) {
-        node.setCardData({
-          ...node.getCardData(),
-          ...payload,
-        });
+        const next = mergeDurableMediaAsset(node.getCardData(), payload, 'video');
+        if (next) node.setCardData(next);
       }
     });
   }, [editor, nodeKey, requestMedia]);
@@ -86,8 +83,7 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
         if (node instanceof StudioCardNode && node.isAttached()) {
           node.setCardData({
             ...node.getCardData(),
-            caption: data.caption,
-            captionHtml: data.caption,
+            ...captionMetadataPatch(node.getCardData(), data.caption),
             poster: data.poster,
             loop: data.loop,
             autoplay: data.autoplay,
@@ -233,19 +229,21 @@ export function VideoCardEditor({ nodeKey, cardData }: Props) {
         autoPlay={cardData.autoplay}
         className="w-full rounded-xl overflow-hidden shadow-sm bg-black"
       />
-      {captionStr ? (
-        <figcaption className="mt-2 text-center text-xs text-muted-foreground">
-          {captionStr}
-        </figcaption>
-      ) : (
-        <NestedCaptionEditor
-          initialCaptionJSON={
-            typeof cardData.caption === 'object' ? cardData.caption : undefined
-          }
-          onChange={onCaptionChange}
-          placeholder="Type caption for video (optional)"
-        />
-      )}
+      <NestedCaptionEditor
+        initialCaptionJSON={
+          typeof cardData.caption === 'object' && cardData.caption !== null
+            ? (cardData.caption as Record<string, unknown>)
+            : undefined
+        }
+        initialCaptionText={captionStr}
+        captionHtml={
+          typeof cardData.captionHtml === 'string'
+            ? cardData.captionHtml
+            : undefined
+        }
+        onChange={onCaptionChange}
+        placeholder="Type caption for video (optional)"
+      />
     </figure>
   );
 }

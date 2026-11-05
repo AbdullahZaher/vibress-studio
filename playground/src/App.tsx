@@ -1,15 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { VibressStudio, UnsplashIcon } from '@vibress/studio-react';
+import { VibressStudio, UnsplashIcon, $createReactStudioCardNode } from '@vibress/studio-react';
 import { StudioDocument, createEmptyStudioDocument } from '@vibress/studio-core';
 import { renderStudioDocumentToHtml, renderStudioDocumentToPlainText } from '@vibress/studio-renderer';
 import { studioDocumentToMarkdown } from '@vibress/studio-markdown';
 import { createTestStudioDocument, createStressTestStudioDocument } from '@vibress/studio-testing';
 import {
+  $getRoot,
+  $getSelection,
+  $isRangeSelection,
+  $createParagraphNode,
+  type LexicalEditor,
+  type LexicalNode,
+} from 'lexical';
+import { $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
+import { $createListNode } from '@lexical/list';
+import { $createCodeNode } from '@lexical/code';
+import { $createTableNodeWithDimensions } from '@lexical/table';
+import {
   ChevronLeft,
   CheckCircle2,
   Eye,
   PanelRight,
-  SlidersHorizontal,
   Plus,
   Moon,
   Sun,
@@ -35,7 +46,30 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  const [doc, setDoc] = useState<StudioDocument>(createTestStudioDocument());
+  const [editor, setEditor] = useState<LexicalEditor | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((cur) => (cur === msg ? null : cur));
+    }, 3500);
+  };
+
+  const [doc, setDoc] = useState<StudioDocument>(() => {
+    try {
+      const saved = localStorage.getItem('vibress-studio-playground-draft');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.schema === 'vibress-studio' && parsed.root) {
+          return parsed;
+        }
+      }
+    } catch {
+      // Ignore
+    }
+    return createTestStudioDocument();
+  });
   const [title, setTitle] = useState('');
   const [featureImage, setFeatureImage] = useState<string | null>(null);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
@@ -75,6 +109,103 @@ export default function App() {
     setSavedStatus('Saving...');
     setDoc(newDoc);
     setTimeout(() => setSavedStatus('Saved'), 350);
+  };
+
+  const handleSaveDraft = () => {
+    try {
+      localStorage.setItem('vibress-studio-playground-draft', JSON.stringify(doc));
+      showToast('Draft saved locally to browser storage (persistence is host-owned)');
+    } catch {
+      showToast('Failed to save draft to browser storage');
+    }
+  };
+
+  const handleInsertBlock = (blockTitle: string) => {
+    if (!editor) {
+      showToast('Editor is not ready yet');
+      return;
+    }
+
+    editor.update(() => {
+      let node: LexicalNode | null = null;
+      switch (blockTitle) {
+        case 'Text':
+          node = $createParagraphNode();
+          break;
+        case 'Heading 1':
+          node = $createHeadingNode('h1');
+          break;
+        case 'Heading 2':
+          node = $createHeadingNode('h2');
+          break;
+        case 'Heading 3':
+          node = $createHeadingNode('h3');
+          break;
+        case 'Quote':
+          node = $createQuoteNode();
+          break;
+        case 'Code Block':
+          node = $createCodeNode();
+          break;
+        case 'Table':
+          node = $createTableNodeWithDimensions(3, 3, true);
+          break;
+        case 'Bulleted list':
+          node = $createListNode('bullet');
+          break;
+        case 'Numbered list':
+          node = $createListNode('number');
+          break;
+        case 'To-do list':
+          node = $createListNode('check');
+          break;
+        case 'Divider':
+          node = $createReactStudioCardNode('divider', {});
+          break;
+        case 'Image':
+          node = $createReactStudioCardNode('image', {});
+          break;
+        case 'Gallery':
+          node = $createReactStudioCardNode('gallery', {});
+          break;
+        case 'Video':
+          node = $createReactStudioCardNode('video', {});
+          break;
+        case 'Audio':
+          node = $createReactStudioCardNode('audio', {});
+          break;
+        case 'File':
+          node = $createReactStudioCardNode('file', {});
+          break;
+        case 'Bookmark':
+          node = $createReactStudioCardNode('bookmark', {});
+          break;
+        case 'Embed':
+          node = $createReactStudioCardNode('embed', {});
+          break;
+        case 'Callout':
+          node = $createReactStudioCardNode('callout', {});
+          break;
+        default:
+          break;
+      }
+
+      if (!node) return;
+
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) {
+        selection.insertNodes([node]);
+      } else {
+        const root = $getRoot();
+        root.append(node);
+      }
+    });
+
+    try {
+      editor.focus();
+    } catch {
+      // Ignore
+    }
   };
 
   const htmlOutput = renderStudioDocumentToHtml(doc);
@@ -257,7 +388,7 @@ export default function App() {
           {/* Publish / Save Button (Ghost Variant) */}
           <button
             type="button"
-            onClick={() => alert('Post saved successfully in Vibress Studio!')}
+            onClick={handleSaveDraft}
             style={{
               padding: '6px 14px',
               borderRadius: '6px',
@@ -355,9 +486,7 @@ export default function App() {
                   <button
                     key={b.title}
                     type="button"
-                    onClick={() => {
-                      alert(`Type "/${b.title.toLowerCase()}" in the editor to insert this block!`);
-                    }}
+                    onClick={() => handleInsertBlock(b.title)}
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
@@ -406,152 +535,151 @@ export default function App() {
           }}
         >
           <div style={{ maxWidth: '760px', margin: '0 auto', position: 'relative' }}>
-            {isPreviewMode ? (
-              /* Published Ghost Article View */
-              <article style={{ lineHeight: '1.8' }}>
-                {featureImage && (
-                  <img
-                    src={featureImage}
-                    alt={title}
-                    style={{ width: '100%', maxHeight: '420px', objectFit: 'cover', borderRadius: '12px', marginBottom: '28px' }}
-                  />
+            {/* Published Ghost Article View */}
+            <article style={{ display: isPreviewMode ? 'block' : 'none', lineHeight: '1.8' }}>
+              {featureImage && (
+                <img
+                  src={featureImage}
+                  alt={title}
+                  style={{ width: '100%', maxHeight: '420px', objectFit: 'cover', borderRadius: '12px', marginBottom: '28px' }}
+                />
+              )}
+              <h1 style={{ fontSize: '2.5rem', fontWeight: 800, lineHeight: 1.25, marginBottom: '16px', letterSpacing: '-0.025em' }}>
+                {title}
+              </h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px', color: 'var(--vb-studio-foreground-muted)', fontSize: '14px' }}>
+                <span>{authors.join(', ')}</span>
+                <span>·</span>
+                <span>{publishDate}</span>
+                <span>·</span>
+                <span style={{ display: 'flex', gap: '4px' }}>
+                  {tags.map((t) => (
+                    <span key={t} style={{ background: '#fce7f3', color: '#be185d', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                      {t}
+                    </span>
+                  ))}
+                </span>
+              </div>
+              <div
+                className="studio-rendered-html-preview"
+                dangerouslySetInnerHTML={{ __html: htmlOutput }}
+              />
+            </article>
+
+            {/* Ghost-Style Editorial Writing Surface */}
+            <div style={{ display: isPreviewMode ? 'none' : 'block' }}>
+              {/* Feature Image Header Affordance */}
+              <div style={{ marginBottom: '28px' }}>
+                {featureImage ? (
+                  <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden' }}>
+                    <img src={featureImage} alt="Feature" style={{ width: '100%', maxHeight: '360px', objectFit: 'cover' }} />
+                    <button
+                      type="button"
+                      onClick={() => setFeatureImage(null)}
+                      style={{
+                        position: 'absolute',
+                        top: '12px',
+                        insetInlineEnd: '12px',
+                        background: 'rgba(0,0,0,0.6)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '6px 10px',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFeatureImage(
+                          'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=1200&q=80'
+                        )
+                      }
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '4px 0',
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--vb-studio-foreground-muted, #64748b)',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: 500,
+                      }}
+                    >
+                      <span style={{ fontSize: '15px', lineHeight: 1 }}>+</span>
+                      <span>Add feature image</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFeatureImage(
+                          'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=1200&q=80'
+                        )
+                      }
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '24px',
+                        height: '24px',
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--vb-studio-foreground-muted, #64748b)',
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                      title="Add image from Unsplash"
+                    >
+                      <UnsplashIcon size={14} />
+                    </button>
+                  </div>
                 )}
-                <h1 style={{ fontSize: '2.5rem', fontWeight: 800, lineHeight: 1.25, marginBottom: '16px', letterSpacing: '-0.025em' }}>
-                  {title}
-                </h1>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px', color: 'var(--vb-studio-foreground-muted)', fontSize: '14px' }}>
-                  <span>{authors.join(', ')}</span>
-                  <span>·</span>
-                  <span>{publishDate}</span>
-                  <span>·</span>
-                  <span style={{ display: 'flex', gap: '4px' }}>
-                    {tags.map((t) => (
-                      <span key={t} style={{ background: '#fce7f3', color: '#be185d', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
-                        {t}
-                      </span>
-                    ))}
-                  </span>
-                </div>
-                <div
-                  className="studio-rendered-html-preview"
-                  dangerouslySetInnerHTML={{ __html: htmlOutput }}
-                />
-              </article>
-            ) : (
-              /* Ghost-Style Editorial Writing Surface */
-              <>
-                {/* Feature Image Header Affordance */}
-                <div style={{ marginBottom: '28px' }}>
-                  {featureImage ? (
-                    <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden' }}>
-                      <img src={featureImage} alt="Feature" style={{ width: '100%', maxHeight: '360px', objectFit: 'cover' }} />
-                      <button
-                        type="button"
-                        onClick={() => setFeatureImage(null)}
-                        style={{
-                          position: 'absolute',
-                          top: '12px',
-                          insetInlineEnd: '12px',
-                          background: 'rgba(0,0,0,0.6)',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '6px',
-                          padding: '6px 10px',
-                          cursor: 'pointer',
-                          fontSize: '12px',
-                        }}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFeatureImage(
-                            'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=1200&q=80'
-                          )
-                        }
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '4px 0',
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--vb-studio-foreground-muted, #64748b)',
-                          cursor: 'pointer',
-                          fontSize: '13px',
-                          fontWeight: 500,
-                        }}
-                      >
-                        <span style={{ fontSize: '15px', lineHeight: 1 }}>+</span>
-                        <span>Add feature image</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFeatureImage(
-                            'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=1200&q=80'
-                          )
-                        }
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '24px',
-                          height: '24px',
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--vb-studio-foreground-muted, #64748b)',
-                          cursor: 'pointer',
-                          padding: 0,
-                        }}
-                        title="Add image from Unsplash"
-                      >
-                        <UnsplashIcon size={14} />
-                      </button>
-                    </div>
-                  )}
-                </div>
+              </div>
 
-                {/* Article Title Input (Ghost Gold Standard) */}
-                <textarea
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Post title"
-                  rows={1}
-                  style={{
-                    width: '100%',
-                    border: 'none',
-                    outline: 'none',
-                    backgroundColor: 'transparent',
-                    color: 'var(--vb-studio-foreground, #0f172a)',
-                    fontSize: '3rem',
-                    fontWeight: 800,
-                    lineHeight: 1.2,
-                    marginBottom: '28px',
-                    letterSpacing: '-0.025em',
-                    resize: 'none',
-                    fontFamily: 'inherit',
-                  }}
-                  onInput={(e) => {
-                    const target = e.target as HTMLTextAreaElement;
-                    target.style.height = 'auto';
-                    target.style.height = `${target.scrollHeight}px`;
-                  }}
-                />
+              {/* Article Title Input (Ghost Gold Standard) */}
+              <textarea
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Post title"
+                rows={1}
+                style={{
+                  width: '100%',
+                  border: 'none',
+                  outline: 'none',
+                  backgroundColor: 'transparent',
+                  color: 'var(--vb-studio-foreground, #0f172a)',
+                  fontSize: '3rem',
+                  fontWeight: 800,
+                  lineHeight: 1.2,
+                  marginBottom: '28px',
+                  letterSpacing: '-0.025em',
+                  resize: 'none',
+                  fontFamily: 'inherit',
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = `${target.scrollHeight}px`;
+                }}
+              />
 
-                {/* Vibress Studio Full Editor */}
-                <VibressStudio
-                  value={doc}
-                  onChange={handleDocChange}
-                  placeholder="Begin writing your post..."
-                  showWordCount={true}
-                />
-              </>
-            )}
+              {/* Vibress Studio Full Editor */}
+              <VibressStudio
+                value={doc}
+                onChange={handleDocChange}
+                onEditorReady={setEditor}
+                placeholder="Begin writing your post..."
+                showWordCount={true}
+              />
+            </div>
           </div>
         </main>
 
@@ -859,6 +987,35 @@ export default function App() {
           )}
         </div>
       </footer>
+
+      {/* Non-intrusive Toast Notification */}
+      {toastMessage && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            insetInlineStart: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: 'var(--vb-studio-surface, #1e293b)',
+            color: 'var(--vb-studio-foreground, #f8fafc)',
+            padding: '10px 18px',
+            borderRadius: '8px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2)',
+            fontSize: '13px',
+            fontWeight: 500,
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            border: '1px solid var(--vb-studio-border, #334155)',
+          }}
+        >
+          <CheckCircle2 size={16} color="#10b981" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 }

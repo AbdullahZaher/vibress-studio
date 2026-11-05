@@ -5,8 +5,10 @@ import { NodeKey, $getNodeByKey } from 'lexical';
 import { GalleryCardData, StudioCardNode } from '@vibress/studio-cards';
 
 import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
+import { isDurableMediaUrl } from '../../utils/mergeDurableMedia';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
 import { GalleryMetadataPopover } from '../ui/media-popovers/GalleryMetadataPopover';
 
@@ -42,7 +44,7 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
           .map((result) => result.payload)
           .filter(
             (payload): payload is Record<string, unknown> =>
-              payload != null && typeof payload.src === 'string'
+              payload != null && isDurableMediaUrl(payload.src)
           )
           .map((payload) => ({
             src: payload.src as string,
@@ -51,7 +53,7 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
           }));
         setFailedFiles(
           results
-            .filter((result) => !result.payload || typeof result.payload.src !== 'string')
+            .filter((result) => !result.payload || !isDurableMediaUrl(result.payload.src))
             .map((result) => result.selectedFile)
         );
         if (newImages.length === 0) return;
@@ -77,15 +79,24 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
       cardType: 'gallery',
       source: 'library',
     });
-    if (!payload) return;
+    if (!payload || !Array.isArray(payload.images)) return;
+    // The host may include stale layout/caption metadata in the picker response.
+    // Accept only durable image assets and preserve all current author fields.
+    const images = payload.images.flatMap((item: unknown) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+      const record = item as Record<string, unknown>;
+      if (!isDurableMediaUrl(record.src)) return [];
+      return [{
+        src: record.src.trim(),
+        alt: typeof record.alt === 'string' ? record.alt : '',
+        assetId: typeof record.assetId === 'string' ? record.assetId : undefined,
+      }];
+    });
+    if (images.length === 0) return;
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
       if (node instanceof StudioCardNode && node.isAttached()) {
-        const currentData = (node.getCardData() || {}) as GalleryCardData;
-        node.setCardData({
-          ...currentData,
-          ...payload,
-        });
+        node.setCardData({ ...node.getCardData(), images });
       }
     });
   }, [editor, nodeKey, requestMedia]);
@@ -98,8 +109,7 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
           const currentData = (node.getCardData() || {}) as GalleryCardData;
           node.setCardData({
             ...currentData,
-            caption: data.caption,
-            captionHtml: data.caption,
+            ...captionMetadataPatch(node.getCardData(), data.caption),
           });
         }
       });
@@ -247,19 +257,21 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
             />
           ))}
         </div>
-        {captionStr ? (
-          <figcaption className="mt-2 text-center text-xs text-muted-foreground">
-            {captionStr}
-          </figcaption>
-        ) : (
-          <NestedCaptionEditor
-            initialCaptionJSON={
-              typeof cardData.caption === 'object' ? cardData.caption : undefined
-            }
-            onChange={onCaptionChange}
-            placeholder="Type caption for gallery (optional)"
-          />
-        )}
+        <NestedCaptionEditor
+          initialCaptionJSON={
+            typeof cardData.caption === 'object' && cardData.caption !== null
+              ? (cardData.caption as Record<string, unknown>)
+              : undefined
+          }
+          initialCaptionText={captionStr}
+          captionHtml={
+            typeof cardData.captionHtml === 'string'
+              ? cardData.captionHtml
+              : undefined
+          }
+          onChange={onCaptionChange}
+          placeholder="Type caption for gallery (optional)"
+        />
       </figure>
       {uploadFailure}
     </>

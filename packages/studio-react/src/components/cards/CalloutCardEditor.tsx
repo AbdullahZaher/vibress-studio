@@ -52,6 +52,7 @@ export function CalloutCardEditor({ nodeKey, cardData }: Props) {
 
   return (
     <div
+      data-color={bgColor}
       className={`vb-callout-card relative w-full my-3.5 rounded-xl border py-3.5 px-4 flex items-start gap-3.5 ${colorClass}`}
       onClick={(e) => {
         clearSelection();

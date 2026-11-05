@@ -4,6 +4,7 @@ import { NodeKey, $getNodeByKey } from 'lexical';
 import { BookmarkCardData, StudioCardNode } from '@vibress/studio-cards';
 
 import { UrlPlaceholder } from '../ui/UrlPlaceholder';
+import { parseSafeBookmarkUrl, isSafeBookmarkImageUrl } from './bookmark-url';
 
 interface Props {
   nodeKey: NodeKey;
@@ -15,29 +16,34 @@ export function BookmarkCardEditor({ nodeKey, cardData }: Props) {
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
 
   const isPopulated = !!cardData.url;
+  const safeBookmark = parseSafeBookmarkUrl(cardData.url);
+  const iconSrc = isSafeBookmarkImageUrl(cardData.icon) ? cardData.icon : null;
+  const thumbnailSrc = isSafeBookmarkImageUrl(cardData.thumbnail) ? cardData.thumbnail : null;
 
   const onUrlSubmit = (url: string) => {
-    // In a real app, this would hit an API endpoint to fetch oEmbed metadata
-    // For now, we mock some metadata based on the URL
+    const parsed = parseSafeBookmarkUrl(url);
+    if (!parsed) return;
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
-      if (node instanceof StudioCardNode) {
+      if (node instanceof StudioCardNode && node.isAttached()) {
+        const current = node.getCardData();
         node.setCardData({
-          ...cardData,
-          url,
-          title: new URL(url).hostname,
-          description: 'A bookmark link',
+          ...current,
+          url: parsed.href,
+          title: typeof current.title === 'string' && current.title ? current.title : parsed.hostname,
         });
       }
     });
   };
 
-  if (!isPopulated) {
+  // Unsupported persisted URLs are kept in cardData but cannot be navigated.
+  // Offer the real URL-entry control to repair the card without crashing Lexical.
+  if (!isPopulated || !safeBookmark) {
     return (
       <UrlPlaceholder
         iconType="bookmark"
         title="Bookmark"
-        description="Paste a URL to add a bookmark"
+        description={isPopulated ? "Saved bookmark URL is invalid. Enter an HTTP or HTTPS address to repair." : "Paste a URL to add a bookmark"}
         onUrlSubmit={onUrlSubmit}
         isSelected={isSelected}
         onClick={() => {
@@ -61,7 +67,7 @@ export function BookmarkCardEditor({ nodeKey, cardData }: Props) {
       }}
     >
       <a
-        href={cardData.url}
+        href={safeBookmark.href}
         target="_blank"
         rel="noopener noreferrer"
         className="flex border border-border/80 dark:border-white/10 rounded-xl overflow-hidden hover:bg-muted/40 dark:hover:bg-white/[0.04] bg-card dark:bg-[#1a1c20]/90 backdrop-blur-md no-underline text-foreground shadow-sm transition-all"
@@ -73,14 +79,14 @@ export function BookmarkCardEditor({ nodeKey, cardData }: Props) {
             <div className="text-xs text-muted-foreground line-clamp-2">{cardData.description}</div>
           </div>
           <div className="flex items-center mt-2 text-[11px] text-muted-foreground">
-            {cardData.icon && <img src={cardData.icon} alt="" className="w-3.5 h-3.5 mr-1.5 rounded" />}
-            <span className="truncate">{cardData.publisher || new URL(cardData.url).hostname}</span>
+            {iconSrc && <img src={iconSrc} alt="" className="w-3.5 h-3.5 mr-1.5 rounded" />}
+            <span className="truncate">{cardData.publisher || safeBookmark.hostname}</span>
             {cardData.author && <span className="before:content-['•'] before:mx-1 truncate">{cardData.author}</span>}
           </div>
         </div>
-        {cardData.thumbnail && (
+        {thumbnailSrc && (
           <div className="w-[130px] flex-shrink-0 relative overflow-hidden bg-muted/60 dark:bg-white/[0.04] border-l border-border/60 dark:border-white/10 hidden sm:block">
-            <img src={cardData.thumbnail} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <img src={thumbnailSrc} alt="" className="absolute inset-0 w-full h-full object-cover" />
           </div>
         )}
       </a>

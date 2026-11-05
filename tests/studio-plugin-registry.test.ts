@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { StudioPluginRegistry } from '@vibress/studio-plugin-sdk';
 import type { StudioCardDefinition } from '@vibress/studio-card-definitions';
+import { renderStudioDocumentToHtml, renderStudioDocumentToPlainText } from '@vibress/studio-renderer';
 
 function makeCard(type: string): StudioCardDefinition {
   return {
@@ -50,5 +51,102 @@ describe('plugin HTML rendering security', () => {
     expect(html).not.toContain('<script');
     expect(html).not.toContain('onclick');
     expect(registry.renderCardHtml('missing-card', {})).toBeNull();
+  });
+});
+
+describe('document renderer plugin integration', () => {
+  it('renders custom plugin cards in document HTML with sanitization', () => {
+    const registry = new StudioPluginRegistry();
+    const statsCard: StudioCardDefinition = {
+      type: 'custom-stats',
+      version: 1,
+      title: 'Custom Stats',
+      description: 'Display key metrics',
+      validate: (data: unknown) => {
+        const d = (data && typeof data === 'object') ? data as Record<string, unknown> : {};
+        return { count: Number(d.count || 0) };
+      },
+      renderHtml: (data: { count: number }) =>
+        `<div class="custom-stats"><span>${data.count}</span><script>evil()</script><img src="x" onerror="evil()" /></div>`,
+      renderPlainText: (data: { count: number }) => `Count: ${data.count}`,
+    };
+
+    registry.registerPlugin({
+      name: 'metrics-plugin',
+      version: '1.0.0',
+      cards: [statsCard],
+    });
+
+    const doc = {
+      schema: 'vibress-studio',
+      version: 1,
+      root: {
+        type: 'root',
+        children: [
+          {
+            type: 'studio-card',
+            cardType: 'custom-stats',
+            cardData: { count: 42 },
+          },
+        ],
+      },
+    };
+
+    // Render with plugin registry
+    const htmlWithPlugin = renderStudioDocumentToHtml(doc, { pluginRegistry: registry });
+    expect(htmlWithPlugin).toContain('custom-stats');
+    expect(htmlWithPlugin).toContain('42');
+    expect(htmlWithPlugin).not.toContain('<script');
+    expect(htmlWithPlugin).not.toContain('onerror');
+
+    // Render plain text with plugin registry
+    const textWithPlugin = renderStudioDocumentToPlainText(doc, { pluginRegistry: registry });
+    expect(textWithPlugin).toBe('Count: 42');
+
+    // Without plugin registry, the unknown card is dropped cleanly by the sanitizer
+    const htmlWithoutPlugin = renderStudioDocumentToHtml(doc);
+    expect(htmlWithoutPlugin).toBe('');
+    expect(htmlWithoutPlugin).not.toContain('42');
+
+    const textWithoutPlugin = renderStudioDocumentToPlainText(doc);
+    expect(textWithoutPlugin).toBe('');
+  });
+
+  it('safely handles validation failure in plugin card', () => {
+    const registry = new StudioPluginRegistry();
+    const strictCard: StudioCardDefinition = {
+      type: 'strict-card',
+      version: 1,
+      validate: () => {
+        throw new Error('Invalid card data');
+      },
+      renderHtml: () => '<div>never rendered</div>',
+      renderPlainText: () => 'never',
+    };
+
+    registry.registerPlugin({
+      name: 'strict-plugin',
+      version: '1.0.0',
+      cards: [strictCard],
+    });
+
+    const doc = {
+      schema: 'vibress-studio',
+      version: 1,
+      root: {
+        type: 'root',
+        children: [
+          {
+            type: 'studio-card',
+            cardType: 'strict-card',
+            cardData: {},
+          },
+        ],
+      },
+    };
+
+    // Card with validation error is dropped cleanly without leaking raw errors
+    const html = renderStudioDocumentToHtml(doc, { pluginRegistry: registry });
+    expect(html).toBe('');
   });
 });

@@ -60,6 +60,46 @@ describe('Safe document migration and recovery (STU-R01)', () => {
     }
   });
 
+  it('reports invalid persisted Studio JSON strings instead of turning them into editable text', () => {
+    const raw = JSON.stringify({ schema: 'vibress-studio', version: 1, root: null });
+    expect(() => migrateDocument(raw)).toThrow(StudioMigrationError);
+    try {
+      migrateDocument(raw);
+    } catch (error) {
+      expect(isStudioMigrationError(error)).toBe(true);
+      if (error instanceof StudioMigrationError) {
+        expect(error.code).toBe('INVALID_DOCUMENT');
+        expect(error.rawDocument).toBe(raw);
+      }
+    }
+  });
+
+  it('rejects serialized unknown objects and unsupported arrays without corrupting their source', () => {
+    for (const raw of [JSON.stringify({ unknown: 'persisted metadata' }), '[{"unexpected":true}]']) {
+      try {
+        migrateDocument(raw);
+        expect.fail('Unknown persisted JSON must require recovery rather than become editable text');
+      } catch (error) {
+        expect(error).toBeInstanceOf(StudioMigrationError);
+        if (error instanceof StudioMigrationError) {
+          expect(error.code).toBe('UNSUPPORTED_DOCUMENT');
+          expect(error.rawDocument).toBe(raw);
+        }
+      }
+    }
+  });
+
+  it('keeps legacy plaintext and JSON primitive strings readable', () => {
+    for (const raw of ['An unstructured article', '{not JSON}', '123', 'false']) {
+      const result = migrateDocument(raw);
+      const paragraph = result.root.children[0] as { children?: Array<{ text?: string }> };
+      expect(paragraph.children?.[0]?.text).toBe(raw);
+    }
+    const encoded = migrateDocument('"A legacy title"');
+    const paragraph = encoded.root.children[0] as { children?: Array<{ text?: string }> };
+    expect(paragraph.children?.[0]?.text).toBe('A legacy title');
+  });
+
   it('rejects arrays or unexpected primitive types as unsupported documents', () => {
     expect(() => migrateDocument([1, 2, 3])).toThrow(StudioMigrationError);
     expect(() => migrateDocument(12345)).toThrow(StudioMigrationError);

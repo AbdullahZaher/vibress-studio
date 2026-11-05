@@ -86,6 +86,39 @@ describe('renderStudioDocumentToHtml — all Studio cards', () => {
     expect(html).toContain('download');
   });
 
+  it('retains serialized rich captions in audio, file and embed public HTML', () => {
+    const caption = { root: { type: 'root', children: [
+      { type: 'paragraph', children: [{ type: 'text', text: 'مرحبا بالقراء', version: 1 }] },
+    ] } };
+    const captionHtml = '<p>مرحبا <strong>بالقراء</strong></p>';
+    const input = doc([
+      card('audio', { src: '/a.mp3', title: 'Podcast', caption, captionHtml }),
+      card('file', { src: '/f.pdf', fileName: 'report.pdf', caption, captionHtml }),
+      card('embed', { url: 'https://vimeo.com/123456', caption, captionHtml }),
+    ]);
+    const html = renderStudioDocumentToHtml(input);
+    expect(html).toContain('kg-audio-card');
+    expect(html).toContain('kg-file-card');
+    expect(html).toContain('kg-embed-card');
+    expect(html.split('مرحبا <strong>بالقراء</strong>').length - 1).toBe(3);
+    expect(html).toContain('<div class="studio-media-caption"><p>مرحبا');
+    expect(html).toContain('<figcaption><p>مرحبا');
+    expect(renderStudioDocumentToPlainText(input)).toContain('مرحبا بالقراء');
+  });
+
+  it('removes executable markup from media caption HTML without dropping readable text', () => {
+    const captionHtml = '<p>Safe <strong>content</strong></p><img src="/ok.png" onerror="alert(1)"><script>alert(2)</script>';
+    const html = renderStudioDocumentToHtml(doc([
+      card('audio', { src: '/a.mp3', captionHtml }),
+      card('file', { src: '/report.pdf', fileName: 'report.pdf', captionHtml }),
+      card('embed', { url: 'https://example.org', captionHtml }),
+    ]));
+    expect(html).toContain('Safe <strong>content</strong>');
+    expect(html).not.toContain('onerror');
+    expect(html).not.toContain('<script');
+    expect(html).not.toContain('javascript:');
+  });
+
   it('renders bookmark card with safe url', () => {
     const html = renderStudioDocumentToHtml(doc([
       card('bookmark', { url: 'https://example.com/a', title: 'Example', description: 'desc' }),
@@ -342,5 +375,184 @@ describe('renderStudioDocumentToPlainText', () => {
     expect(toc[0]).toEqual({ id: 'first-section', text: 'First Section', level: 2 });
     expect(toc[1]).toEqual({ id: 'sub-section', text: 'Sub section', level: 3 });
     expect(toc[2]).toEqual({ id: 'first-section-1', text: 'First Section', level: 2 });
+  });
+});
+
+describe('editor-to-public rendering fidelity (STU-R04)', () => {
+  it('renders text color and highlight styles to safe inline span style', () => {
+    const html = renderStudioDocumentToHtml(doc([
+      {
+        type: 'paragraph',
+        children: [
+          {
+            type: 'text',
+            text: 'Colored and highlighted',
+            format: 0,
+            style: 'color: #1d4ed8; background-color: #dbeafe',
+            mode: 'normal',
+            version: 1,
+          },
+        ],
+        version: 1,
+      },
+    ]));
+    expect(html).toContain('<span style="color: #1d4ed8; background-color: #dbeafe">Colored and highlighted</span>');
+  });
+
+  it('renders subscript and superscript text formats', () => {
+    const html = renderStudioDocumentToHtml(doc([
+      {
+        type: 'paragraph',
+        children: [
+          { type: 'text', text: 'H', format: 0, mode: 'normal', version: 1 },
+          { type: 'text', text: '2', format: 32, mode: 'normal', version: 1 },
+          { type: 'text', text: 'O and E=mc', format: 0, mode: 'normal', version: 1 },
+          { type: 'text', text: '2', format: 64, mode: 'normal', version: 1 },
+        ],
+        version: 1,
+      },
+    ]));
+    expect(html).toContain('<sub>2</sub>');
+    expect(html).toContain('<sup>2</sup>');
+  });
+
+  it('renders paragraph and heading alignment safely', () => {
+    const html = renderStudioDocumentToHtml(doc([
+      {
+        type: 'paragraph',
+        style: 'text-align: center',
+        direction: 'rtl',
+        children: [{ type: 'text', text: 'نص في الوسط', format: 0, mode: 'normal', version: 1 }],
+        version: 1,
+      },
+      {
+        type: 'heading',
+        tag: 'h3',
+        style: 'text-align: right',
+        children: [{ type: 'text', text: 'عنوان فرعي', format: 0, mode: 'normal', version: 1 }],
+        version: 1,
+      },
+    ]));
+    expect(html).toContain('<p dir="rtl" style="text-align: center">نص في الوسط</p>');
+    expect(html).toContain('style="text-align: right"');
+  });
+
+  it('sanitizes and strips dangerous CSS from paragraph and heading styles', () => {
+    const html = renderStudioDocumentToHtml(doc([
+      {
+        type: 'paragraph',
+        style: 'position: fixed; top: 0; background: url(javascript:alert(1)); text-align: center',
+        children: [{ type: 'text', text: 'Safe text', format: 0, mode: 'normal', version: 1 }],
+        version: 1,
+      },
+    ]));
+    expect(html).not.toContain('position: fixed');
+    expect(html).not.toContain('background: url');
+    expect(html).not.toContain('javascript:');
+    expect(html).toContain('style="text-align: center"');
+  });
+
+  it('renders table cell background colors and cell styles safely', () => {
+    const tableDoc = doc([
+      {
+        type: 'table',
+        children: [
+          {
+            type: 'tablerow',
+            children: [
+              {
+                type: 'tablecell',
+                backgroundColor: '#fef3c7',
+                children: [{ type: 'text', text: 'Yellow cell', format: 0 }],
+              },
+              {
+                type: 'tablecell',
+                backgroundColor: 'red; position: fixed', // Malicious/invalid color injection
+                children: [{ type: 'text', text: 'Clean cell', format: 0 }],
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    const html = renderStudioDocumentToHtml(tableDoc);
+    expect(html).toContain('<td style="background-color: #fef3c7">Yellow cell</td>');
+    expect(html).not.toContain('position: fixed');
+    expect(html).toContain('<td>Clean cell</td>');
+  });
+
+  it('renders captions from Lexical JSON objects when captionHtml is omitted', () => {
+    const jsonCaption = {
+      root: {
+        children: [
+          {
+            type: 'paragraph',
+            children: [
+              { type: 'text', text: 'Recovered from Lexical JSON caption' },
+            ],
+          },
+        ],
+      },
+    };
+
+    const html = renderStudioDocumentToHtml(doc([
+      card('image', {
+        src: '/test.png',
+        alt: 'Test',
+        caption: jsonCaption,
+      }),
+      card('gallery', {
+        images: [{ src: '/g.png', alt: 'G' }],
+        caption: jsonCaption,
+      }),
+      card('video', {
+        src: '/v.mp4',
+        caption: jsonCaption,
+      }),
+      card('embed', {
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        caption: jsonCaption,
+      }),
+    ]));
+
+    expect(html).toContain('<figcaption>Recovered from Lexical JSON caption</figcaption>');
+  });
+});
+
+describe('code block interactive controls (STU-R17)', () => {
+  it('does not emit dead copy buttons in static server rendering by default', () => {
+    const html = renderStudioDocumentToHtml(doc([
+      {
+        type: 'code',
+        language: 'typescript',
+        children: [{ type: 'text', text: 'const x = 1;', format: 0, mode: 'normal', version: 1 }],
+        version: 1,
+      },
+    ]));
+
+    expect(html).toContain('class="studio-code-block"');
+    expect(html).toContain('<span class="studio-code-lang">typescript</span>');
+    expect(html).toContain('<code>const x = 1;</code>');
+    expect(html).not.toContain('studio-code-copy-btn');
+    expect(html).not.toContain('Copy');
+  });
+
+  it('emits copy button when interactiveControls is explicitly enabled', () => {
+    const html = renderStudioDocumentToHtml(
+      doc([
+        {
+          type: 'code',
+          language: 'python',
+          children: [{ type: 'text', text: 'print("hello")', format: 0, mode: 'normal', version: 1 }],
+          version: 1,
+        },
+      ]),
+      { interactiveControls: true }
+    );
+
+    expect(html).toContain('class="studio-code-block"');
+    expect(html).toContain('<span class="studio-code-lang">python</span>');
+    expect(html).toContain('<button type="button" class="studio-code-copy-btn" aria-label="Copy code">Copy</button>');
+    expect(html).toContain('<code>print("hello")</code>');
   });
 });
