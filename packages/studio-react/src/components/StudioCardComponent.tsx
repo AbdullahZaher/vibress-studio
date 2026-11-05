@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import { mergeRegister } from '@lexical/utils';
@@ -46,6 +46,7 @@ export function StudioCardComponent({
 }) {
   const [editor] = useLexicalComposerContext();
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
+  const selectionFrame = useRef<number | null>(null);
 
   const onDelete = useCallback(
     (payload: KeyboardEvent) => {
@@ -85,12 +86,16 @@ export function StudioCardComponent({
       // Lexical's editor.focus() never focuses the DOM root element. The
       // browser must focus the contenteditable so the editor stays "active".
       // Focusing triggers a DOM selectionchange that Lexical reconciles into a
-      // RangeSelection — so the node selection is applied on the NEXT tick,
+      // RangeSelection — so the node selection is applied on the next frame,
       // after that reconciliation settles; it is never marked dirty, so it is
       // not written back to the DOM and cannot be reconciled away.
       if (opts.focus) {
         editor.getRootElement()?.focus();
-        window.setTimeout(() => selectCard({ focus: false }), 0);
+        if (selectionFrame.current !== null) cancelAnimationFrame(selectionFrame.current);
+        selectionFrame.current = requestAnimationFrame(() => {
+          selectionFrame.current = null;
+          selectCard({ focus: false });
+        });
         return;
       }
       editor.update(() => {
@@ -142,6 +147,10 @@ export function StudioCardComponent({
       editor.registerCommand(KEY_BACKSPACE_COMMAND, onDelete, COMMAND_PRIORITY_LOW)
     );
   }, [editor, onDelete]);
+
+  React.useEffect(() => () => {
+    if (selectionFrame.current !== null) cancelAnimationFrame(selectionFrame.current);
+  }, []);
 
   // If we have an interactive editor component for this card type, render it!
   const InteractiveEditor = INTERACTIVE_CARDS[cardType];

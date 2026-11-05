@@ -1,4 +1,4 @@
-export { VibressStudio, type VibressStudioProps } from './VibressStudio';
+export { VibressStudio, type VibressStudioProps, type StudioRecoveryData } from './VibressStudio';
 export * from './nodes/ReactStudioCardNode';
 export * from './plugins/SlashMenuPlugin';
 export * from './plugins/FloatingFormatToolbarPlugin';

@@ -8,6 +8,7 @@ import { NestedCaptionEditor } from './NestedCaptionEditor';
 import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
+import { useMediaRequestGuard } from '../../utils/useMediaRequestGuard';
 import { isDurableMediaUrl } from '../../utils/mergeDurableMedia';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
 import { GalleryMetadataPopover } from '../ui/media-popovers/GalleryMetadataPopover';
@@ -46,25 +47,29 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
   const { uploadMedia, requestMedia } = useStudioMedia();
   const [uploading, setUploading] = useState(false);
+  const beginRequest = useMediaRequestGuard();
   const [failedFiles, setFailedFiles] = useState<File[]>([]);
   const [pickerError, setPickerError] = useState(false);
 
   const isPopulated = cardData.images && cardData.images.length > 0;
 
   const onFileSelect = (files: File[]) => {
-    if (files.length === 0 || !uploadMedia || uploading) return;
+    if (files.length === 0 || !uploadMedia || uploading || !editor.isEditable()) return;
+    const isCurrent = beginRequest(false);
     setFailedFiles([]);
     setUploading(true);
     Promise.all(
       files.map(async (selectedFile) => {
         try {
-          return { selectedFile, payload: await uploadMedia(selectedFile, 'gallery') };
+          const payload = await uploadMedia(selectedFile, 'gallery');
+          return { selectedFile, payload, failed: payload === null ? false : !payload || !isDurableMediaUrl(payload.src) };
         } catch {
-          return { selectedFile, payload: null };
+          return { selectedFile, payload: null, failed: true };
         }
       })
     )
       .then((results) => {
+        if (!isCurrent()) return;
         const newImages = results
           .map((result) => result.payload)
           .filter(
@@ -78,11 +83,12 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
           }));
         setFailedFiles(
           results
-            .filter((result) => !result.payload || !isDurableMediaUrl(result.payload.src))
+            .filter((result) => result.failed)
             .map((result) => result.selectedFile)
         );
         if (newImages.length === 0) return;
         editor.update(() => {
+          if (!isCurrent()) return;
           const node = $getNodeByKey(nodeKey);
           if (node instanceof StudioCardNode && node.isAttached()) {
             const currentData = node.getCardData();
@@ -94,16 +100,17 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
           }
         });
       })
-      .catch(() => setFailedFiles(files))
-      .finally(() => setUploading(false));
+      .catch(() => { if (isCurrent()) setFailedFiles(files); })
+      .finally(() => { if (isCurrent()) setUploading(false); });
   };
 
   const handleChangeFromLibrary = useCallback(async () => {
-    if (!requestMedia) return;
+    if (!requestMedia || !editor.isEditable()) return;
+    const isCurrent = beginRequest(false);
     setPickerError(false);
     try {
       const payload = await requestMedia({ cardType: 'gallery', source: 'library' });
-      if (!payload) return; // Cancellation must be a no-op.
+      if (!isCurrent() || !payload) return; // Cancellation must be a no-op.
       const requested = Array.isArray(payload.images)
         ? payload.images
         : isDurableMediaUrl(payload.src) ? [payload] : [];
@@ -120,6 +127,7 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
       });
       if (!images.length) return;
       editor.update(() => {
+        if (!isCurrent()) return;
         const node = $getNodeByKey(nodeKey);
         if (!(node instanceof StudioCardNode) || !node.isAttached()) return;
         // The author's latest node state owns existing images and metadata,
@@ -132,9 +140,9 @@ export function GalleryCardEditor({ nodeKey, cardData }: Props) {
         }
       });
     } catch {
-      setPickerError(true);
+      if (isCurrent()) setPickerError(true);
     }
-  }, [editor, nodeKey, requestMedia]);
+  }, [editor, nodeKey, requestMedia, beginRequest]);
 
   const handleMetadataUpdate = useCallback(
     (data: { caption: string }) => {

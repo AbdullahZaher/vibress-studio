@@ -28,7 +28,9 @@ export function CardPlaceholder({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      onFileSelect(Array.from(e.target.files));
+      const files = Array.from(e.target.files);
+      e.target.value = ''; // Choosing the same file after cancel/retry must fire change.
+      onFileSelect(files);
     }
   };
 
@@ -81,6 +83,8 @@ export function CardPlaceholder({
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
             type="button"
+            tabIndex={0}
+            disabled={uploading}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-background dark:bg-white/[0.06] border border-border/80 dark:border-white/10 text-foreground group-hover:border-primary/40 group-hover:text-primary transition-all shadow-sm"
           >
             <Upload className="w-3.5 h-3.5" />
@@ -95,6 +99,8 @@ export function CardPlaceholder({
         onChange={handleFileChange}
         className="hidden"
         accept={accept}
+        aria-label={`${title} file`}
+        disabled={uploading}
         multiple={multiple}
       />
     </div>

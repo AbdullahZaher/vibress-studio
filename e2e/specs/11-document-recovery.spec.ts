@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { editorContenteditable, focusEditor, openHarness, studio } from './helpers';
+import { readFileSync } from 'node:fs';
 
 test('invalid host updates pause editing and retain the mounted draft through recovery', async ({ page }, testInfo) => {
   await openHarness(page);
@@ -28,3 +29,36 @@ test('invalid host updates pause editing and retain the mounted draft through re
   await expect(editable).toContainText('مسودة unsaved draft continued');
   await expect.poll(async () => JSON.stringify(await studio(page).getDoc())).toContain('continued');
 });
+
+for (const width of [320, 390, 768, 1440]) {
+  test(`Arabic dark recovery exports the retained source and draft at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openHarness(page);
+    await studio(page).setRecoveryLocale('ar');
+    await page.evaluate(() => document.documentElement.classList.add('dark'));
+    await expect(page.locator('[data-testid="studio-editor"] .vibress-studio-editor')).toHaveCSS('background-color', 'rgb(9, 10, 15)');
+    await focusEditor(page);
+    await page.keyboard.insertText('مسودة English محفوظة للاسترداد');
+    const original = { schema: 'foreign-editor', version: 99, root: { type: 'root', children: [] } };
+    await studio(page).syncValue(original);
+    const notice = page.getByRole('alert');
+    await expect(notice).toHaveAttribute('dir', 'rtl');
+    await expect(notice).toHaveAttribute('lang', 'ar');
+    await expect(notice).toContainText('تم إيقاف التحرير مؤقتًا');
+    const button = page.getByRole('button', { name: 'تصدير بيانات الاسترداد' });
+    expect(await button.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
+    expect(overflow).toBe(false);
+    const downloadPromise = page.waitForEvent('download');
+    await button.focus();
+    await page.keyboard.press('Enter');
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe('studio-recovery.json');
+    const path = await download.path();
+    expect(path).not.toBeNull();
+    const recovered = JSON.parse(readFileSync(path!, 'utf8'));
+    expect(recovered.originalValue).toEqual(original);
+    expect(JSON.stringify(recovered.editorState)).toContain('مسودة English محفوظة للاسترداد');
+    await page.screenshot({ path: testInfo.outputPath('arabic-dark-recovery.png'), fullPage: true });
+  });
+}

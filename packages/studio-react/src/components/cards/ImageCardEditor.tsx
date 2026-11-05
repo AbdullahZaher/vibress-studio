@@ -9,6 +9,7 @@ import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
 import { isDurableMediaUrl, mergeDurableMediaAsset } from '../../utils/mergeDurableMedia';
+import { useMediaRequestGuard } from '../../utils/useMediaRequestGuard';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
 import { ImageMetadataPopover } from '../ui/media-popovers/ImageMetadataPopover';
 
@@ -22,23 +23,28 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
   const { uploadMedia, requestMedia, allowUnsplash } = useStudioMedia();
   const [uploading, setUploading] = useState(false);
+  const beginRequest = useMediaRequestGuard();
   const [uploadError, setUploadError] = useState(false);
   const [lastFile, setLastFile] = useState<File | null>(null);
 
   const isPopulated = !!cardData.src;
 
   const attemptUpload = (file: File) => {
-    if (!uploadMedia || uploading) return;
+    if (!uploadMedia || uploading || !editor.isEditable()) return;
+    const isCurrent = beginRequest();
     setLastFile(file);
     setUploadError(false);
     setUploading(true);
-    uploadMedia(file, 'image')
+    Promise.resolve().then(() => isCurrent() ? uploadMedia(file, 'image') : null)
       .then((payload) => {
+        if (!isCurrent()) return;
+        if (payload === null) return; // Host cancellation is a no-op.
         if (!payload || !isDurableMediaUrl(payload.src)) {
           setUploadError(true);
           return;
         }
         editor.update(() => {
+          if (!isCurrent()) return;
           const node = $getNodeByKey(nodeKey);
           if (node instanceof StudioCardNode && node.isAttached()) {
             const next = mergeDurableMediaAsset(node.getCardData(), payload, 'image');
@@ -46,8 +52,8 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
           }
         });
       })
-      .catch(() => setUploadError(true))
-      .finally(() => setUploading(false));
+      .catch(() => { if (isCurrent()) setUploadError(true); })
+      .finally(() => { if (isCurrent()) setUploading(false); });
   };
 
   const onFileSelect = (files: File[]) => {
@@ -56,36 +62,40 @@ export function ImageCardEditor({ nodeKey, cardData }: Props) {
   };
 
   const handleChangeFromLibrary = useCallback(async () => {
-    if (!requestMedia) return;
+    if (!requestMedia || !editor.isEditable()) return;
+    const isCurrent = beginRequest();
     const payload = await requestMedia({
       cardType: 'image',
       source: 'library',
     });
-    if (!payload || !isDurableMediaUrl(payload.src)) return;
+    if (!isCurrent() || !payload || !isDurableMediaUrl(payload.src)) return;
     editor.update(() => {
+          if (!isCurrent()) return;
       const node = $getNodeByKey(nodeKey);
       if (node instanceof StudioCardNode && node.isAttached()) {
         const next = mergeDurableMediaAsset(node.getCardData(), payload, 'image');
         if (next) node.setCardData(next);
       }
     });
-  }, [editor, nodeKey, requestMedia]);
+  }, [editor, nodeKey, requestMedia, beginRequest]);
 
   const handleUnsplash = useCallback(async () => {
-    if (!requestMedia) return;
+    if (!requestMedia || !editor.isEditable()) return;
+    const isCurrent = beginRequest();
     const payload = await requestMedia({
       cardType: 'image',
       source: 'unsplash',
     });
-    if (!payload || !isDurableMediaUrl(payload.src)) return;
+    if (!isCurrent() || !payload || !isDurableMediaUrl(payload.src)) return;
     editor.update(() => {
+          if (!isCurrent()) return;
       const node = $getNodeByKey(nodeKey);
       if (node instanceof StudioCardNode && node.isAttached()) {
         const next = mergeDurableMediaAsset(node.getCardData(), payload, 'image');
         if (next) node.setCardData(next);
       }
     });
-  }, [editor, nodeKey, requestMedia]);
+  }, [editor, nodeKey, requestMedia, beginRequest]);
 
   const handleMetadataUpdate = useCallback(
     (data: { alt: string; caption: string; href?: string | undefined }) => {

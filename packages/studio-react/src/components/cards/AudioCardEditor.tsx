@@ -9,6 +9,7 @@ import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
 import { isDurableMediaUrl, mergeDurableMediaAsset } from '../../utils/mergeDurableMedia';
+import { useMediaRequestGuard } from '../../utils/useMediaRequestGuard';
 import { StudioMediaFloatingToolbar } from '../ui/StudioMediaFloatingToolbar';
 import { AudioMetadataPopover } from '../ui/media-popovers/AudioMetadataPopover';
 
@@ -22,24 +23,29 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
   const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
   const { uploadMedia, requestMedia } = useStudioMedia();
   const [uploading, setUploading] = useState(false);
+  const beginRequest = useMediaRequestGuard();
   const [uploadError, setUploadError] = useState(false);
   const [retryFile, setRetryFile] = useState<File | null>(null);
 
   const isPopulated = !!cardData.src;
 
   const attemptUpload = (selectedFile: File) => {
-    if (!uploadMedia || uploading) return;
+    if (!uploadMedia || uploading || !editor.isEditable()) return;
+    const isCurrent = beginRequest();
     setRetryFile(selectedFile);
     setUploadError(false);
     setUploading(true);
     Promise.resolve()
-      .then(() => uploadMedia(selectedFile, 'audio'))
+      .then(() => isCurrent() ? uploadMedia(selectedFile, 'audio') : null)
       .then((payload) => {
+        if (!isCurrent()) return;
+        if (payload === null) return; // Host cancellation is a no-op.
         if (!payload || !isDurableMediaUrl(payload.src)) {
           setUploadError(true);
           return;
         }
         editor.update(() => {
+          if (!isCurrent()) return;
           const node = $getNodeByKey(nodeKey);
           if (node instanceof StudioCardNode && node.isAttached()) {
             const next = mergeDurableMediaAsset(node.getCardData(), payload, 'audio', selectedFile.name);
@@ -47,8 +53,8 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
           }
         });
       })
-      .catch(() => setUploadError(true))
-      .finally(() => setUploading(false));
+      .catch(() => { if (isCurrent()) setUploadError(true); })
+      .finally(() => { if (isCurrent()) setUploading(false); });
   };
 
   const onFileSelect = (files: File[]) => {
@@ -56,20 +62,22 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
   };
 
   const handleChangeFromLibrary = useCallback(async () => {
-    if (!requestMedia) return;
+    if (!requestMedia || !editor.isEditable()) return;
+    const isCurrent = beginRequest();
     const payload = await requestMedia({
       cardType: 'audio',
       source: 'library',
     });
-    if (!payload || !isDurableMediaUrl(payload.src)) return;
+    if (!isCurrent() || !payload || !isDurableMediaUrl(payload.src)) return;
     editor.update(() => {
+          if (!isCurrent()) return;
       const node = $getNodeByKey(nodeKey);
       if (node instanceof StudioCardNode && node.isAttached()) {
         const next = mergeDurableMediaAsset(node.getCardData(), payload, 'audio');
         if (next) node.setCardData(next);
       }
     });
-  }, [editor, nodeKey, requestMedia]);
+  }, [editor, nodeKey, requestMedia, beginRequest]);
 
   const handleMetadataUpdate = useCallback(
     (data: { title: string; caption: string }) => {

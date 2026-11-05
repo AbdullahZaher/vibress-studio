@@ -77,7 +77,10 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
       // Resolve the nearest Lexical node from the actual hover target.
       // A paragraph can be nested under a block decorator, so relying on
       // the first direct DOM child of root is not sufficient.
-      editor.getEditorState().read(() => {
+      // This DOM-to-node helper requires an active editor in Lexical 0.13.
+      // EditorState.read deliberately clears that context; use a transaction
+      // with no document mutation instead.
+      editor.update(() => {
         const node = $getNearestNodeFromDOMNode(target);
         if (!node) return;
         let topNode: LexicalNode = node;

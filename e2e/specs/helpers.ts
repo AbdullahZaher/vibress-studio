@@ -22,6 +22,7 @@ export interface StudioTestApi {
   importHTML: (html: string) => void;
   importMarkdown: (md: string) => void;
   syncValue: (value: unknown) => void;
+  setRecoveryLocale: (locale: 'en' | 'ar') => void;
   exportMarkdown: () => string;
 }
 
@@ -52,6 +53,7 @@ export function studio(page: Page): StudioTestApi {
     importHTML: (html) => page.evaluate((h) => (window as unknown as { __studio: StudioTestApi }).__studio.importHTML(h), html),
     importMarkdown: (md) => page.evaluate((m) => (window as unknown as { __studio: StudioTestApi }).__studio.importMarkdown(m), md),
     syncValue: (value) => page.evaluate((v) => (window as unknown as { __studio: StudioTestApi }).__studio.syncValue(v), value),
+    setRecoveryLocale: (locale) => page.evaluate((value) => (window as unknown as { __studio: StudioTestApi }).__studio.setRecoveryLocale(value), locale),
     exportMarkdown: () => page.evaluate(() => (window as unknown as { __studio: StudioTestApi }).__studio.exportMarkdown()),
   };
 }
