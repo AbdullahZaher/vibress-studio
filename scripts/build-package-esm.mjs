@@ -12,22 +12,20 @@ await build({
   entryPoints: [resolve(cwd, 'src/index.ts')],
   outfile: resolve(cwd, 'dist/index.mjs'),
   bundle: true,
-  packages: 'external',
+  // External dependencies handled by the resolver below.
   platform: 'neutral',
   format: 'esm',
   target: ['es2022'],
   jsx: 'automatic',
   legalComments: 'none',
   plugins: [{
-    name: 'node-resolvable-lexical-esm-subpaths',
+    name: 'node-resolvable-external-packages',
     setup(builder) {
-      // @lexical/react historically exposes CommonJS .js subpath files
-      // without Node ESM extensionless subpath exports (Lexical 0.13.1).
-      // Preserve peer/runtime deduplication by keeping them external, but
-      // emit the real Node-resolvable file specifier, not a missing path.
-      builder.onResolve({ filter: /^@lexical\/[^/]+\/.+/ }, (args) => {
-        const entry = args.path.endsWith('.js') ? args.path : `${args.path}.js`;
-        return { path: entry, external: true };
+      // Externalize bare imports without bundling Lexical/React runtimes.
+      // Lexical 0.13 deep subpaths need an explicit .js for Node ESM.
+      builder.onResolve({ filter: /^[^./]/ }, (args) => {
+        const needsExtension = /^@lexical\/[^/]+\/.+/.test(args.path) && !args.path.endsWith('.js');
+        return { path: needsExtension ? `${args.path}.js` : args.path, external: true };
       });
     },
   }],
