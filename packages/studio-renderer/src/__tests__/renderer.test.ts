@@ -413,6 +413,23 @@ describe('renderStudioDocumentToPlainText', () => {
     expect(toc[2]).toEqual({ id: 'first-section-1', text: 'First Section', level: 2 });
   });
 
+  it('renders discoverable bilingual heading permalinks without hiding focusable links', () => {
+    const article = doc([
+      { type: 'heading', tag: 'h2', direction: 'rtl',
+        children: [{ type: 'text', text: 'عنوان عربي English' }] },
+    ]);
+    const html = renderStudioDocumentToHtml(article);
+    const container = document.createElement('article');
+    container.innerHTML = html;
+    const heading = container.querySelector('h2');
+    const link = heading?.querySelector('a.heading-anchor');
+    expect(heading?.getAttribute('id')).toBe('عنوان-عربي-english');
+    expect(link?.getAttribute('href')).toBe('#عنوان-عربي-english');
+    expect(link?.hasAttribute('aria-hidden')).toBe(false);
+    expect(link?.getAttribute('aria-label')).toBe('Link to section: عنوان عربي English');
+    expect(link?.getAttribute('tabindex')).toBeNull(); // Native keyboard-focusable link.
+  });
+
   it('renders unique sequential heading IDs matching table of contents anchors (Phase D)', () => {
     const document = doc([
       { type: 'heading', tag: 'h2', children: [{ type: 'text', text: 'First Section' }] },
