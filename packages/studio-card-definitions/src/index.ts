@@ -9,6 +9,33 @@ export interface StudioCardDefinition<TData = Record<string, unknown>> {
   renderPlainText(data: TData): string;
 }
 
+function extractTextFromCaption(caption: unknown): string {
+  if (typeof caption === 'string') return caption;
+  if (!caption || typeof caption !== 'object') return '';
+  const obj = caption as { root?: unknown; text?: unknown; children?: unknown[] };
+  if (obj.root && typeof obj.root === 'object') {
+    return extractTextFromCaption(obj.root);
+  }
+  let out = typeof obj.text === 'string' ? obj.text : '';
+  if (Array.isArray(obj.children)) {
+    out += obj.children.map(extractTextFromCaption).join('');
+  }
+  return out;
+}
+
+function resolveCaption(data: { caption?: unknown; captionHtml?: string }): string {
+  if (typeof data.captionHtml === 'string' && data.captionHtml.trim()) {
+    return data.captionHtml;
+  }
+  if (typeof data.caption === 'string' && data.caption.trim()) {
+    return data.caption;
+  }
+  if (data.caption && typeof data.caption === 'object') {
+    return extractTextFromCaption(data.caption);
+  }
+  return '';
+}
+
 // 1. Image Card
 export const ImageCardSchema = z.object({
   assetId: z.string().optional(),
@@ -33,7 +60,7 @@ export const ImageCardDefinition: StudioCardDefinition<ImageCardData> = {
   renderHtml: (data) => {
     const src = sanitizeUrl(data.src);
     const alt = escapeHtml(data.alt || '');
-    const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+    const capStr = resolveCaption(data);
     const caption = capStr ? `<figcaption>${sanitizeHtml(capStr)}</figcaption>` : '';
     // Numeric width/height (pixel dimensions from the media asset) are emitted
     // as intrinsic attributes to reduce CLS; the layout enum drives kg-width-*.
@@ -49,7 +76,7 @@ export const ImageCardDefinition: StudioCardDefinition<ImageCardData> = {
     return `<figure class="kg-card kg-image-card${layout}">${img}${caption}</figure>`;
   },
   renderPlainText: (data) => {
-    const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+    const capStr = resolveCaption(data);
     return data.alt || capStr || data.src || '';
   },
 };
@@ -71,7 +98,7 @@ export const GalleryCardDefinition: StudioCardDefinition<GalleryCardData> = {
     const imgs = data.images
       .map((img) => `<img src="${sanitizeUrl(img.src)}" alt="${escapeHtml(img.alt || '')}" />`)
       .join('');
-    const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+    const capStr = resolveCaption(data);
     const caption = capStr ? `<figcaption>${sanitizeHtml(capStr)}</figcaption>` : '';
     const layoutClass = data.width && data.width !== 'regular' ? ` kg-width-${data.width}` : '';
     return `<figure class="kg-card kg-gallery-card${layoutClass}">${imgs}${caption}</figure>`;
@@ -99,13 +126,13 @@ export const VideoCardDefinition: StudioCardDefinition<VideoCardData> = {
   renderHtml: (data) => {
     const src = sanitizeUrl(data.src);
     const posterAttr = data.poster ? ` poster="${sanitizeUrl(data.poster)}"` : '';
-    const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+    const capStr = resolveCaption(data);
     const caption = capStr ? `<figcaption>${sanitizeHtml(capStr)}</figcaption>` : '';
     const layoutClass = data.width && data.width !== 'regular' ? ` kg-width-${data.width}` : '';
     return `<figure class="kg-card kg-video-card${layoutClass}"><video src="${src}" controls${posterAttr}></video>${caption}</figure>`;
   },
   renderPlainText: (data) => {
-    const capStr = data.captionHtml || (typeof data.caption === 'string' ? data.caption : '');
+    const capStr = resolveCaption(data);
     return capStr || data.src || '';
   },
 };
@@ -116,6 +143,7 @@ export const AudioCardSchema = z.object({
   src: z.string(),
   title: z.string().default(''),
   caption: z.union([z.string(), z.record(z.string(), z.unknown())]).default(''),
+  captionHtml: z.string().optional(),
 });
 export type AudioCardData = z.infer<typeof AudioCardSchema>;
 
@@ -129,7 +157,7 @@ export const AudioCardDefinition: StudioCardDefinition<AudioCardData> = {
     return `<div class="kg-card kg-audio-card">${title}<audio src="${src}" controls></audio></div>`;
   },
   renderPlainText: (data) => {
-    const capStr = typeof data.caption === 'string' ? data.caption : '';
+    const capStr = resolveCaption(data);
     return data.title || capStr || data.src || '';
   },
 };
@@ -141,6 +169,7 @@ export const FileCardSchema = z.object({
   fileName: z.string(),
   fileSize: z.string().default(''),
   caption: z.union([z.string(), z.record(z.string(), z.unknown())]).default(''),
+  captionHtml: z.string().optional(),
 });
 export type FileCardData = z.infer<typeof FileCardSchema>;
 
@@ -155,7 +184,7 @@ export const FileCardDefinition: StudioCardDefinition<FileCardData> = {
     return `<div class="kg-card kg-file-card"><a href="${src}" download>${name}${size}</a></div>`;
   },
   renderPlainText: (data) => {
-    const capStr = typeof data.caption === 'string' ? data.caption : '';
+    const capStr = resolveCaption(data);
     return data.fileName || capStr || data.src || '';
   },
 };
@@ -191,6 +220,7 @@ export const EmbedCardSchema = z.object({
   embedType: z.string().default('video'),
   html: z.string().optional(),
   caption: z.union([z.string(), z.record(z.string(), z.unknown())]).default(''),
+  captionHtml: z.string().optional(),
 });
 export type EmbedCardData = z.infer<typeof EmbedCardSchema>;
 
@@ -203,15 +233,15 @@ export const EmbedCardDefinition: StudioCardDefinition<EmbedCardData> = {
     // safe external link. Arbitrary user-supplied iframe markup is never
     // trusted — the final output sanitizer enforces this a second time.
     const provider = getEmbedProvider(data.url);
-    const caption = typeof data.caption === 'string' ? data.caption : '';
-    const captionHtml = caption ? `<figcaption>${sanitizeHtml(caption)}</figcaption>` : '';
+    const capStr = resolveCaption(data);
+    const captionHtml = capStr ? `<figcaption>${sanitizeHtml(capStr)}</figcaption>` : '';
     if (provider) {
       return `<figure class="kg-card kg-embed-card"><iframe src="${escapeHtml(provider.embedUrl)}" title="${escapeHtml(data.url)}" loading="lazy" allowfullscreen></iframe>${captionHtml}</figure>`;
     }
     return `<figure class="kg-card kg-embed-card"><a href="${sanitizeUrl(data.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(data.url)}</a>${captionHtml}</figure>`;
   },
   renderPlainText: (data) => {
-    const capStr = typeof data.caption === 'string' ? data.caption : '';
+    const capStr = resolveCaption(data);
     return data.url || capStr || '';
   },
 };

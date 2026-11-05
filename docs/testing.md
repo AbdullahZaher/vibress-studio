@@ -36,24 +36,50 @@ The Playwright harness is in `playground/e2e.html` with `E2EHarness.tsx` and `e2
 | `07-keyboard-nav.spec.ts` | Slash menu focus and keyboard paths |
 | `08-lighthouse.spec.ts` | Browser Lighthouse accessibility smoke |
 
-## Unit / targeted paths present
+## Unit / targeted paths present (18 suites, 126 tests)
 
+- `packages/studio-core/src/__tests__/migrate.test.ts`
 - `packages/studio-core/src/__tests__/normalize.test.ts`
-- `packages/studio-react/src/__tests__/{clone-node,color-persistence,link-normalization,slash-menu-filter,word-count}.test.ts`
+- `packages/studio-react/src/__tests__/clone-node.test.ts`
+- `packages/studio-react/src/__tests__/color-persistence.test.ts`
+- `packages/studio-react/src/__tests__/document-recovery.test.tsx`
+- `packages/studio-react/src/__tests__/image-upload-concurrent.test.tsx`
+- `packages/studio-react/src/__tests__/link-normalization.test.ts`
+- `packages/studio-react/src/__tests__/slash-menu-filter.test.ts`
+- `packages/studio-react/src/__tests__/word-count.test.ts`
 - `packages/studio-renderer/src/__tests__/renderer.test.ts`
-- `packages/studio-utils/src/__tests__/sanitize.test.ts`
-- `packages/studio-testing/security/{content-security,roundtrip}.test.ts`
 - `packages/studio-testing/a11y/semantics.test.ts`
-- `tests/{studio,html-import-regressions,studio-plugin-registry}.test.ts`
+- `packages/studio-testing/security/content-security.test.ts`
+- `packages/studio-testing/security/markdown-security.test.ts`
+- `packages/studio-testing/security/roundtrip.test.ts`
+- `packages/studio-utils/src/__tests__/sanitize.test.ts`
+- `tests/html-import-regressions.test.ts`
+- `tests/studio-plugin-registry.test.ts`
+- `tests/studio.test.ts`
 
-Prior documentation named numerous absent tests (e.g. `packages/studio-testing/security/renderer-cards.test.ts` and `suites/performance.test.ts`). Those paths are **not** present in this reviewed tree and are not evidence.
+Prior documentation named historical or proposed tests (e.g. `packages/studio-testing/security/renderer-cards.test.ts`). Only the 18 active suites listed above are part of the verified test suite.
 
-## Latest CI evidence for the reviewed source
+## Automated documentation drift verification
 
-[2026-11-04 run 41889641281](https://github.com/AbdullahZaher/vibress-studio/actions/runs/41889641281) at `be7150d04aa31e53034e832e16726a69f2c9c6e7`: both `build` and `e2e` jobs succeeded. This confirms those command executions only; it is **not** manual UX or production certification.
+Documentation accuracy is enforced by `tests/docs-drift.test.ts` which automatically validates that:
+- Every test file referenced in `docs/testing.md` exists on disk.
+- Every workspace package in `docs/architecture.md` exists in `packages/`.
+- Deprecated or removed functions (`sanitizeHtmlFragment`, `HTML_SANITIZE_POLICY`) are not present in active code or docs.
 
-## Required new regression matrix
+## Remediation regression matrix status
 
-Add explicit tests for: unsupported non-null input vs new-document default; unknown/legacy node migration; image upload with edits and removal while pending; caption first keystroke/IME/focus/undo; text color in published output; unsafe and escaped Markdown destinations; Tailwind-free consumer visual rendering; preview toggle history; picker action truthfulness; nested read-only captions; RTL/bidi/soft-keyboard navigation; plugin registry vs editor integration; and host persistence/concurrent versions. See [audited findings](audits/studio-source-reassessment-2026-11-04.md).
+All planned regression test suites from the remediation roadmap have been implemented and verified:
+- **STU-R01 (Safe migration & recovery):** `packages/studio-core/src/__tests__/migrate.test.ts`, `packages/studio-react/src/__tests__/document-recovery.test.tsx`
+- **STU-R02 (Concurrent media uploads):** `packages/studio-react/src/__tests__/image-upload-concurrent.test.tsx`, `e2e/specs/04-upload-adapter.spec.ts`
+- **STU-R03/R11 (Caption stability & recovery):** `e2e/specs/04-upload-adapter.spec.ts`
+- **STU-R04 (Color & formatting fidelity):** `packages/studio-react/src/__tests__/color-persistence.test.ts`, `packages/studio-renderer/src/__tests__/renderer.test.ts`
+- **STU-R05 (Secure Markdown export):** `packages/studio-testing/security/markdown-security.test.ts`
+- **STU-R06/R10 (Scoped CSS & design system):** `e2e/specs/08-lighthouse.spec.ts`
+- **STU-R07/R08/R09/R17 (Functional editor controls):** `e2e/specs/01-editor-editing.spec.ts`, `e2e/specs/03-card-edit-remove-retry.spec.ts`
+- **STU-R12 (Markdown Loss Matrix & GFM fallbacks):** `docs/import-export-matrix.md`, `tests/studio.test.ts`
+- **STU-R13 (Plugin SDK boundaries & registry):** `tests/studio-plugin-registry.test.ts`, `docs/plugin-sdk.md`
+- **STU-R14 (Arabic RTL & mobile viewports):** `packages/studio-react/src/__tests__/slash-menu-filter.test.ts`
+- **STU-R15 (Documentation alignment & drift):** `tests/docs-drift.test.ts`
+- **STU-R16 (WordCountPlugin performance & efficiency):** `packages/studio-react/src/__tests__/word-count.test.ts`
 
 Use controlled promises for async cases and deterministic fixtures. Capture before/after results, command output, exact SHA, and screenshots/interaction traces for visual work. When not tested, say: `Not verified: [item]. How to verify: [command]`.

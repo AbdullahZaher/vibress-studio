@@ -5,6 +5,7 @@ import { NodeKey, $getNodeByKey } from 'lexical';
 import { FileCardData, StudioCardNode } from '@vibress/studio-cards';
 
 import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
 import { isDurableMediaUrl, mergeDurableMediaAsset } from '../../utils/mergeDurableMedia';
@@ -79,8 +80,7 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
           node.setCardData({
             ...node.getCardData(),
             fileName: data.fileName,
-            caption: data.caption,
-            captionHtml: data.caption,
+            ...captionMetadataPatch(node.getCardData(), data.caption),
           });
         }
       });
@@ -212,19 +212,21 @@ export function FileCardEditor({ nodeKey, cardData }: Props) {
           </a>
         )}
       </div>
-      {captionStr ? (
-        <figcaption className="mt-1 text-center text-xs text-muted-foreground">
-          {captionStr}
-        </figcaption>
-      ) : (
-        <NestedCaptionEditor
-          initialCaptionJSON={
-            typeof cardData.caption === 'object' ? cardData.caption : undefined
-          }
-          onChange={onCaptionChange}
-          placeholder="Type caption for file (optional)"
-        />
-      )}
+      <NestedCaptionEditor
+        initialCaptionJSON={
+          typeof cardData.caption === 'object' && cardData.caption !== null
+            ? (cardData.caption as Record<string, unknown>)
+            : undefined
+        }
+        initialCaptionText={captionStr}
+        captionHtml={
+          typeof (cardData as { captionHtml?: string }).captionHtml === 'string'
+            ? (cardData as { captionHtml?: string }).captionHtml
+            : undefined
+        }
+        onChange={onCaptionChange}
+        placeholder="Type caption for file (optional)"
+      />
     </figure>
   );
 }

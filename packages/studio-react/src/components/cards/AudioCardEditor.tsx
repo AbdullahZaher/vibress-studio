@@ -5,6 +5,7 @@ import { NodeKey, $getNodeByKey } from 'lexical';
 import { AudioCardData, StudioCardNode } from '@vibress/studio-cards';
 
 import { NestedCaptionEditor } from './NestedCaptionEditor';
+import { captionMetadataPatch } from './caption-metadata';
 import { CardPlaceholder } from '../ui/CardPlaceholder';
 import { useStudioMedia } from '../../media-context';
 import { isDurableMediaUrl, mergeDurableMediaAsset } from '../../utils/mergeDurableMedia';
@@ -78,8 +79,7 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
           node.setCardData({
             ...node.getCardData(),
             title: data.title,
-            caption: data.caption,
-            captionHtml: data.caption,
+            ...captionMetadataPatch(node.getCardData(), data.caption),
           });
         }
       });
@@ -187,19 +187,21 @@ export function AudioCardEditor({ nodeKey, cardData }: Props) {
 
       {cardData.title && <div className="text-sm font-semibold">{cardData.title}</div>}
       <audio src={cardData.src} controls className="w-full" />
-      {captionStr ? (
-        <figcaption className="mt-1 text-center text-xs text-muted-foreground">
-          {captionStr}
-        </figcaption>
-      ) : (
-        <NestedCaptionEditor
-          initialCaptionJSON={
-            typeof cardData.caption === 'object' ? cardData.caption : undefined
-          }
-          onChange={onCaptionChange}
-          placeholder="Type caption for audio (optional)"
-        />
-      )}
+      <NestedCaptionEditor
+        initialCaptionJSON={
+          typeof cardData.caption === 'object' && cardData.caption !== null
+            ? (cardData.caption as Record<string, unknown>)
+            : undefined
+        }
+        initialCaptionText={captionStr}
+        captionHtml={
+          typeof (cardData as { captionHtml?: string }).captionHtml === 'string'
+            ? (cardData as { captionHtml?: string }).captionHtml
+            : undefined
+        }
+        onChange={onCaptionChange}
+        placeholder="Type caption for audio (optional)"
+      />
     </figure>
   );
 }
