@@ -437,5 +437,165 @@ describe('Document Resource Limits & Typed Node Schemas (STU-201, STU-203)', () 
       expect(isStudioCardNode({ type: 'studio-card', cardType: 'callout', cardData: null })).toBe(false);
       expect(isStudioCardNode({ type: 'studio-card', cardType: 'callout', cardData: 'string' })).toBe(false);
     });
+
+    it('verifies isStudioCardNode requires cardData on the original object while StudioCardNodeDataSchema preserves legacy default', () => {
+      const missingCardData = {
+        type: 'studio-card',
+        cardType: 'image',
+      };
+
+      const validCard = {
+        type: 'studio-card',
+        cardType: 'image',
+        cardData: {},
+      };
+
+      const invalidCardData = {
+        type: 'studio-card',
+        cardType: 'image',
+        cardData: [],
+      };
+
+      const nullCardData = {
+        type: 'studio-card',
+        cardType: 'image',
+        cardData: null,
+      };
+
+      expect(isStudioCardNode(missingCardData)).toBe(false);
+      expect(isStudioCardNode(validCard)).toBe(true);
+      expect(isStudioCardNode(invalidCardData)).toBe(false);
+      expect(isStudioCardNode(nullCardData)).toBe(false);
+
+      // StudioCardNodeDataSchema.safeParse continues to succeed for legacy documents
+      expect(StudioCardNodeDataSchema.safeParse(missingCardData).success).toBe(true);
+
+      // Forward-compatible fields on card nodes are preserved
+      const forwardCompatibleCard = {
+        type: 'studio-card',
+        cardType: 'image',
+        cardData: { src: 'https://example.com/pic.png' },
+        extraFutureField: 'future-val',
+      };
+      expect(isStudioCardNode(forwardCompatibleCard)).toBe(true);
+    });
+
+    it('preserves custom resource limits during recursive migration of JSON string documents', () => {
+      const largeDoc = {
+        schema: 'vibress-studio',
+        version: 1,
+        root: {
+          type: 'root',
+          children: [
+            {
+              type: 'paragraph',
+              children: [{ type: 'text', text: 'Z'.repeat(6 * 1024 * 1024) }], // 6 MB exceeds 5 MB default
+            },
+          ],
+        },
+      };
+
+      const jsonStr = JSON.stringify(largeDoc);
+      const customLimits = { maxSizeBytes: 8 * 1024 * 1024 };
+
+      // Object migration with custom limit succeeds
+      expect(() => migrateDocument(largeDoc, customLimits)).not.toThrow();
+
+      // String migration with custom limit should also succeed, NOT throw RESOURCE_LIMIT_EXCEEDED from default limits!
+      expect(() => migrateDocument(jsonStr, customLimits)).not.toThrow();
+
+      // But without custom limits, both fail against 5 MB default
+      expect(() => migrateDocument(largeDoc)).toThrow(StudioMigrationError);
+      expect(() => migrateDocument(jsonStr)).toThrow(StudioMigrationError);
+    });
+
+    it('enforces custom limits below defaults consistently for string and object documents', () => {
+      const multiNodeDoc = {
+        schema: 'vibress-studio',
+        version: 1,
+        root: {
+          type: 'root',
+          children: [
+            { type: 'paragraph', children: [{ type: 'text', text: 'One' }] },
+            { type: 'paragraph', children: [{ type: 'text', text: 'Two' }] },
+            { type: 'paragraph', children: [{ type: 'text', text: 'Three' }] },
+          ],
+        },
+      };
+
+      const jsonStr = JSON.stringify(multiNodeDoc);
+      const strictLimits = { maxNodeCount: 3 }; // Total nodes in doc tree is 7, strictly exceeds 3
+
+      expect(() => migrateDocument(multiNodeDoc, strictLimits)).toThrow(StudioMigrationError);
+      expect(() => migrateDocument(jsonStr, strictLimits)).toThrow(StudioMigrationError);
+
+      try {
+        migrateDocument(jsonStr, strictLimits);
+        expect.unreachable();
+      } catch (err) {
+        expect(isStudioMigrationError(err)).toBe(true);
+        const error = err as StudioMigrationError;
+        expect(error.code).toBe('RESOURCE_LIMIT_EXCEEDED');
+        expect(error.rawDocument).toBe(jsonStr);
+      }
+    });
+
+    it('migrates legacy documents from JSON strings with custom limits preserved', () => {
+      const legacyDoc = {
+        root: {
+          type: 'root',
+          children: [
+            { type: 'paragraph', children: [{ type: 'text', text: 'Legacy root' }] },
+          ],
+        },
+      };
+
+      const jsonStr = JSON.stringify(legacyDoc);
+      const migrated = migrateDocument(jsonStr, { maxNodeCount: 100 });
+      expect(migrated.schema).toBe('vibress-studio');
+      expect(migrated.root.children.length).toBe(1);
+    });
+
+    it('preserves error classification, recovery context, and original rawDocument for invalid envelopes and unsupported strings', () => {
+      // 1. Valid JSON object with invalid schema envelope
+      const invalidEnvelopeJson = JSON.stringify({
+        schema: 'vibress-studio',
+        version: 1,
+        root: 'not-an-object',
+      });
+
+      try {
+        migrateDocument(invalidEnvelopeJson);
+        expect.unreachable();
+      } catch (err) {
+        expect(isStudioMigrationError(err)).toBe(true);
+        const error = err as StudioMigrationError;
+        expect(error.code).toBe('INVALID_DOCUMENT');
+        expect(error.rawDocument).toBe(invalidEnvelopeJson);
+      }
+
+      // 2. Unsupported document JSON string
+      const unsupportedJson = JSON.stringify({
+        unsupportedSchemaProp: 'unknown',
+        randomData: [1, 2, 3],
+      });
+
+      try {
+        migrateDocument(unsupportedJson);
+        expect.unreachable();
+      } catch (err) {
+        expect(isStudioMigrationError(err)).toBe(true);
+        const error = err as StudioMigrationError;
+        expect(error.code).toBe('UNSUPPORTED_DOCUMENT');
+        expect(error.rawDocument).toBe(unsupportedJson);
+      }
+
+      // 3. Malformed non-JSON string falls back to default Studio document containing the string
+      const malformedJson = '{invalid json syntax';
+      const fallbackDoc = migrateDocument(malformedJson);
+      expect(fallbackDoc.schema).toBe('vibress-studio');
+      const paragraph = fallbackDoc.root.children[0] as { children?: Array<{ text?: string }> };
+      expect(paragraph.children?.[0]?.text).toBe(malformedJson);
+    });
   });
 });

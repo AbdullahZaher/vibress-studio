@@ -180,6 +180,17 @@ export function isStudioTableCellNode(node: unknown): node is StudioTableCellNod
 }
 
 export function isStudioCardNode(node: unknown): node is StudioCardNode {
+  if (typeof node !== 'object' || node === null || Array.isArray(node)) {
+    return false;
+  }
+  const candidate = node as Record<string, unknown>;
+  if (
+    typeof candidate.cardData !== 'object' ||
+    candidate.cardData === null ||
+    Array.isArray(candidate.cardData)
+  ) {
+    return false;
+  }
   return StudioCardNodeDataSchema.safeParse(node).success;
 }
 
@@ -650,7 +661,7 @@ export function migrateDocument(rawDoc: unknown, limits?: DocumentResourceLimits
 
     if (parsed !== null && typeof parsed === 'object') {
       try {
-        return migrateDocument(parsed);
+        return migrateDocument(parsed, limits);
       } catch (error) {
         // Keep the actual persisted bytes available for recovery/export.
         // A nested StudioMigrationError must not be swallowed as parse failure.
