@@ -483,6 +483,34 @@ describe('renderStudioDocumentToPlainText', () => {
     expect(tracker.allocate('Getting Started')).toBe('getting-started');
   });
 
+  it('never emits duplicate IDs for explicit suffixed titles and repeated base titles', () => {
+    const headings = ['foo', 'foo-1', 'foo', 'foo-2', 'foo', 'foo-1', 'مقدمة', 'مقدمة-1', 'مقدمة'];
+    const input = doc(headings.map((text, index) => ({
+      type: 'heading',
+      tag: index % 2 === 0 ? 'h2' : 'h1',
+      children: [{ type: 'text', text }],
+    })));
+    const tracker = new HeadingSlugTracker();
+    const allocated = headings.map((text) => tracker.allocate(text));
+    expect(allocated).toEqual([
+      'foo', 'foo-1', 'foo-2', 'foo-2-1', 'foo-3', 'foo-1-1',
+      'مقدمة', 'مقدمة-1', 'مقدمة-2',
+    ]);
+    expect(new Set(allocated).size).toBe(allocated.length);
+
+    const rendered = renderStudioDocumentToHtml(input);
+    const matches = [...rendered.matchAll(/<h[1-6] id="([^"]+)"/g)];
+    const ids = matches.map((match) => match[1]);
+    expect(ids).toEqual(allocated);
+    const toc = extractTableOfContentsFromDocument(input);
+    for (const item of toc) {
+      expect(ids).toContain(item.id);
+      expect(rendered).toContain(`href="#${item.id}"`);
+    }
+    tracker.reset();
+    expect(tracker.allocate('foo')).toBe('foo');
+  });
+
   it('renders structured plain text for lists, checklists and tables (Phase D)', () => {
     const document = doc([
       {
