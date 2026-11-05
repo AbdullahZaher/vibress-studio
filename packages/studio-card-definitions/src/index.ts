@@ -383,5 +383,7 @@ export function renderStudioCardSafeHtml(
   definition: StudioCardDefinition,
   input: unknown
 ): string {
-  return sanitizeHtml(definition.renderHtml(definition.validate(input)));
+  const html = definition.renderHtml(definition.validate(input));
+  if (typeof html !== 'string') throw new Error('STUDIO_CARD_INVALID_HTML');
+  return sanitizeHtml(html);
 }

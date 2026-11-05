@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { inspectEditableStudioNode } from './editable-node-schemas';
+export * from './editable-node-schemas';
 
 export const STUDIO_SCHEMA_NAME = 'vibress-studio';
 export const CURRENT_STUDIO_VERSION = 1;
@@ -8,7 +10,9 @@ export interface StudioDocument {
   version: number;
   editor?: {
     lexicalVersion?: string;
+    [key: string]: unknown;
   };
+  [key: string]: unknown;
   root: {
     type: 'root';
     children: unknown[];
@@ -22,13 +26,13 @@ export const StudioDocumentSchema = z.object({
   editor: z
     .object({
       lexicalVersion: z.string().optional(),
-    })
+    }).passthrough()
     .optional(),
   root: z.object({
     type: z.literal('root'),
     children: z.array(z.unknown()),
   }).passthrough(),
-});
+}).passthrough();
 
 // ============================================================================
 // STU-201: Typed Node Schemas & Type Guards
@@ -73,8 +77,9 @@ export const StudioLinkNodeSchema = z.object({
   type: z.literal('link'),
   url: z.string(),
   children: z.array(z.unknown()),
-  target: z.string().optional(),
-  rel: z.string().optional(),
+  target: z.string().nullable().optional(),
+  rel: z.string().nullable().optional(),
+  title: z.string().nullable().optional(),
   version: z.number().optional(),
 }).passthrough();
 export type StudioLinkNode = z.infer<typeof StudioLinkNodeSchema>;
@@ -112,7 +117,7 @@ export const StudioTableCellNodeSchema = z.object({
   colSpan: z.number().int().positive().optional(),
   rowSpan: z.number().int().positive().optional(),
   headerState: z.number().optional(),
-  backgroundColor: z.string().optional(),
+  backgroundColor: z.string().nullable().optional(),
   version: z.number().optional(),
 }).passthrough();
 export type StudioTableCellNode = z.infer<typeof StudioTableCellNodeSchema>;
@@ -205,12 +210,15 @@ export interface DocumentResourceLimits {
   maxNodeCount?: number;
   /** Maximum tree nesting depth (default 64). */
   maxDepth?: number;
+  /** Optional per-string byte budget for text and attributes; defaults to the document size budget. */
+  maxStringBytes?: number;
 }
 
 export const DEFAULT_DOCUMENT_RESOURCE_LIMITS: Required<DocumentResourceLimits> = {
   maxSizeBytes: 5 * 1024 * 1024, // 5 MB
   maxNodeCount: 50_000,
   maxDepth: 64,
+  maxStringBytes: 5 * 1024 * 1024,
 };
 
 export function resolveResourceLimits(limits?: DocumentResourceLimits): Required<DocumentResourceLimits> {
@@ -229,7 +237,9 @@ export function resolveResourceLimits(limits?: DocumentResourceLimits): Required
       ? Math.floor(limits.maxDepth)
       : DEFAULT_DOCUMENT_RESOURCE_LIMITS.maxDepth;
 
-  return { maxSizeBytes, maxNodeCount, maxDepth };
+  const maxStringBytes = typeof limits?.maxStringBytes === 'number' && Number.isFinite(limits.maxStringBytes) && limits.maxStringBytes > 0
+    ? limits.maxStringBytes : maxSizeBytes;
+  return { maxSizeBytes, maxNodeCount, maxDepth, maxStringBytes };
 }
 
 export function getUtf8ByteLength(str: string): number {
@@ -357,6 +367,9 @@ function checkObjectResourceLimits(
 
     const itemType = typeof item;
     if (itemType === 'string') {
+      if (limits.maxStringBytes < limits.maxSizeBytes && getUtf8ByteLength(item as string) > limits.maxStringBytes) {
+        throw new StudioMigrationError('Document text or attribute exceeds the configured string byte limit.', rawDoc, 'RESOURCE_LIMIT_EXCEEDED');
+      }
       accumulatedBytes += getJsonStringByteLength(item as string);
       if (accumulatedBytes > limits.maxSizeBytes) {
         throw new StudioMigrationError(
@@ -369,6 +382,9 @@ function checkObjectResourceLimits(
     }
 
     if (itemType === 'number') {
+      if (!Number.isFinite(item as number)) {
+        throw new StudioMigrationError('Non-finite numbers cannot be preserved as JSON.', rawDoc, 'INVALID_DOCUMENT');
+      }
       accumulatedBytes += Number.isFinite(item as number) ? String(item).length : 4;
       if (accumulatedBytes > limits.maxSizeBytes) {
         throw new StudioMigrationError(
@@ -393,13 +409,16 @@ function checkObjectResourceLimits(
     }
 
     if (itemType !== 'object') {
-      return;
+      throw new StudioMigrationError('Document contains a value that cannot be preserved as JSON.', rawDoc, 'INVALID_DOCUMENT');
     }
 
     // The size estimator models JSON data, not JavaScript object serialization
     // hooks. Reject custom objects and callable/accessor toJSON without invoking
     // user code; otherwise a tiny object can serialize into an oversized value.
     const prototype = Object.getPrototypeOf(item);
+    if (Object.getOwnPropertySymbols(item).length) {
+      throw new StudioMigrationError('Symbol properties cannot be preserved as JSON.', rawDoc, 'INVALID_DOCUMENT');
+    }
     const isArray = Array.isArray(item);
     const isPlainObject = prototype === Object.prototype || prototype === null;
     if (isArray ? prototype !== Array.prototype : !isPlainObject) {
@@ -463,7 +482,7 @@ function checkObjectResourceLimits(
           throw new StudioMigrationError('Accessor properties are not supported in Studio documents.', rawDoc, 'INVALID_DOCUMENT');
         }
         const v: unknown = descriptor.value;
-        if (v === undefined || typeof v === 'function') continue;
+        if (v === undefined) continue;
         if (writtenFields > 0) accumulatedBytes += 1; // ','
         accumulatedBytes += getJsonStringByteLength(k) + 1; // "key":
 
@@ -524,15 +543,17 @@ export function checkDocumentResourceLimits(
 
 export function validateStudioDocument(doc: unknown): StudioDocument {
   if (!doc || typeof doc !== 'object') {
-    throw new Error('INVALID_STUDIO_DOCUMENT: Document must be an object');
+    throw new StudioMigrationError('INVALID_STUDIO_DOCUMENT: Document must be an object', doc, 'INVALID_DOCUMENT');
   }
 
   const result = StudioDocumentSchema.safeParse(doc);
   if (!result.success) {
-    throw new Error(`INVALID_STUDIO_DOCUMENT: ${result.error.message}`);
+    throw new StudioMigrationError(`INVALID_STUDIO_DOCUMENT: ${result.error.message}`, doc, 'INVALID_DOCUMENT');
   }
 
-  return result.data as StudioDocument;
+  // There are no coercions/defaults in the envelope. Preserve the validated
+  // original rather than Zod's copy (which intentionally omits __proto__).
+  return doc as StudioDocument;
 }
 
 export function isValidStudioDocument(doc: unknown): doc is StudioDocument {
@@ -605,7 +626,7 @@ export function normalizeStudioDocument<T>(rawDoc: T): T {
     }
     const out: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
-      out[key] = normalizeStudioDocument(value);
+      Object.defineProperty(out, key, { value: normalizeStudioDocument(value), enumerable: true, writable: true, configurable: true });
     }
     return out as unknown as T;
   }
@@ -671,6 +692,36 @@ export function isStudioMigrationError(error: unknown): error is StudioMigration
   return error instanceof Error && error.name === 'StudioMigrationError';
 }
 
+/** Additional admission boundary for the pinned editor. Persistence and
+ * rendering can retain future data that this editor cannot safely rewrite. */
+export function assertStudioDocumentEditable(document: StudioDocument, rawDocument: unknown = document): void {
+  if (document.version !== CURRENT_STUDIO_VERSION) {
+    throw new StudioMigrationError(
+      `Cannot edit Studio document version ${document.version} with a version ${CURRENT_STUDIO_VERSION} editor.`,
+      rawDocument, 'UNSUPPORTED_DOCUMENT'
+    );
+  }
+  const pending: Array<{ node: unknown; path: string; parent?: string }> = [{ node: document.root, path: 'root' }];
+  while (pending.length) {
+    const current = pending.pop();
+    if (!current) break;
+    const issue = inspectEditableStudioNode(current.node);
+    if (issue) throw new StudioMigrationError(`${issue.message} at ${current.path}.`, rawDocument, issue.code);
+    const entry = z.object({ type: z.string(), children: z.array(z.unknown()).optional() }).safeParse(current.node);
+    if (!entry.success) throw new StudioMigrationError('Invalid node structure.', rawDocument, 'INVALID_DOCUMENT');
+    const type = entry.data.type;
+    const invalidParent = (type === 'root' && current.parent !== undefined) ||
+      (current.parent === 'root' && ['root', 'text', 'code-highlight', 'tab', 'linebreak', 'link', 'autolink', 'listitem', 'tablerow', 'tablecell'].includes(type)) ||
+      (current.parent === 'table' && type !== 'tablerow') ||
+      (current.parent === 'tablerow' && type !== 'tablecell') ||
+      (current.parent === 'list' && type !== 'listitem');
+    if (invalidParent) throw new StudioMigrationError(`Invalid ${type} placement at ${current.path}.`, rawDocument, 'INVALID_DOCUMENT');
+    entry.data.children?.forEach((node, index) => {
+      pending.push({ node, path: `${current.path}.children[${index}]`, parent: type });
+    });
+  }
+}
+
 export function migrateDocument(rawDoc: unknown, limits?: DocumentResourceLimits): StudioDocument {
   if (rawDoc === undefined || rawDoc === null) {
     return createEmptyStudioDocument();
@@ -734,6 +785,10 @@ export function migrateDocument(rawDoc: unknown, limits?: DocumentResourceLimits
         rawDoc,
         'INVALID_DOCUMENT'
       );
+    }
+
+    if (obj.schema !== undefined) {
+      throw new StudioMigrationError('Unsupported persisted document schema.', rawDoc, 'UNSUPPORTED_DOCUMENT');
     }
 
     // Legacy Batch 2 format: { text: "..." }
