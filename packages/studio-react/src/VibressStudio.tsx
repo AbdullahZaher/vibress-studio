@@ -22,10 +22,57 @@ import { WordCountPlugin } from './plugins/WordCountPlugin';
 import { STUDIO_CORE_NODES } from '@vibress/studio-nodes';
 import { StudioCardNode } from '@vibress/studio-cards';
 import { ReactStudioCardNode } from './nodes/ReactStudioCardNode';
-import { StudioDocument, migrateDocument } from '@vibress/studio-core';
+import { StudioDocument, migrateDocument, CURRENT_STUDIO_VERSION, StudioMigrationError } from '@vibress/studio-core';
 import { serializeStudioDocument } from '@vibress/studio-serializer';
 import { StudioUploadContext, StudioUploadApi } from './upload-context';
 import { StudioMediaContext, StudioMediaApi, StudioMediaRequest } from './media-context';
+
+// Lexical can only serialize nodes for which it has registered node classes.
+// Preserve forward-compatible documents by refusing to edit unsupported trees
+// instead of loading a partial tree and publishing a lossy onChange snapshot.
+const EDITABLE_STUDIO_NODE_TYPES = new Set([
+  'root', 'paragraph', 'text', 'linebreak', 'tab',
+  'heading', 'quote', 'list', 'listitem',
+  'link', 'autolink', 'code', 'code-highlight',
+  'table', 'tablerow', 'tablecell',
+  'studio-card', 'react-studio-card',
+]);
+
+function findUnsupportedEditorNode(node: unknown): string | null {
+  if (!node || typeof node !== 'object' || Array.isArray(node)) {
+    return 'invalid node';
+  }
+  const entry = node as { type?: unknown; children?: unknown };
+  if (typeof entry.type !== 'string' || !EDITABLE_STUDIO_NODE_TYPES.has(entry.type)) {
+    return typeof entry.type === 'string' ? entry.type : 'missing node type';
+  }
+  if (entry.children !== undefined) {
+    if (!Array.isArray(entry.children)) return entry.type + ' (invalid children)';
+    for (const child of entry.children) {
+      const unsupported = findUnsupportedEditorNode(child);
+      if (unsupported) return unsupported;
+    }
+  }
+  return null;
+}
+
+function assertEditorCanPreserveDocument(document: StudioDocument, rawDocument: unknown): void {
+  if (document.version !== CURRENT_STUDIO_VERSION) {
+    throw new StudioMigrationError(
+      `Cannot edit Studio document version ${document.version} with a version ${CURRENT_STUDIO_VERSION} editor. Open it with a compatible editor instead.`,
+      rawDocument,
+      'UNSUPPORTED_DOCUMENT'
+    );
+  }
+  const unsupportedNode = findUnsupportedEditorNode(document.root);
+  if (unsupportedNode) {
+    throw new StudioMigrationError(
+      `Cannot safely edit unsupported Lexical node type: ${unsupportedNode}.`,
+      rawDocument,
+      'UNSUPPORTED_DOCUMENT'
+    );
+  }
+}
 
 export interface VibressStudioProps {
   value?: unknown;
@@ -153,7 +200,9 @@ export function VibressStudio({
 }: VibressStudioProps) {
   const { parsedDoc, migrationError } = useMemo(() => {
     try {
-      return { parsedDoc: migrateDocument(value), migrationError: null };
+      const doc = migrateDocument(value);
+      assertEditorCanPreserveDocument(doc, value);
+      return { parsedDoc: doc, migrationError: null };
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       return { parsedDoc: null, migrationError: error };

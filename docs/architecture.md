@@ -15,7 +15,7 @@
 
 `studio-core` provides Zod validation, migration, normalization and document factories. The document tree allows forward-compatible unknown children. Legacy `react-studio-card` nodes normalize to `studio-card`. No schema fork or implicit rewriting of user documents is permitted.
 
-**Open integrity issue:** `migrateDocument` currently returns an empty document for some unsupported non-null inputs. It must distinguish *new document / no value* from *unrecognized existing document* and preserve the source on failure (audit STU-R01). Unknown v1 nodes, cards, styles, directions and captions require round-trip verification.
+**Document migration and recovery (STU-R01 — Resolved):** `migrateDocument` distinguishes genuinely absent/null inputs (which yield an empty document) from unsupported or unrecognized non-null documents. Invalid persisted inputs are preserved without silent reset, and recoverable validation errors are surfaced to the caller. Round-trip and unknown-node preservation is verified by `packages/studio-core/src/__tests__/migrate.test.ts` and `packages/studio-react/src/__tests__/document-recovery.test.tsx`.
 
 ## Package ownership and dependency direction
 
@@ -25,13 +25,13 @@
 | `studio-utils` | parse5 HTML sanitizer, URL/escape helpers, Markdown-to-HTML helper | Server-safe |
 | `studio-card-definitions` | Serializable Zod card contracts and safe renderers | Server-safe |
 | `studio-cards` | Compatibility exports and Lexical card node | Editor dependency |
-| `studio-renderer` | Server HTML and plain-text output | Server-safe |
+| `studio-renderer` | Server HTML and plain-text output | Server-safe; color/formatting verified |
 | `studio-html` | HTML import/export integration | Server-safe |
-| `studio-markdown` | Markdown export/import integration | Server-safe; export has open URL-policy gap |
+| `studio-markdown` | Markdown export/import integration | Server-safe; URL policy and link escaping verified (STU-R05) |
 | `studio-serializer` | Document ↔ serialized state helpers | Server-safe |
 | `studio-nodes` / `studio-transforms` | Lexical nodes and interactions | Editor |
-| `studio-react` | React editor, interactive cards, upload/media/AI hooks and CSS | Editor |
-| `studio-plugin-sdk` | Plugin registry, safe renderer registration | Registry, **not** sandbox; editor integration limited |
+| `studio-react` | React editor, interactive cards, upload/media/AI hooks and CSS | Editor; self-contained styles and direction support |
+| `studio-plugin-sdk` | Plugin registry, safe renderer registration | Registry (non-sandboxed in-process); integrated via `useStudioPluginRegistry` (STU-R13) |
 | `studio-testing`, `tests`, `e2e`, `playground` | Fixtures and verification harnesses | Development |
 
 Never import React or Lexical into server-safe packages. Public imports must use package export maps; no cross-package private deep paths. The workspace package-export verification checks actual distribution contracts, but does not by itself prove every architectural claim.

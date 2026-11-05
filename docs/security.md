@@ -16,17 +16,15 @@ The current HTML sanitizer is **`sanitizeStudioHtml`** in `packages/studio-utils
 - URLs and attributes require context-specific checks. `blob:` URLs are rejected for persisted/published media. The sanitizer allows a restricted raster `data:image/` family; do not treat that as permission to persist raw data URLs.
 - The host is responsible for authorization, secure media storage, AI gateway permissions, auditing and publication. Client-side validation does not substitute for host checks.
 
-## Open source-evidenced concerns
+## Remediation status of security and integrity findings
 
-| Reference | Priority | Investigation or remediation |
+| Reference | Priority | Remediation & Verification Status |
 | --- | --- | --- |
-| `STU-R05` | P1 security | Markdown exporter emits link destinations without shared URL policy / Markdown escaping. Add malicious and escaped-destination regressions before stating comprehensive Markdown boundary safety. |
-| `STU-R01` | P0 candidate integrity | Unknown non-null document can migrate to an empty document. Preserve invalid input and prevent overwrite. |
-| `STU-R02` | P0 candidate integrity | Async image upload applies stale captured card metadata. Test and protect concurrent edits. |
-| `STU-R04` | P1 fidelity/security | Published color/highlight must use a safe allowlisted representation, never arbitrary CSS passthrough. |
-| Host/plugin integration | P1 | Verify all registered renderers are rendered only through the safe public boundary. |
-
-These are source review findings; no exploit was reproduced in the documentation update. For specific proof requirements see the [audit](audits/studio-source-reassessment-2026-11-04.md).
+| `STU-R05` | P1 security | **Resolved & Verified (PR #10):** Markdown link export enforces shared URL protocol validation (HTTP/HTTPS/mailto/tel) and Markdown character escaping. Tested in `packages/studio-testing/security/markdown-security.test.ts`. |
+| `STU-R01` | P0 integrity | **Resolved & Verified (PR #7):** Invalid non-null persisted documents are preserved and recoverable errors surfaced; absent inputs default safely to empty document. Tested in `packages/studio-core/src/__tests__/migrate.test.ts` and `packages/studio-react/src/__tests__/document-recovery.test.tsx`. |
+| `STU-R02` | P0 integrity | **Resolved & Verified (PR #9):** Asynchronous image uploads re-read latest node data on completion, preserving concurrent caption, alt, width, and metadata edits without resurrecting deleted cards. Tested in `packages/studio-react/src/__tests__/image-upload-concurrent.test.tsx`. |
+| `STU-R04` | P1 fidelity/security | **Resolved & Verified (PR #13):** Text colors and highlights use strict allowlisted CSS color values (named colors, hex codes, hsl/rgb) and sanitize against arbitrary CSS injection. Tested in `packages/studio-renderer/src/__tests__/renderer.test.ts`. |
+| `STU-R13` | P1 integration | **Resolved & Verified (PR #17):** Plugin cards render strictly through `StudioPluginRegistry.renderCardHtml` with mandatory `sanitizeStudioHtml` filtering. Tested in `tests/studio-plugin-registry.test.ts`. |
 
 ## Test coverage
 

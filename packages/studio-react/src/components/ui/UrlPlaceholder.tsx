@@ -50,9 +50,9 @@ export function UrlPlaceholder({
 
   return (
     <div 
-      className={`group relative my-3 rounded-xl border border-dashed transition-all duration-200 select-none overflow-hidden ${
+      className={`vb-url-placeholder group relative my-3 rounded-xl border border-dashed transition-all duration-200 select-none overflow-hidden ${
         isSelected
-          ? 'border-primary ring-2 ring-primary/30 bg-primary/5'
+          ? 'is-selected border-primary ring-2 ring-primary/30 bg-primary/5'
           : 'border-border/80 dark:border-white/10 hover:border-primary/60 bg-muted/30 dark:bg-white/[0.02] hover:bg-muted/60 dark:hover:bg-white/[0.04]'
       }`}
       onClick={handleClick}
