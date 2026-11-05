@@ -10,7 +10,7 @@
 Security and content integrity are maintained through three structural boundaries:
 1. **Collision Prevention:** Plugin card types cannot collide with or shadow built-in Studio cards (`image`, `video`, `gallery`, `audio`, `file`, `bookmark`, `embed`, `button`, `callout`, `toggle`, `markdown`, `html`, `divider`) or cards registered by other plugins.
 2. **Schema Validation:** Each card definition specifies a `validate(data)` function (typically using Zod) that rejects malformed payloads before rendering.
-3. **Mandatory Host Sanitization:** Output from a card's `renderHtml()` is **never** emitted raw. Both the public HTML renderer (`renderStudioDocumentToHtml`) and the editor canvas component (`StudioCardComponent`) pipe all card markup through `sanitizeStudioHtml()` (DOMPurify allowlist) before mounting or publishing. Executable script tags, inline event handlers (`onclick`, `onerror`), and unsafe URL schemes (`javascript:`, `vbscript:`, `data:`) are stripped unconditionally.
+3. **Mandatory Host Sanitization:** Both the public HTML renderer (`renderStudioDocumentToHtml`) and editor canvas (`StudioCardComponent`) sanitize card markup with the shared **parse5-backed allowlist**. Direct consumers use `registry.renderCardHtml()` or `renderStudioCardSafeHtml()`. Calling a definition's `renderHtml()` directly returns untrusted markup and bypasses those helpers.
 
 ---
 
@@ -25,10 +25,31 @@ import type { StudioCardDefinition } from '@vibress/studio-card-definitions';
 export interface StudioPlugin {
   name: string;
   version: string;
+  apiVersion?: number; // defaults to supported API v1
   cards?: StudioCardDefinition[];
   toolbarItems?: StudioToolbarItem[];
 }
 ```
+
+API v1 supports custom cards, validation, slash-menu discovery, sanitized HTML
+and plain-text rendering. `toolbarItems` is reserved metadata: Studio does not
+mount those controls or execute them. There is no public command-contribution
+API, dynamic registry subscription or plugin sandbox.
+
+Registration validates the runtime contract before mutating the registry and
+accepts `apiVersion: 1` or an omitted version. Unsupported API versions throw
+`StudioPluginError` with `UNSUPPORTED_API_VERSION`; malformed definitions use
+`INVALID_PLUGIN`. Definitions are copied at registration, and plugin lists are
+returned as snapshots, so changing caller-owned arrays cannot alter ownership.
+Use `unregisterPlugin(name)` before deliberate re-registration. Configure the
+registry before mounting Studio; unregistering does not rewrite persisted cards.
+
+`renderCardHtml()` returns `null` for an unregistered card and throws a redacted
+`StudioPluginError('RENDER_FAILED')` for validation/rendering failures. The
+document renderer isolates per-card failures. API changes remain additive within
+v1; incompatible capabilities need a new API version and a documented migration.
+Existing API versions are not removed without a deprecation notice and a major
+package release.
 
 ### Card Definition
 

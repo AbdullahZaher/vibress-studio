@@ -11,7 +11,10 @@ pnpm docs:build
 pnpm docs:preview
 ```
 
-The documentation scripts use **VitePress 1.6.4** with `pnpm dlx`. This deliberately avoids modifying the editor's frozen lockfile and dependency graph. Dependency transitive versions are not lockfile-pinned, so a future maintenance change may move docs into its own lockfile-managed workspace when dependency installation can be verified.
+The documentation scripts use **VitePress 1.6.4**, pinned as a development dependency
+with its transitive dependencies in `pnpm-lock.yaml`. `pnpm install --frozen-lockfile`
+and `pnpm docs:build` reproduce the documentation build without resolving an
+unlocked `pnpm dlx` tree. This dependency is not included in published editor code.
 
 The build must pass without dead internal links. Check mobile navigation, both language switch destinations, keyboard focus, dark mode and Arabic layout manually.
 

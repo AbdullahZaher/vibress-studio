@@ -1,6 +1,4 @@
-// The VitePress CLI is pinned in package.json and run with pnpm dlx.
-// Export a plain configuration object so the documentation toolchain remains
-// isolated from the editor's frozen pnpm workspace dependency graph.
+// The VitePress CLI and its transitive dependencies are locked in the workspace.
 const repository = 'https://github.com/AbdullahZaher/vibress-studio'
 
 const enSidebar = [
@@ -30,6 +28,9 @@ const enSidebar = [
       { text: 'Security', link: '/security' },
       { text: 'Sanitization policy', link: '/sanitization-policy' },
       { text: 'Testing', link: '/testing' },
+      { text: 'Program implementation status', link: '/audits/studio-program-implementation-2026-11-05' },
+      { text: 'Design handoff', link: '/design-readiness-spec' },
+      { text: 'Release and rollback policy', link: '/release-policy' },
       { text: 'ADR-0001: runtime ownership', link: '/adr/0001-studio-canonical-runtime' },
       { text: 'Documentation development', link: '/guide/documentation-site' },
     ],

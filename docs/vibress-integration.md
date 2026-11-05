@@ -1,6 +1,6 @@
 # Vibress Studio — Host Integration Contract
 
-**Source reviewed:** standalone baseline `main` at `bac22c542c31c5edcd96229de9d4cf47bcce0c42` and additive synchronization changes proposed in PR #28 (2026-11-05). Read [ADR-0001](adr/0001-studio-canonical-runtime.md) and [architecture](architecture.md) before integrating with the separately maintained Vibress CMS.
+**Source reviewed:** program branch `codex/studio-production-readiness-program`, starting at `619f23281a748969735dae062a25457ca0b3e519`, and immutable host core at `f56ae8b94d4f1ce45bec380580b9d238ddf8b5c1` (2026-11-05). Read [ADR-0001](adr/0001-studio-canonical-runtime.md) and [architecture](architecture.md) before integrating with the separately maintained Vibress CMS.
 
 Studio is a **reusable editor library**, not the CMS. The host owns identity, publication permissions, persistence, autosave, version-conflict handling, durable media, AI authorization and collaboration lifecycle.
 
@@ -91,11 +91,50 @@ distinguish a delayed autosave response from an intentional document restore.
 
 `uploadMedia(file, cardType)` and `requestMedia({ cardType, source })` are host callbacks, returning durable `{ assetId, src, ... }` asset references or `null` for cancellation. Only the host can guarantee persistence and authorization. Never store `blob:` object URLs or temporary previews. Mock adapters are for tests and the playground only.
 
+### Host recovery export
+
+```tsx
+<VibressStudio
+  value={savedSource}
+  onChange={handleLocalDraft}
+  recoveryLocale="ar"
+  onRequestRecovery={async ({ originalValue, editorState, lastAcceptedDocument, error }) => {
+    await exportRecoveryInHost({ originalValue, editorState, lastAcceptedDocument, reason: error.message });
+  }}
+/>
+```
+
+The example assumes host-owned values/functions. `StudioRecoveryData` is exported
+from `@vibress/studio-react`; `originalValue` is unknown and may not be JSON.
+Choose an appropriate export format in the host and handle sensitive content
+there. This callback does not save or transmit anything by itself. The action
+appears only when supplied; pending requests disable duplicate activation, and
+failed requests show a localized retry state. The live `editorState` and
+`lastAcceptedDocument` are optional. An outgoing invalid/over-limit snapshot also
+offers this route while allowing the author to repair the draft. `onChange` does
+not fire for that rejected snapshot. See [interaction handoff](design-readiness-spec.md).
+
 AI is opt-in using `enableAi` and `onAiGenerate`. The callback may be supplied full document/selection context; obtain user consent and host authorization before transmitting any private material to a provider.
 
 ## Document and serialization contract
 
 Documents use `schema: 'vibress-studio'`, `version: 1`. Legacy `react-studio-card` nodes normalize to `studio-card`. `migrateDocument` accepts supported legacy shapes and can throw for invalid persisted data; the host must **retain the original** and avoid overwriting it with a new empty document on errors.
+
+Persisted validation retains unknown envelope/editor/node metadata. Editable
+admission is stricter: known nodes must have supported fields, versions and
+placement; unsupported node data remains recoverable rather than being fed to a
+Lexical import that could discard it. Built-in card payloads permit incomplete
+authoring states but reject malformed typed fields and temporary media sources.
+No schema version changes in this branch. When using the serializer directly,
+pass the last accepted document as its additive third argument to preserve
+envelope/editor metadata:
+`serializeStudioDocument(root, limits, lastAcceptedDocument)`.
+
+`resourceLimits` can configure `maxSizeBytes`, `maxNodeCount`, `maxDepth` and
+`maxStringBytes`. The existing defaults are 5 MiB, 50,000 nodes and JSON nesting
+depth 64; the per-string budget defaults to the document-size budget. Limits
+reject recoverably, never truncate. Validate proposed overrides against real
+publishing data; synthetic fixture results do not establish production limits.
 
 Forward-compatible nodes and documents must survive load/save without loss. A newer document or unsupported node type must not be silently downgraded by an older editor. See [readiness evidence](production-readiness.md) and the [remediation roadmap](roadmaps/global-ux-quality-roadmap.md#16-current-authoritative-remediation-and-development-plan--2026-11-04).
 
@@ -131,6 +170,12 @@ const markdownExport = studioDocumentToMarkdown(importedHtml);
 The `StudioPluginRegistry` supports registration, collision checks, Zod validation and sanitized `renderCardHtml`. The React editor now accepts `pluginRegistry` and exposes registered cards through the slash menu. Plugins execute in-process and **are not security sandboxes**; only load authorized/trusted plugin code and sanitize every output boundary.
 
 The Vibress host has Yjs collaboration exports and host-driven session lifecycle that standalone does not currently expose. **ADR-0001 remains Proposed**. Name and compare the exact host/standalone SHAs, v1 fixtures, and public exports before synchronizing.
+
+`pnpm verify:host-compatibility --host /path/to/vibress --ref IMMUTABLE_SHA`
+compares committed host core source against the same persisted fixtures, without
+reading dirty host files. It currently reports differences in envelope metadata
+and rejection of invalid/foreign content. Its scope excludes editor commands,
+public rendering, Yjs and host services; passing it alone would not prove parity.
 
 ## Host release verification
 

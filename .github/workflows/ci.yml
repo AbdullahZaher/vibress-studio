@@ -53,6 +53,19 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Critical-module coverage evidence
+        run: pnpm test:coverage
+
+      - name: Upload critical-module coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-critical-coverage-${{ github.sha }}
+          path: coverage/
+          retention-days: 14
+
+      - name: Build documentation with locked dependencies
+        run: pnpm docs:build
+
       - name: Verify package exports
         run: pnpm verify:package-exports
 
@@ -96,11 +109,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright Chromium
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Install supported desktop browser engines
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
 
       - name: Build packages (dist)
         run: pnpm build
 
       - name: Browser E2E (editor, cards, uploads, XSS, import/export, a11y, Lighthouse)
         run: pnpm test:e2e
+
+      - name: Upload browser screenshots and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-browser-evidence-${{ github.sha }}
+          path: test-results/
+          retention-days: 14

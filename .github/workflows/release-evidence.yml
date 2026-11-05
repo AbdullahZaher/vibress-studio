@@ -1,0 +1,73 @@
+name: Pre-release evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseline_ref:
+        description: Immutable previous commit for the package rollback exercise
+        required: true
+        default: b86c8e66f1e615eed756b4335de4950b29114181
+
+permissions:
+  contents: read
+
+jobs:
+  packages:
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [strict-declarations, runtime-rollback]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      # A known dependency declaration failure remains visible; no suppression.
+      - name: Strict installed declarations
+        if: matrix.check == 'strict-declarations'
+        run: pnpm verify:packed-consumer > packed-consumer.log 2>&1
+      - name: Runtime installation and previous-package rollback
+        if: matrix.check == 'runtime-rollback'
+        env:
+          BASELINE_REF: ${{ inputs.baseline_ref }}
+        run: pnpm verify:packed-consumer --runtime-only --baseline-ref "$BASELINE_REF" > packed-consumer.log 2>&1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: packed-consumer-${{ matrix.check }}-${{ github.sha }}
+          path: packed-consumer.log
+          retention-days: 30
+
+  browser-performance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.17.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - run: node --test scripts/compare-editor-benchmarks.node-test.mjs
+      - run: pnpm benchmark:editor
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: editor-frame-benchmarks-${{ github.sha }}
+          path: benchmark-results/
+          retention-days: 30
