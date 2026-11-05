@@ -1,4 +1,5 @@
 export { VibressStudio, type VibressStudioProps } from './VibressStudio';
+export * from './nodes/ReactStudioCardNode';
 export * from './plugins/SlashMenuPlugin';
 export * from './plugins/FloatingFormatToolbarPlugin';
 export * from './plugins/WordCountPlugin';

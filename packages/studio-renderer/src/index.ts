@@ -6,6 +6,8 @@ export interface RenderOptions {
   target?: 'web' | 'email';
   /** Optional trusted in-process plugin registry providing custom card definitions. */
   pluginRegistry?: { getCard(type: string): StudioCardDefinition | undefined };
+  /** Only include UI controls if host supplies a working client enhancement. */
+  interactiveControls?: boolean;
 }
 
 export function renderStudioDocumentToHtml(docInput: unknown, options: RenderOptions = {}): string {
@@ -186,7 +188,10 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
       const lang = typeof n.language === 'string' && n.language ? escapeHtml(n.language) : '';
       const langAttr = lang ? ` data-language="${lang}"` : '';
       const codeHtml = renderChildren();
-      return `<div class="studio-code-block"${langAttr}><div class="studio-code-header"><span class="studio-code-lang">${lang || 'code'}</span><button type="button" class="studio-code-copy-btn" aria-label="Copy code">Copy</button></div><pre><code>${codeHtml}</code></pre></div>`;
+      const copyBtn = options.interactiveControls
+        ? '<button type="button" class="studio-code-copy-btn" aria-label="Copy code">Copy</button>'
+        : '';
+      return `<div class="studio-code-block"${langAttr}><div class="studio-code-header"><span class="studio-code-lang">${lang || 'code'}</span>${copyBtn}</div><pre><code>${codeHtml}</code></pre></div>`;
     }
 
     // Handle Studio Card Nodes (canonical type after normalization)
