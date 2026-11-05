@@ -5,6 +5,7 @@ import { mergeRegister } from '@lexical/utils';
 import { $getNodeByKey, $getSelection, $isNodeSelection, $createNodeSelection, $setSelection, COMMAND_PRIORITY_LOW, KEY_BACKSPACE_COMMAND, KEY_DELETE_COMMAND, NodeKey } from 'lexical';
 import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-cards';
 import { sanitizeStudioHtml } from '@vibress/studio-utils';
+import { useStudioPluginRegistry } from '../plugin-context';
 import { ImageCardEditor } from './cards/ImageCardEditor';
 import { VideoCardEditor } from './cards/VideoCardEditor';
 import { GalleryCardEditor } from './cards/GalleryCardEditor';
@@ -158,7 +159,8 @@ export function StudioCardComponent({
 
   // Static cards expose their selection and removal to keyboard users.
   // The same interaction is available without a pointer device.
-  const def = STUDIO_CARD_DEFINITIONS[cardType];
+  const pluginRegistry = useStudioPluginRegistry();
+  const def = STUDIO_CARD_DEFINITIONS[cardType] || pluginRegistry?.getCard(cardType);
   let html = `[Unknown Card: ${cardType}]`;
   if (def) {
     try {

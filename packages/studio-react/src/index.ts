@@ -6,6 +6,7 @@ export * from './plugins/WordCountPlugin';
 export type { StudioAiContext } from './plugins/InlineAIPlugin';
 export * from './media-context';
 export * from './upload-context';
+export * from './plugin-context';
 export * from './components/ui/StudioMediaFloatingToolbar';
 export * from './components/ui/media-popovers/ImageMetadataPopover';
 export * from './components/ui/media-popovers/VideoMetadataPopover';

@@ -1,10 +1,12 @@
 import { StudioDocument, validateStudioDocument, migrateDocument } from '@vibress/studio-core';
-import { STUDIO_CARD_DEFINITIONS } from '@vibress/studio-card-definitions';
+import { STUDIO_CARD_DEFINITIONS, type StudioCardDefinition } from '@vibress/studio-card-definitions';
 import { escapeHtml, sanitizeUrl, sanitizeStudioHtml, sanitizeInlineStyle, isSafeCssColor } from '@vibress/studio-utils';
 
 export interface RenderOptions {
   target?: 'web' | 'email';
-  /** Only include controls when the host provides the required client action. */
+  /** Optional trusted in-process plugin registry providing custom card definitions. */
+  pluginRegistry?: { getCard(type: string): StudioCardDefinition | undefined };
+  /** Only include UI controls if host supplies a working client enhancement. */
   interactiveControls?: boolean;
 }
 
@@ -201,7 +203,7 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
       if (hasTransientMedia(cardData)) {
         return `<!-- Card skipped: ${escapeHtml(cardType || 'card')} (transient media) -->`;
       }
-      const def = cardType ? STUDIO_CARD_DEFINITIONS[cardType] : undefined;
+      const def = cardType ? (STUDIO_CARD_DEFINITIONS[cardType] || options.pluginRegistry?.getCard(cardType)) : undefined;
       if (def) {
         try {
           const validated = def.validate(cardData);
@@ -219,14 +221,14 @@ function renderNodeToHtml(node: unknown, options: RenderOptions): string {
   }
 }
 
-export function renderStudioDocumentToPlainText(docInput: unknown): string {
+export function renderStudioDocumentToPlainText(docInput: unknown, options: RenderOptions = {}): string {
   const doc = migrateDocument(docInput);
   if (!doc.root || !Array.isArray(doc.root.children)) {
     return '';
   }
 
   return doc.root.children
-    .map((node) => renderNodeToPlainText(node))
+    .map((node) => renderNodeToPlainText(node, options))
     .filter(Boolean)
     .join('\n\n');
 }
@@ -243,7 +245,7 @@ function hasTransientMedia(cardData: Record<string, unknown>): boolean {
   return candidates.some((v) => typeof v === 'string' && (v as string).toLowerCase().startsWith('blob:'));
 }
 
-function renderNodeToPlainText(node: unknown): string {
+function renderNodeToPlainText(node: unknown, options: RenderOptions = {}): string {
   if (!node || typeof node !== 'object') return '';
   const n = node as { type?: string; text?: string; format?: number; children?: unknown[]; tag?: string; listType?: string; url?: string; src?: string; alt?: string; cardType?: string; caption?: string; rel?: string; target?: string; cardData?: Record<string, unknown>; } & Record<string, unknown>;
 
@@ -258,7 +260,7 @@ function renderNodeToPlainText(node: unknown): string {
     if (hasTransientMedia(cardData)) {
       return '';
     }
-    const def = cardType ? STUDIO_CARD_DEFINITIONS[cardType] : undefined;
+    const def = cardType ? (STUDIO_CARD_DEFINITIONS[cardType] || options.pluginRegistry?.getCard(cardType)) : undefined;
     if (def) {
       try {
         const validated = def.validate(cardData);
@@ -271,7 +273,7 @@ function renderNodeToPlainText(node: unknown): string {
   }
 
   if (Array.isArray(n.children)) {
-    return n.children.map((child: unknown) => renderNodeToPlainText(child)).join('');
+    return n.children.map((child: unknown) => renderNodeToPlainText(child, options)).join('');
   }
 
   return '';
