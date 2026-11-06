@@ -1,5 +1,7 @@
 # Vibress Studio release readiness
 
+> **Planning update — 2026-11-06:** [World-class editor 9+ delivery plan](roadmaps/world-class-editor-9-plus-plan-2026-11-06.md) is the current proposed forward-looking program. The gate table below is a **historical 2026-11-05 assessment**, not a re-verification of Studio or Host after PRs #34/#130 merged. Recheck both current release SHAs, CI, unresolved Yjs/offline/a11y/performance gates and human sign-offs before any certification. The [2026-11-06 engineering audit](audits/world-class-editor-program-2026-11-06.md) records the deeper historical findings.
+
 Reviewed 2026-11-05. Branch: `codex/studio-production-readiness-program`.
 Verdict: **not certified; release approval pending**.
 
