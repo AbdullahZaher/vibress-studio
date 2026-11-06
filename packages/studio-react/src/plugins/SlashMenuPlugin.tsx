@@ -227,7 +227,7 @@ function SlashMenuPortalContent({
                 padding: '6px 8px',
                 borderRadius: '6px',
                 cursor: 'pointer',
-                minHeight: '34px',
+                minHeight: '36px',
                 boxSizing: 'border-box',
                 userSelect: 'none',
                 background: isSelected ? 'var(--vb-studio-surface-muted, var(--muted, #f1f5f9))' : 'transparent',
