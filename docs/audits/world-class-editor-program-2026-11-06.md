@@ -131,6 +131,7 @@ within specialized suites overlap the complete unit suite and are not additive.
 | Host focused `vitest.studio-recovery.config.ts` | 89 tests / 16 files pass, no skips; mounted React/Lexical plus isolated engine probe |
 | Host isolated `vitest.studio-integration.config.ts` | 18 tests / 2 files pass, no skips: authenticated API/PostgreSQL persistence 4 + WebSocket/Yjs/Redis 14 |
 | Host core/serializer/React builds, admin typecheck | Pass; unused import found by final check was removed and typecheck rerun successfully |
+| Host full `pnpm build` and `pnpm verify:clean-tree` | Pass on final delivery HEAD with stopped disposable-service endpoints; no data setup or tracked changes |
 | Host scoped ESLint | Pass; local Nx module-boundary rule reports no cached graph, so full CI lint remains separate evidence |
 | `pnpm audit --prod --json`, both repositories | Pass, no production advisories |
 | Studio `pnpm audit --json` | Fails: 25 development-tool advisories (7 high, 16 moderate, 2 low); not waived |
@@ -151,8 +152,13 @@ passed at `5da7066f...`; logs confirm 515/54, critical coverage and 256 browser
 passes without skipped/retried cases. Final evidence-only HEAD checks are reported
 on the PR. Host delivery HEAD `2a19d8f623b3943d5df43883e37f8f9d2e7e7426`
 [workflow 42206116752](https://github.com/AbdullahZaher/vibress/actions/runs/42206116752)
-passed typecheck, lint and production audit before entering the full test gate;
-its final outcome must be inspected and is not declared green here. Both PRs had
+passed typecheck, lint and production audit. Its full test gate finished with
+2,782 passes / 11 inherited translation failures, no skips (374 files: 370 pass,
+4 fail). All four new persistence cases passed in CI. The repository CI is
+therefore failed; downstream migration replay/build/clean-tree/container-scan
+checks were skipped. The E2E job was still running at documentation time and
+must be read from the final PR metadata. Local full build/clean-tree passed
+separately; this does not erase the failed CI test gate. Both PRs had
 zero submitted reviews and zero inline review threads at inspection; no human
 approval was recorded.
 
