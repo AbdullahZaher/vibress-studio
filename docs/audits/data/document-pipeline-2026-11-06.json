@@ -1,0 +1,217 @@
+{
+  "note": "CPU document pipeline only; no browser editor latency or INP measured",
+  "commitSha": "5da7066f0ceb93e173425fff04697a29ca8b8286",
+  "utc": "2026-11-06T10:53:02.796Z",
+  "platform": "darwin",
+  "arch": "arm64",
+  "node": "v24.16.0",
+  "cpuModel": "Apple M4 Pro",
+  "cpuCount": 12,
+  "totalMemoryMiB": 24576,
+  "results": [
+    {
+      "scenario": "1000-words",
+      "approximateWords": 1000,
+      "serializedBytes": 8929,
+      "serialize": {
+        "iterations": 7,
+        "medianMs": 0.095,
+        "p95Ms": 0.099,
+        "minMs": 0.082,
+        "maxMs": 0.099
+      },
+      "htmlRender": {
+        "iterations": 7,
+        "medianMs": 0.669,
+        "p95Ms": 1.168,
+        "minMs": 0.447,
+        "maxMs": 1.168
+      },
+      "markdownExport": {
+        "iterations": 7,
+        "medianMs": 0.072,
+        "p95Ms": 0.834,
+        "minMs": 0.066,
+        "maxMs": 0.834
+      },
+      "htmlReimport": {
+        "iterations": 3,
+        "medianMs": 0.61,
+        "p95Ms": 0.754,
+        "minMs": 0.594,
+        "maxMs": 0.754
+      },
+      "heapUsedMiBAtEnd": 15.7
+    },
+    {
+      "scenario": "5000-words",
+      "approximateWords": 5000,
+      "serializedBytes": 43607,
+      "serialize": {
+        "iterations": 7,
+        "medianMs": 0.231,
+        "p95Ms": 0.254,
+        "minMs": 0.223,
+        "maxMs": 0.254
+      },
+      "htmlRender": {
+        "iterations": 7,
+        "medianMs": 1.501,
+        "p95Ms": 1.59,
+        "minMs": 1.391,
+        "maxMs": 1.59
+      },
+      "markdownExport": {
+        "iterations": 7,
+        "medianMs": 0.227,
+        "p95Ms": 0.247,
+        "minMs": 0.219,
+        "maxMs": 0.247
+      },
+      "htmlReimport": {
+        "iterations": 3,
+        "medianMs": 2.466,
+        "p95Ms": 2.972,
+        "minMs": 2.422,
+        "maxMs": 2.972
+      },
+      "heapUsedMiBAtEnd": 17.3
+    },
+    {
+      "scenario": "20000-words",
+      "approximateWords": 20000,
+      "serializedBytes": 173836,
+      "serialize": {
+        "iterations": 7,
+        "medianMs": 0.838,
+        "p95Ms": 1.142,
+        "minMs": 0.822,
+        "maxMs": 1.142
+      },
+      "htmlRender": {
+        "iterations": 7,
+        "medianMs": 6.727,
+        "p95Ms": 8.69,
+        "minMs": 5.92,
+        "maxMs": 8.69
+      },
+      "markdownExport": {
+        "iterations": 7,
+        "medianMs": 0.716,
+        "p95Ms": 0.768,
+        "minMs": 0.7,
+        "maxMs": 0.768
+      },
+      "htmlReimport": {
+        "iterations": 3,
+        "medianMs": 10.928,
+        "p95Ms": 11.416,
+        "minMs": 10.526,
+        "maxMs": 11.416
+      },
+      "heapUsedMiBAtEnd": 26.8
+    },
+    {
+      "scenario": "50000-words",
+      "approximateWords": 50000,
+      "serializedBytes": 434211,
+      "serialize": {
+        "iterations": 7,
+        "medianMs": 1.641,
+        "p95Ms": 2.221,
+        "minMs": 1.629,
+        "maxMs": 2.221
+      },
+      "htmlRender": {
+        "iterations": 7,
+        "medianMs": 16.393,
+        "p95Ms": 20.251,
+        "minMs": 15.26,
+        "maxMs": 20.251
+      },
+      "markdownExport": {
+        "iterations": 7,
+        "medianMs": 2.177,
+        "p95Ms": 2.707,
+        "minMs": 1.731,
+        "maxMs": 2.707
+      },
+      "htmlReimport": {
+        "iterations": 3,
+        "medianMs": 26.834,
+        "p95Ms": 29.123,
+        "minMs": 25.892,
+        "maxMs": 29.123
+      },
+      "heapUsedMiBAtEnd": 37.1
+    },
+    {
+      "scenario": "media-tables-5000-words",
+      "approximateWords": 5000,
+      "serializedBytes": 87483,
+      "serialize": {
+        "iterations": 7,
+        "medianMs": 1.116,
+        "p95Ms": 1.719,
+        "minMs": 0.947,
+        "maxMs": 1.719
+      },
+      "htmlRender": {
+        "iterations": 7,
+        "medianMs": 3.874,
+        "p95Ms": 4.649,
+        "minMs": 3.712,
+        "maxMs": 4.649
+      },
+      "markdownExport": {
+        "iterations": 7,
+        "medianMs": 1.206,
+        "p95Ms": 1.564,
+        "minMs": 1.093,
+        "maxMs": 1.564
+      },
+      "htmlReimport": {
+        "iterations": 3,
+        "medianMs": 5.528,
+        "p95Ms": 6.129,
+        "minMs": 5.486,
+        "maxMs": 6.129
+      },
+      "heapUsedMiBAtEnd": 30.5
+    },
+    {
+      "scenario": "arabic-mixed-5000-words",
+      "approximateWords": 5000,
+      "serializedBytes": 44239,
+      "serialize": {
+        "iterations": 7,
+        "medianMs": 0.197,
+        "p95Ms": 0.201,
+        "minMs": 0.195,
+        "maxMs": 0.201
+      },
+      "htmlRender": {
+        "iterations": 7,
+        "medianMs": 1.257,
+        "p95Ms": 1.341,
+        "minMs": 1.23,
+        "maxMs": 1.341
+      },
+      "markdownExport": {
+        "iterations": 7,
+        "medianMs": 0.198,
+        "p95Ms": 0.2,
+        "minMs": 0.197,
+        "maxMs": 0.2
+      },
+      "htmlReimport": {
+        "iterations": 3,
+        "medianMs": 2.207,
+        "p95Ms": 2.604,
+        "minMs": 2.19,
+        "maxMs": 2.604
+      },
+      "heapUsedMiBAtEnd": 36.9
+    }
+  ]
+}

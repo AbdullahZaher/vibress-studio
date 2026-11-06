@@ -3,7 +3,7 @@
 **Status: SOURCE COMPARISON ONLY; NOT APPROVED FOR HOST REPLACEMENT.**
 ADR-0001 remains Proposed; this document cannot approve it.
 
-Program follow-up: host candidate `f36a6aa0a0b8e41de88976c7755503fa8a401996`
+Program follow-up (2026-11-06): host candidate `cb0be3f03460cc57143e43db093c523e27b4cf0d`
 ([PR #130](https://github.com/AbdullahZaher/vibress/pull/130)) now passes all nine
 immutable persisted/recovery fixture cases. One case is explicitly recovery-only:
 future envelopes validate losslessly but host editor migration refuses them with
@@ -13,6 +13,8 @@ parity. Standalone strict Bundler and NodeNext consumers pass with the evaluated
 PostgreSQL persistence (4) and existing WebSocket/Yjs tests (14) pass in disposable
 services. Full host browser publishing, live-device acceptance and owner approvals
 remain open. The matrix below is a **historical** comparison at its named commits.
+
+See the [current verified delivery report](../audits/world-class-editor-program-2026-11-06.md) for the findings, final-source evidence and release blockers.
 
 ## Named immutable references
 

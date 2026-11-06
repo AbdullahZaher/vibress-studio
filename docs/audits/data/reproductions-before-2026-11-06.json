@@ -1,0 +1,114 @@
+[
+  {
+    "stage": "world-host-before",
+    "testSummary": [
+      "Test Files  3 failed (3)",
+      "Tests  9 failed (9)"
+    ],
+    "scope": "Working candidate before the corresponding correction; not a final-commit failure."
+  },
+  {
+    "stage": "world-host-crossdoc-before",
+    "testSummary": [
+      "Test Files  1 failed (1)",
+      "Tests  2 failed | 8 passed (10)"
+    ],
+    "scope": "Working candidate before the corresponding correction; not a final-commit failure."
+  },
+  {
+    "stage": "world-host-restore-before",
+    "testSummary": [
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 10 passed (11)"
+    ],
+    "scope": "Working candidate before the corresponding correction; not a final-commit failure."
+  },
+  {
+    "stage": "world-host-page-before",
+    "testSummary": [
+      "Test Files  1 failed (1)",
+      "Tests  2 failed | 5 passed (7)"
+    ],
+    "scope": "Working candidate before the corresponding correction; not a final-commit failure."
+  },
+  {
+    "stage": "world-host-node-fields-before",
+    "testSummary": [
+      "Test Files  1 failed (1)",
+      "Tests  3 failed | 7 passed (10)"
+    ],
+    "scope": "Working candidate before the corresponding correction; not a final-commit failure."
+  },
+  {
+    "stage": "world-host-collab-gate-before",
+    "testSummary": [
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 11 passed (12)"
+    ],
+    "scope": "Working candidate before the corresponding correction; not a final-commit failure."
+  },
+  {
+    "stage": "world-host-opaque-before",
+    "testSummary": [
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 2 passed (3)"
+    ],
+    "scope": "Working candidate before the corresponding correction; not a final-commit failure."
+  },
+  {
+    "stage": "world-studio-opaque-before",
+    "testSummary": [
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 14 passed (15)"
+    ],
+    "scope": "Working candidate before the corresponding correction; not a final-commit failure."
+  },
+  {
+    "stage": "world-host-accessor-before",
+    "testSummary": [
+      "Test Files  1 failed (1)",
+      "Tests  1 failed | 1 passed (2)"
+    ],
+    "scope": "Working candidate before the corresponding correction; not a final-commit failure."
+  },
+  {
+    "stage": "world-studio-accessor-before",
+    "testSummary": [
+      "Test Files  1 failed (1)",
+      "Tests  2 failed (2)"
+    ],
+    "scope": "Working candidate before the corresponding correction; not a final-commit failure."
+  },
+  {
+    "stage": "world-host-numeric-before",
+    "testSummary": [
+      "Test Files  1 failed (1)",
+      "Tests  6 failed | 4 passed (10)"
+    ],
+    "scope": "Working candidate before the corresponding correction; not a final-commit failure."
+  },
+  {
+    "stage": "world-studio-numeric-before",
+    "testSummary": [
+      "Test Files  1 failed (1)",
+      "Tests  6 failed | 4 passed (10)"
+    ],
+    "scope": "Working candidate before the corresponding correction; not a final-commit failure."
+  },
+  {
+    "stage": "world-host-card-metadata-before",
+    "testSummary": [
+      "Test Files  1 failed (1)",
+      "Tests  3 failed (3)"
+    ],
+    "scope": "Working candidate before the corresponding correction; not a final-commit failure."
+  },
+  {
+    "stage": "world-studio-card-metadata-before",
+    "testSummary": [
+      "Test Files  1 failed (1)",
+      "Tests  3 failed (3)"
+    ],
+    "scope": "Working candidate before the corresponding correction; not a final-commit failure."
+  }
+]
