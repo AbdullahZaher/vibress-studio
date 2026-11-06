@@ -3,13 +3,18 @@
 **Status: SOURCE COMPARISON ONLY; NOT APPROVED FOR HOST REPLACEMENT.**
 ADR-0001 remains Proposed; this document cannot approve it.
 
-Program update: the new immutable core-fixture comparison at host
-`f56ae8b94d4f1ce45bec380580b9d238ddf8b5c1` reports five passing cases and four
-differences. Clean runtime tarball installation and scoped package rollback now
-have local evidence; strict installed declarations fail. See the
-[program record](../audits/studio-program-implementation-2026-11-05.md) for current
-results and boundaries. The source matrix below remains a historical comparison
-at its explicitly named commits; it does not describe deployed parity.
+Program follow-up (2026-11-06): host candidate `cb0be3f03460cc57143e43db093c523e27b4cf0d`
+([PR #130](https://github.com/AbdullahZaher/vibress/pull/130)) now passes all nine
+immutable persisted/recovery fixture cases. One case is explicitly recovery-only:
+future envelopes validate losslessly but host editor migration refuses them with
+exact original input. This is an intended admission difference, not full runtime
+parity. Standalone strict Bundler and NodeNext consumers pass with the evaluated
+0.14.3 engine family; the host dependency graph is unchanged. Real host API/
+PostgreSQL persistence (4) and existing WebSocket/Yjs tests (14) pass in disposable
+services. Full host browser publishing, live-device acceptance and owner approvals
+remain open. The matrix below is a **historical** comparison at its named commits.
+
+See the [current verified delivery report](../audits/world-class-editor-program-2026-11-06.md) for the findings, final-source evidence and release blockers.
 
 ## Named immutable references
 

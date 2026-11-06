@@ -105,7 +105,9 @@ import { VibressStudio } from '@vibress/studio-react';
 import { renderStudioDocumentToHtml } from '@vibress/studio-renderer';
 const document: StudioDocument = createDefaultStudioDocument('Consumer');
 export const html: string = renderStudioDocumentToHtml(document);
-export const editor = <VibressStudio value={document} onChange={(next: StudioDocument) => void next.root} />;
+export const editor = <VibressStudio value={document} metadataRevision={1} revisionId="save-1"
+  replacementId="document-1" onEditorReady={(instance) => { instance?.getEditorState().toJSON(); }}
+  onChange={(next: StudioDocument) => void next.root} />;
 `);
   if (!runtimeOnly) run(process.execPath, [join(repo, 'node_modules/typescript/bin/tsc'), '--noEmit', '--strict', '--esModuleInterop',
     '--jsx', 'react-jsx', '--target', 'ES2022', '--module', strictNodeNext ? 'NodeNext' : 'ESNext',

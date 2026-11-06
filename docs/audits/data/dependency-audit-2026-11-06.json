@@ -1,0 +1,700 @@
+{
+  "standaloneProduction": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "dependencies": 44,
+    "devDependencies": 0,
+    "optionalDependencies": 0,
+    "totalDependencies": 44
+  },
+  "hostProduction": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "dependencies": 419,
+    "devDependencies": 0,
+    "optionalDependencies": 104,
+    "totalDependencies": 523
+  },
+  "standaloneAll": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 2,
+      "moderate": 16,
+      "high": 7,
+      "critical": 0
+    },
+    "dependencies": 44,
+    "devDependencies": 553,
+    "optionalDependencies": 76,
+    "totalDependencies": 597
+  },
+  "developmentAdvisories": [
+    {
+      "module_name": "esbuild",
+      "severity": "moderate",
+      "title": "esbuild enables any website to send any requests to the development server and read the response",
+      "url": "https://github.com/advisories/GHSA-67mh-4wv8-2f99",
+      "vulnerable_versions": "<=0.24.2",
+      "patched_versions": ">=0.24.3",
+      "findings": [
+        {
+          "version": "0.21.5",
+          "paths": [
+            ".>@vitest/coverage-v8>vitest>@vitest/mocker>vite>esbuild",
+            ".>@vitest/coverage-v8>vitest>vite>esbuild",
+            ".>esbuild",
+            ".>vitepress>@vitejs/plugin-vue>vite>esbuild",
+            ".>vitepress>vite>esbuild",
+            ".>vitest>@vitest/mocker>vite>esbuild",
+            ".>vitest>vite>esbuild",
+            "playground>@vitejs/plugin-react>vite>esbuild",
+            "playground>vite>esbuild"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "vite",
+      "severity": "moderate",
+      "title": "Vite Vulnerable to Path Traversal in Optimized Deps `.map` Handling",
+      "url": "https://github.com/advisories/GHSA-4w7w-66w2-5vf9",
+      "vulnerable_versions": "<=6.4.1",
+      "patched_versions": ">=6.4.2",
+      "findings": [
+        {
+          "version": "5.4.21",
+          "paths": [
+            ".>vitepress>@vitejs/plugin-vue>vite",
+            ".>vitepress>vite",
+            "playground>@vitejs/plugin-react>vite",
+            "playground>vite"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "vite",
+      "severity": "moderate",
+      "title": "launch-editor: NTLMv2 hash disclosure via UNC path handling on Windows",
+      "url": "https://github.com/advisories/GHSA-v6wh-96g9-6wx3",
+      "vulnerable_versions": "<=6.4.2",
+      "patched_versions": ">=6.4.3",
+      "findings": [
+        {
+          "version": "5.4.21",
+          "paths": [
+            ".>vitepress>@vitejs/plugin-vue>vite",
+            ".>vitepress>vite",
+            "playground>@vitejs/plugin-react>vite",
+            "playground>vite"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "nanoid",
+      "severity": "high",
+      "title": "nanoid: custom generators can loop indefinitely when size is zero",
+      "url": "https://github.com/advisories/GHSA-2v37-7h3g-55p8",
+      "vulnerable_versions": "<3.3.18",
+      "patched_versions": ">=3.3.18",
+      "findings": [
+        {
+          "version": "3.3.17",
+          "paths": [
+            ".>vitepress>@vitejs/plugin-vue>vite>postcss>nanoid",
+            ".>vitepress>vite>postcss>nanoid",
+            "playground>@vitejs/plugin-react>vite>postcss>nanoid",
+            "playground>vite>postcss>nanoid"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "vitest",
+      "severity": "moderate",
+      "title": "Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock",
+      "url": "https://github.com/advisories/GHSA-82fw-gwwq-j7x9",
+      "vulnerable_versions": ">=2.1.0 <4.1.11",
+      "patched_versions": ">=4.1.11",
+      "findings": [
+        {
+          "version": "4.1.10",
+          "paths": [
+            ".>@vitest/coverage-v8>vitest",
+            ".>vitest"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "@vitest/mocker",
+      "severity": "moderate",
+      "title": "Vitest: Path Traversal / Arbitrary File Read via @vitest/mocker Redirect Mock",
+      "url": "https://github.com/advisories/GHSA-82fw-gwwq-j7x9",
+      "vulnerable_versions": ">=2.1.0 <4.1.11",
+      "patched_versions": ">=4.1.11",
+      "findings": [
+        {
+          "version": "4.1.10",
+          "paths": [
+            ".>@vitest/coverage-v8>vitest>@vitest/mocker",
+            ".>vitest>@vitest/mocker"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "brace-expansion",
+      "severity": "moderate",
+      "title": "brace-expansion: Quadratic-time expansion of the `{a},b}` rewrite causes CPU denial of service",
+      "url": "https://github.com/advisories/GHSA-q2hr-2g5m-vwhr",
+      "vulnerable_versions": ">=4.0.0 <5.0.12",
+      "patched_versions": ">=5.0.12",
+      "findings": [
+        {
+          "version": "5.0.9",
+          "paths": [
+            ".>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>eslint>minimatch>brace-expansion"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "brace-expansion",
+      "severity": "high",
+      "title": "brace-expansion: DoS via uncontrolled recursion on nested brace groups causing stack exhaustion",
+      "url": "https://github.com/advisories/GHSA-qhr7-859c-m2p7",
+      "vulnerable_versions": ">=4.0.0 <5.0.11",
+      "patched_versions": ">=5.0.11",
+      "findings": [
+        {
+          "version": "5.0.9",
+          "paths": [
+            ".>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>eslint>minimatch>brace-expansion"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "brace-expansion",
+      "severity": "high",
+      "title": "brace-expansion: DoS via uncontrolled recursion in parseCommaParts causing stack exhaustion",
+      "url": "https://github.com/advisories/GHSA-6j4f-fj2g-mc7p",
+      "vulnerable_versions": ">=4.0.0 <5.0.10",
+      "patched_versions": ">=5.0.10",
+      "findings": [
+        {
+          "version": "5.0.9",
+          "paths": [
+            ".>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>minimatch>brace-expansion",
+            ".>typescript-eslint>eslint>@eslint/config-array>minimatch>brace-expansion",
+            ".>typescript-eslint>eslint>minimatch>brace-expansion"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "source-map-js",
+      "severity": "high",
+      "title": "source-map-js allows event-loop denial of service through indexed source-map section offsets",
+      "url": "https://github.com/advisories/GHSA-68fv-2mgg-jv7q",
+      "vulnerable_versions": ">=1.0.0 <1.2.2",
+      "patched_versions": ">=1.2.2",
+      "findings": [
+        {
+          "version": "1.2.1",
+          "paths": [
+            ".>@vitest/coverage-v8>magicast>source-map-js",
+            ".>vitepress>@vitejs/plugin-vue>vite>postcss>source-map-js",
+            ".>vitepress>vite>postcss>source-map-js",
+            ".>vitest>@vitest/coverage-v8>magicast>source-map-js",
+            "playground>@vitejs/plugin-react>vite>postcss>source-map-js",
+            "playground>vite>postcss>source-map-js"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "vite",
+      "severity": "moderate",
+      "title": "launch-editor: escapeCmdArgs() omits % escaping on Windows",
+      "url": "https://github.com/advisories/GHSA-698v-4r3x-3vcv",
+      "vulnerable_versions": "<=6.4.3",
+      "patched_versions": ">=6.4.4",
+      "findings": [
+        {
+          "version": "5.4.21",
+          "paths": [
+            ".>vitepress>@vitejs/plugin-vue>vite",
+            ".>vitepress>vite",
+            "playground>@vitejs/plugin-react>vite",
+            "playground>vite"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "vite",
+      "severity": "moderate",
+      "title": "launch-editor: escapeCmdArgs() omits % escaping on Windows",
+      "url": "https://github.com/advisories/GHSA-698v-4r3x-3vcv",
+      "vulnerable_versions": ">=8.2.0 <=8.2.3",
+      "patched_versions": ">=8.2.4",
+      "findings": [
+        {
+          "version": "8.2.0",
+          "paths": [
+            ".>@vitest/coverage-v8>vitest>@vitest/mocker>vite",
+            ".>@vitest/coverage-v8>vitest>vite",
+            ".>vitest>@vitest/mocker>vite",
+            ".>vitest>vite"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "vite",
+      "severity": "moderate",
+      "title": "launch-editor: Editor CLI flag misinterpretation causing arbitrary command execution for some editors",
+      "url": "https://github.com/advisories/GHSA-r825-w8mm-5pxw",
+      "vulnerable_versions": "<=6.4.3",
+      "patched_versions": ">=6.4.4",
+      "findings": [
+        {
+          "version": "5.4.21",
+          "paths": [
+            ".>vitepress>@vitejs/plugin-vue>vite",
+            ".>vitepress>vite",
+            "playground>@vitejs/plugin-react>vite",
+            "playground>vite"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "vite",
+      "severity": "moderate",
+      "title": "launch-editor: Editor CLI flag misinterpretation causing arbitrary command execution for some editors",
+      "url": "https://github.com/advisories/GHSA-r825-w8mm-5pxw",
+      "vulnerable_versions": ">=8.2.0 <=8.2.3",
+      "patched_versions": ">=8.2.4",
+      "findings": [
+        {
+          "version": "8.2.0",
+          "paths": [
+            ".>@vitest/coverage-v8>vitest>@vitest/mocker>vite",
+            ".>@vitest/coverage-v8>vitest>vite",
+            ".>vitest>@vitest/mocker>vite",
+            ".>vitest>vite"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "vite",
+      "severity": "high",
+      "title": "launch-editor: `fs.existsSync()` existence check can be bypassed on Windows",
+      "url": "https://github.com/advisories/GHSA-587h-7wmj-h5pm",
+      "vulnerable_versions": "<=6.4.3",
+      "patched_versions": ">=6.4.4",
+      "findings": [
+        {
+          "version": "5.4.21",
+          "paths": [
+            ".>vitepress>@vitejs/plugin-vue>vite",
+            ".>vitepress>vite",
+            "playground>@vitejs/plugin-react>vite",
+            "playground>vite"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "vite",
+      "severity": "high",
+      "title": "launch-editor: `fs.existsSync()` existence check can be bypassed on Windows",
+      "url": "https://github.com/advisories/GHSA-587h-7wmj-h5pm",
+      "vulnerable_versions": ">=8.2.0 <=8.2.3",
+      "patched_versions": ">=8.2.4",
+      "findings": [
+        {
+          "version": "8.2.0",
+          "paths": [
+            ".>@vitest/coverage-v8>vitest>@vitest/mocker>vite",
+            ".>@vitest/coverage-v8>vitest>vite",
+            ".>vitest>@vitest/mocker>vite",
+            ".>vitest>vite"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "vite",
+      "severity": "low",
+      "title": "Vite: Cross origin script execution through Vite custom middleware",
+      "url": "https://github.com/advisories/GHSA-9jrq-w75r-8gcw",
+      "vulnerable_versions": "<=6.4.3",
+      "patched_versions": ">=6.4.4",
+      "findings": [
+        {
+          "version": "5.4.21",
+          "paths": [
+            ".>vitepress>@vitejs/plugin-vue>vite",
+            ".>vitepress>vite",
+            "playground>@vitejs/plugin-react>vite",
+            "playground>vite"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "vite",
+      "severity": "low",
+      "title": "Vite: Cross origin script execution through Vite custom middleware",
+      "url": "https://github.com/advisories/GHSA-9jrq-w75r-8gcw",
+      "vulnerable_versions": ">=8.2.0 <=8.2.3",
+      "patched_versions": ">=8.2.4",
+      "findings": [
+        {
+          "version": "8.2.0",
+          "paths": [
+            ".>@vitest/coverage-v8>vitest>@vitest/mocker>vite",
+            ".>@vitest/coverage-v8>vitest>vite",
+            ".>vitest>@vitest/mocker>vite",
+            ".>vitest>vite"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "vite",
+      "severity": "moderate",
+      "title": "Vite: Files outside `server.fs.allow` could be served when project paths match system paths on non-Windows machine",
+      "url": "https://github.com/advisories/GHSA-rq7h-c2jc-7f22",
+      "vulnerable_versions": "<=6.4.3",
+      "patched_versions": ">=6.4.4",
+      "findings": [
+        {
+          "version": "5.4.21",
+          "paths": [
+            ".>vitepress>@vitejs/plugin-vue>vite",
+            ".>vitepress>vite",
+            "playground>@vitejs/plugin-react>vite",
+            "playground>vite"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "vite",
+      "severity": "moderate",
+      "title": "Vite: Files outside `server.fs.allow` could be served when project paths match system paths on non-Windows machine",
+      "url": "https://github.com/advisories/GHSA-rq7h-c2jc-7f22",
+      "vulnerable_versions": ">=8.2.0 <=8.2.3",
+      "patched_versions": ">=8.2.4",
+      "findings": [
+        {
+          "version": "8.2.0",
+          "paths": [
+            ".>@vitest/coverage-v8>vitest>@vitest/mocker>vite",
+            ".>@vitest/coverage-v8>vitest>vite",
+            ".>vitest>@vitest/mocker>vite",
+            ".>vitest>vite"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "vite",
+      "severity": "moderate",
+      "title": "Vite: First 4 bytes of files outside of `server.fs` setting is exposed by `?vite-wasm-instance`",
+      "url": "https://github.com/advisories/GHSA-vfpm-58rq-9qcg",
+      "vulnerable_versions": ">=8.2.0 <=8.2.3",
+      "patched_versions": ">=8.2.4",
+      "findings": [
+        {
+          "version": "8.2.0",
+          "paths": [
+            ".>@vitest/coverage-v8>vitest>@vitest/mocker>vite",
+            ".>@vitest/coverage-v8>vitest>vite",
+            ".>vitest>@vitest/mocker>vite",
+            ".>vitest>vite"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "@vitest/mocker",
+      "severity": "moderate",
+      "title": "Vitest: Code injection via unauthenticated manual mock registration",
+      "url": "https://github.com/advisories/GHSA-qxg6-89mg-rqv8",
+      "vulnerable_versions": ">=2.1.0-beta.7 <4.1.12",
+      "patched_versions": ">=4.1.12",
+      "findings": [
+        {
+          "version": "4.1.10",
+          "paths": [
+            ".>@vitest/coverage-v8>vitest>@vitest/mocker",
+            ".>vitest>@vitest/mocker"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "zod",
+      "severity": "high",
+      "title": "Zod can exhaust memory while validating oversized constrained collections",
+      "url": "https://github.com/advisories/GHSA-mrhx-c7xc-m3w5",
+      "vulnerable_versions": "<4.6.6",
+      "patched_versions": ">=4.6.6",
+      "findings": [
+        {
+          "version": "3.25.76",
+          "paths": [
+            ".>lighthouse>puppeteer-core>chromium-bidi>zod"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "vite",
+      "severity": "moderate",
+      "title": "vite: `server.fs.deny` bypass on Windows alternate paths",
+      "url": "https://github.com/advisories/GHSA-fx2h-pf6j-xcff",
+      "vulnerable_versions": "<=6.4.2",
+      "patched_versions": ">=6.4.3",
+      "findings": [
+        {
+          "version": "5.4.21",
+          "paths": [
+            ".>vitepress>@vitejs/plugin-vue>vite",
+            ".>vitepress>vite",
+            "playground>@vitejs/plugin-react>vite",
+            "playground>vite"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "module_name": "minimatch",
+      "severity": "moderate",
+      "title": "minimatch has potential denial of service via globparts amplification",
+      "url": "https://github.com/advisories/GHSA-g3hv-75wg-m249",
+      "vulnerable_versions": ">=7.0.0 <11.0.1",
+      "patched_versions": ">=11.0.1",
+      "findings": [
+        {
+          "version": "10.2.6",
+          "paths": [
+            ".>eslint>@eslint/config-array>minimatch",
+            ".>eslint>minimatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>@eslint/config-array>minimatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/parser>eslint>minimatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/typescript-estree>minimatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>@typescript-eslint/utils>eslint>minimatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>@eslint/config-array>minimatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/type-utils>eslint>minimatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>@typescript-eslint/utils>eslint>minimatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>@eslint/config-array>minimatch",
+            ".>typescript-eslint>@typescript-eslint/eslint-plugin>eslint>minimatch",
+            ".>typescript-eslint>@typescript-eslint/parser>@typescript-eslint/typescript-estree>minimatch",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>@eslint/config-array>minimatch",
+            ".>typescript-eslint>@typescript-eslint/parser>eslint>minimatch",
+            ".>typescript-eslint>@typescript-eslint/typescript-estree>minimatch",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>@eslint/config-array>minimatch",
+            ".>typescript-eslint>@typescript-eslint/utils>@eslint-community/eslint-utils>eslint>minimatch",
+            ".>typescript-eslint>@typescript-eslint/utils>@typescript-eslint/typescript-estree>minimatch",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>@eslint/config-array>minimatch",
+            ".>typescript-eslint>@typescript-eslint/utils>eslint>minimatch",
+            ".>typescript-eslint>eslint>@eslint/config-array>minimatch",
+            ".>typescript-eslint>eslint>minimatch"
+          ],
+          "dev": true,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    }
+  ],
+  "disposition": "OPEN: owner/security acceptance or compatible tool remediation required; no risk waiver is asserted."
+}

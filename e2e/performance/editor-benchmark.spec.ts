@@ -4,7 +4,7 @@ import { cpus, platform } from 'node:os';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
-for (const scenario of ['empty', '1000-words', '5000-words', '20000-words', 'mixed-5000', 'table-5000', 'media-5000']) {
+for (const scenario of ['empty', '1000-words', '5000-words', '20000-words', '50000-words', 'mixed-5000', 'table-5000', 'media-5000']) {
   test(scenario, async ({ page, browser }, testInfo) => {
     const mobile = testInfo.project.name.startsWith('mobile');
     if (mobile) {
@@ -23,6 +23,7 @@ for (const scenario of ['empty', '1000-words', '5000-words', '20000-words', 'mix
     const mountMs = await page.evaluate(() => (window as unknown as { __studio: { benchmarkReadyMs(): number } }).__studio.benchmarkReadyMs());
     await editable.locator('p').first().click();
     await page.keyboard.press('End');
+    await page.evaluate(() => (window as unknown as { __studio: { beginBenchmarkTyping(): void } }).__studio.beginBenchmarkTyping());
     await editable.evaluate(root => {
       const target = window as unknown as { __studioTiming: number[] };
       target.__studioTiming = [];
@@ -39,6 +40,10 @@ for (const scenario of ['empty', '1000-words', '5000-words', '20000-words', 'mix
     const samples = await page.evaluate(() => (window as unknown as { __studioTiming: number[] }).__studioTiming);
     const snapshot = await page.evaluate(() => (window as unknown as { __studio: { getDoc(): unknown } }).__studio.getDoc());
     expect(JSON.stringify(snapshot)).toContain('x'.repeat(20));
+    const commitSamples = await page.evaluate(() => (window as unknown as { __studio: { benchmarkTypingSamples(): number[] } }).__studio.benchmarkTypingSamples());
+    expect(commitSamples).toHaveLength(20);
+    const rawCommitSamples = [...commitSamples];
+    commitSamples.sort((a, b) => a - b);
     samples.sort((a, b) => a - b);
     const report = {
       commit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
@@ -49,6 +54,12 @@ for (const scenario of ['empty', '1000-words', '5000-words', '20000-words', 'mix
       viewport: page.viewportSize(), cpuThrottle: mobile ? 4 : 1,
       method: 'React mount to second animation frame; keydown to second frame proxy. Not INP, not physical mobile hardware.',
       mountMs, typing: { samples: samples.length, p50Ms: samples[9], p95Ms: samples[18], maxMs: samples.at(-1) },
+      lexicalVersion: JSON.parse(readFileSync('packages/studio-react/package.json', 'utf8')).dependencies.lexical,
+      commitLatency: {
+        method: 'DOM keydown capture to a microtask after the dirty Lexical commit listener chain; includes synchronous serialization/listeners, excludes later React rendering, paint and host persistence. Not INP.',
+        samples: commitSamples.length, rawSamplesMs: rawCommitSamples,
+        p50Ms: commitSamples[9], p95Ms: commitSamples[18], maxMs: commitSamples.at(-1),
+      },
       serializedBytes: Buffer.byteLength(JSON.stringify(snapshot)),
     };
     const path = testInfo.outputPath('editor-benchmark.json');

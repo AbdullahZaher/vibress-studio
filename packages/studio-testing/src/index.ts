@@ -90,7 +90,7 @@ export function createStressTestStudioDocument(paragraphCount = 200): StudioDocu
 /** Deterministic synthetic workloads, not production article samples. */
 export function createBenchmarkStudioDocument(scenario: string): StudioDocument {
   const counts: Record<string, number> = {
-    empty: 0, '1000-words': 1000, '5000-words': 5000, '20000-words': 20000,
+    empty: 0, '1000-words': 1000, '5000-words': 5000, '20000-words': 20000, '50000-words': 50000,
     'mixed-5000': 5000, 'table-5000': 5000, 'media-5000': 5000,
   };
   if (!Object.prototype.hasOwnProperty.call(counts, scenario)) throw new Error('UNKNOWN_STUDIO_BENCHMARK_SCENARIO');

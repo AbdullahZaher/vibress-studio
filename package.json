@@ -25,7 +25,8 @@
     "test:e2e:install": "playwright install chromium firefox webkit",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "verify:lexical": "node scripts/verify-lexical-contract.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

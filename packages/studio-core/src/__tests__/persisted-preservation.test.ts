@@ -50,3 +50,14 @@ describe('persisted document compatibility (STU-201/STU-204)', () => {
     expect(() => assertStudioDocumentEditable(document)).toThrow(StudioMigrationError);
   });
 });
+
+
+it('preserves opaque envelope/editor discriminators while normalizing only root legacy cards', () => {
+  const value = {
+    ...createDefaultStudioDocument('Keep text'),
+    publicationMetadata: { type: 'react-studio-card', custom: 'opaque' },
+    editor: { extension: { type: 'react-studio-card', custom: 'opaque editor' } },
+  };
+  expect(migrateDocument(value)).toEqual(value);
+  expect(migrateDocument(JSON.stringify(value))).toEqual(value);
+});

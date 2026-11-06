@@ -44,6 +44,12 @@ jobs:
       # Workspace packages resolve each other via their published dist entry
       # points, so a build must exist before typecheck/tests on a fresh
       # checkout (typecheck also implies tsc for every package).
+      - name: Verify coherent Lexical engine pins including the playground
+        run: pnpm verify:lexical
+
+      - name: Test benchmark and package contract guards
+        run: node --test scripts/*.node-test.mjs
+
       - name: Build
         run: pnpm build
 
@@ -71,6 +77,12 @@ jobs:
 
       - name: Smoke ESM/CJS consumers, SSR and CSS export paths
         run: pnpm verify:consumer-imports
+
+      - name: Strict clean installed consumer (Bundler)
+        run: pnpm verify:packed-consumer
+
+      - name: Strict clean installed consumer (NodeNext)
+        run: pnpm verify:packed-consumer --strict-nodenext
 
       - name: Measure document pipeline (not browser INP)
         run: pnpm benchmark:document | tee document-pipeline-benchmark.json

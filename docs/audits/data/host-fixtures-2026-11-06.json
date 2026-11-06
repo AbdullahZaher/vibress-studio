@@ -1,0 +1,45 @@
+{
+  "hostCommit": "cb0be3f03460cc57143e43db093c523e27b4cf0d",
+  "scope": "Persisted core fixtures only; no renderer/editor/Yjs/service parity asserted",
+  "status": "pass",
+  "results": [
+    {
+      "fixture": "current-mixed-rtl",
+      "status": "pass"
+    },
+    {
+      "fixture": "legacy-card",
+      "status": "pass"
+    },
+    {
+      "fixture": "unknown-future-node",
+      "status": "pass"
+    },
+    {
+      "fixture": "future-document-version",
+      "status": "pass",
+      "admission": "recovery-only",
+      "note": "Persisted envelope preserved; host editor migration refuses future versions with exact original input."
+    },
+    {
+      "fixture": "tables-lists-code",
+      "status": "pass"
+    },
+    {
+      "fixture": "envelope-extension",
+      "status": "pass"
+    },
+    {
+      "fixture": "foreign-schema",
+      "status": "pass"
+    },
+    {
+      "fixture": "invalid-root",
+      "status": "pass"
+    },
+    {
+      "fixture": "unknown-object",
+      "status": "pass"
+    }
+  ]
+}

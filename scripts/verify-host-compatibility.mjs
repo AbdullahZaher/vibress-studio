@@ -40,8 +40,21 @@ try {
   for (const fixture of fixtures.documents) {
     try {
       const accepted = standalone.migrateDocument(fixture.input);
-      const hostDocument = hostCore.migrateDocument(fixture.input);
       const persisted = value => JSON.parse(JSON.stringify(value));
+      // Host migration is an editor-admission boundary. A future envelope must
+      // remain lossless in persisted validation, with exact-input recovery when
+      // editing is refused. Do not call this runtime/editor parity.
+      if (fixture.name === 'future-document-version') {
+        assert.deepEqual(persisted(hostCore.validateStudioDocument(fixture.input)), persisted(accepted));
+        for (const original of [fixture.input, JSON.stringify(fixture.input)]) {
+          assert.throws(() => hostCore.migrateDocument(original), error =>
+            error.code === 'UNSUPPORTED_DOCUMENT' && error.rawDocument === original);
+        }
+        results.push({ fixture: fixture.name, status: 'pass', admission: 'recovery-only',
+          note: 'Persisted envelope preserved; host editor migration refuses future versions with exact original input.' });
+        continue;
+      }
+      const hostDocument = hostCore.migrateDocument(fixture.input);
       assert.deepEqual(persisted(hostDocument), persisted(accepted));
       assert.deepEqual(persisted(standalone.migrateDocument(JSON.stringify(hostDocument))), persisted(accepted));
       results.push({ fixture: fixture.name, status: 'pass' });

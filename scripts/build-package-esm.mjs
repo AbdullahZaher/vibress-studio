@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /** Build true ESM entries without bundling duplicate React/Lexical instances.
- * Legacy Lexical 0.13 is CommonJS and Node ESM cannot reliably import its
- * named exports or extensionless deep paths directly. A generated interop
- * shim keeps exactly the same peer Lexical singleton and public exports.
+ * Support both legacy CommonJS and native ESM Lexical exports. A namespace
+ * adapter avoids assuming a default export, keeps dependencies external, and
+ * uses the runtime selected by the consumer module format.
  */
 import { build } from 'esbuild';
 import { createRequire } from 'node:module';
@@ -23,7 +23,7 @@ await build({
   jsx: 'automatic',
   legalComments: 'none',
   plugins: [{
-    name: 'cjs-lexical-interop-without-duplicate-runtime',
+    name: 'lexical-module-interop-without-bundling-runtime',
     setup(builder) {
       builder.onResolve({ filter: /^[^./]/ }, (args) => {
         if (args.namespace === 'lexical-cjs-shim') return { path: args.path, external: true };
@@ -36,7 +36,8 @@ await build({
         const exports = requireFromPackage(args.path);
         const names = Object.keys(exports).filter((name) =>
           /^[A-Za-z_$][\w$]*$/.test(name) && !forbidden.has(name));
-        const shim = ['import cjs from ' + JSON.stringify(args.path) + ';',
+        const shim = ['import * as lexicalModule from ' + JSON.stringify(args.path) + ';',
+          'const cjs = lexicalModule.default ?? lexicalModule;',
           'export default cjs.default ?? cjs;',
           ...names.map((name) => `export const ${name} = cjs[${JSON.stringify(name)}];`)];
         return { contents: shim.join('\n'), loader: 'js' };

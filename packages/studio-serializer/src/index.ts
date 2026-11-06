@@ -11,6 +11,12 @@ import {
 } from '@vibress/studio-core';
 
 export function serializeStudioDocument(root: unknown, limits?: DocumentResourceLimits, sourceDocument?: StudioDocument): StudioDocument {
+  // Inspect descriptors/resources before reading fields or spreading input.
+  checkDocumentResourceLimits(root, limits);
+  if (sourceDocument) {
+    checkDocumentResourceLimits(sourceDocument, limits);
+    validateStudioDocument(sourceDocument);
+  }
   if (!root || typeof root !== 'object' || !('type' in root) || root.type !== 'root') {
     throw new StudioMigrationError('Cannot serialize an invalid Studio root.', root, 'INVALID_DOCUMENT');
   }
@@ -19,7 +25,6 @@ export function serializeStudioDocument(root: unknown, limits?: DocumentResource
   }
   const sourceRoot = root;
   // Reject cyclic/accessor/oversized structures before recursive normalization.
-  checkDocumentResourceLimits(sourceRoot, limits);
   const doc: StudioDocument = {
     ...sourceDocument,
     schema: STUDIO_SCHEMA_NAME,
