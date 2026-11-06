@@ -36,4 +36,6 @@ Studio is a **library, not a CMS**. Your application supplies authentication, pe
 The Vibress host and this standalone repository are not automatically feature-equivalent. [ADR-0001](/adr/0001-studio-canonical-runtime) is **proposed**, and identifies the host as the current runtime reference. Verify public exports and integration compatibility at the exact revision you deploy.
 :::
 
+For the current proposed improvement program, see the [World-class editor 9+ delivery plan](/roadmaps/world-class-editor-9-plus-plan-2026-11-06). It separates proposed work from verified code, assigns Studio versus Host responsibilities, and defines evidence-based release gates; **it is not a release certification**.
+
 Use the [package exports](/package-exports), [security policy](/security), and [test guidance](/testing) as engineering references. The [Arabic introduction](/ar/) is also available.
