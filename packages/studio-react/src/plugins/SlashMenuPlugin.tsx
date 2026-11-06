@@ -161,7 +161,7 @@ function SlashMenuPortalContent({
     <div
       ref={menuRef}
       role="listbox"
-      aria-label="Insert block"
+      aria-label="Insert card"
       className="notion-slash-menu studio-glassy-menu"
       style={{
         position: 'absolute',
