@@ -161,8 +161,11 @@ export function E2EHarness() {
     root.addEventListener('keydown', keydown, true);
     const unregister = editor.registerUpdateListener(({ dirtyElements, dirtyLeaves }) => {
       if (pending === null || (!dirtyElements.size && !dirtyLeaves.size)) return;
-      samples.push(performance.now() - pending);
+      const start = pending;
       pending = null;
+      // OnChangePlugin may re-register after this observer on a controlled
+      // React render. Measure after the complete synchronous listener chain.
+      queueMicrotask(() => samples.push(performance.now() - start));
     });
     typingMeasurement.current = { samples, stop: () => {
       root.removeEventListener('keydown', keydown, true); unregister();

@@ -792,7 +792,7 @@ export function migrateDocument(rawDoc: unknown, limits?: DocumentResourceLimits
     if (obj.schema === 'vibress-studio') {
       if (obj.root && typeof obj.root === 'object') {
         const root = obj.version === CURRENT_STUDIO_VERSION ? migrateLegacyRoot(obj.root) : obj.root;
-        return validateMigratedDocument(normalizeStudioDocument({ ...obj, root }), rawDoc, limits);
+        return validateMigratedDocument({ ...obj, root: normalizeStudioDocument(root) }, rawDoc, limits);
       }
       throw new StudioMigrationError(
         'Invalid persisted Studio document: root must be an object',

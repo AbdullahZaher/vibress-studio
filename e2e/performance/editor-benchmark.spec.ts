@@ -56,7 +56,7 @@ for (const scenario of ['empty', '1000-words', '5000-words', '20000-words', 'mix
       mountMs, typing: { samples: samples.length, p50Ms: samples[9], p95Ms: samples[18], maxMs: samples.at(-1) },
       lexicalVersion: JSON.parse(readFileSync('packages/studio-react/package.json', 'utf8')).dependencies.lexical,
       commitLatency: {
-        method: 'DOM keydown capture to first dirty Lexical update listener; includes synchronous earlier listeners, excludes paint and host persistence. Not INP.',
+        method: 'DOM keydown capture to a microtask after the dirty Lexical commit listener chain; includes synchronous serialization/listeners, excludes later React rendering, paint and host persistence. Not INP.',
         samples: commitSamples.length, rawSamplesMs: rawCommitSamples,
         p50Ms: commitSamples[9], p95Ms: commitSamples[18], maxMs: commitSamples.at(-1),
       },

@@ -2,6 +2,11 @@
 
 ## Unreleased — focused package contract follow-up
 
+- Normalize only the document root, preserving opaque envelope/editor values
+  even when their metadata uses a legacy node discriminator.
+- Reject serializer root/source accessors before evaluating fields or spreading
+  data; retain resource and future-version checks.
+
 - Resolve strict installed Bundler/NodeNext consumer declarations with the
   evaluated coherent Lexical 0.14.3 family; retain canonical Studio v1 admission.
 - Support native ESM and CommonJS external dependency namespaces, add a
