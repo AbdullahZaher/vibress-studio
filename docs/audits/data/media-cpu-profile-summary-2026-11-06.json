@@ -1,0 +1,211 @@
+{
+  "implementationSource": "5da7066f0ceb93e173425fff04697a29ca8b8286",
+  "profileCheckout": "38e3f9e16b4c537d088356dbd2734642906c3731",
+  "scenario": "media-5000",
+  "profile": "390x844,4xCPU,localVite",
+  "keys": 20,
+  "scope": "Controlled editor plus E2E harness with live sanitized published preview. Sampling includes inter-key/React work; not an editor-only latency or INP measurement.",
+  "topSelfSamples": [
+    {
+      "milliseconds": 1262.651,
+      "functionName": "(program)",
+      "scriptId": "0",
+      "url": "",
+      "lineNumber": -1,
+      "columnNumber": -1
+    },
+    {
+      "milliseconds": 88.886,
+      "functionName": "(garbage collector)",
+      "scriptId": "0",
+      "url": "",
+      "lineNumber": -1,
+      "columnNumber": -1
+    },
+    {
+      "milliseconds": 77.987,
+      "functionName": "write",
+      "scriptId": "47",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/zod.js?v=4454a34c",
+      "lineNumber": 2587,
+      "columnNumber": 7
+    },
+    {
+      "milliseconds": 75.196,
+      "functionName": "diffProperties",
+      "scriptId": "16",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/chunk-DUEPJSOF.js?v=4454a34c",
+      "lineNumber": 7617,
+      "columnNumber": 31
+    },
+    {
+      "milliseconds": 73.593,
+      "functionName": "ReactElement",
+      "scriptId": "11",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/chunk-NBJ4KYHW.js?v=4454a34c",
+      "lineNumber": 450,
+      "columnNumber": 35
+    },
+    {
+      "milliseconds": 65.145,
+      "functionName": "_callState",
+      "scriptId": "51",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/parse5.js?v=4454a34c",
+      "lineNumber": 1758,
+      "columnNumber": 12
+    },
+    {
+      "milliseconds": 62.752,
+      "functionName": "_callState",
+      "scriptId": "51",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/parse5.js?v=4454a34c",
+      "lineNumber": 1758,
+      "columnNumber": 12
+    },
+    {
+      "milliseconds": 60.764,
+      "functionName": "_emitCodePoint",
+      "scriptId": "51",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/parse5.js?v=4454a34c",
+      "lineNumber": 1731,
+      "columnNumber": 16
+    },
+    {
+      "milliseconds": 55.887,
+      "functionName": "",
+      "scriptId": "16",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/chunk-DUEPJSOF.js?v=4454a34c",
+      "lineNumber": 2352,
+      "columnNumber": 70
+    },
+    {
+      "milliseconds": 55.338,
+      "functionName": "_runParsingLoop",
+      "scriptId": "51",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/parse5.js?v=4454a34c",
+      "lineNumber": 1488,
+      "columnNumber": 17
+    },
+    {
+      "milliseconds": 54.545,
+      "functionName": "_emitCodePoint",
+      "scriptId": "51",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/parse5.js?v=4454a34c",
+      "lineNumber": 1731,
+      "columnNumber": 16
+    },
+    {
+      "milliseconds": 54.436,
+      "functionName": "validateProperty$1",
+      "scriptId": "16",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/chunk-DUEPJSOF.js?v=4454a34c",
+      "lineNumber": 3360,
+      "columnNumber": 39
+    },
+    {
+      "milliseconds": 50.877,
+      "functionName": "now",
+      "scriptId": "0",
+      "url": "",
+      "lineNumber": -1,
+      "columnNumber": -1
+    },
+    {
+      "milliseconds": 50.322,
+      "functionName": "",
+      "scriptId": "84",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/lucide-react.js?v=4454a34c",
+      "lineNumber": 1853,
+      "columnNumber": 2
+    },
+    {
+      "milliseconds": 45.006,
+      "functionName": "_runParsingLoop",
+      "scriptId": "51",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/parse5.js?v=4454a34c",
+      "lineNumber": 1488,
+      "columnNumber": 17
+    },
+    {
+      "milliseconds": 44.15,
+      "functionName": "prepareUpdate",
+      "scriptId": "16",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/chunk-DUEPJSOF.js?v=4454a34c",
+      "lineNumber": 8357,
+      "columnNumber": 30
+    },
+    {
+      "milliseconds": 42.868,
+      "functionName": "compile",
+      "scriptId": "47",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/zod.js?v=4454a34c",
+      "lineNumber": 2601,
+      "columnNumber": 9
+    },
+    {
+      "milliseconds": 39.536,
+      "functionName": "warnUnknownProperties",
+      "scriptId": "16",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/chunk-DUEPJSOF.js?v=4454a34c",
+      "lineNumber": 3454,
+      "columnNumber": 44
+    },
+    {
+      "milliseconds": 39.432,
+      "functionName": "ReactElement",
+      "scriptId": "7",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=4454a34c",
+      "lineNumber": 565,
+      "columnNumber": 35
+    },
+    {
+      "milliseconds": 37.378,
+      "functionName": "write",
+      "scriptId": "47",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/zod.js?v=4454a34c",
+      "lineNumber": 2587,
+      "columnNumber": 7
+    },
+    {
+      "milliseconds": 33.888,
+      "functionName": "assertValidProps",
+      "scriptId": "16",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/chunk-DUEPJSOF.js?v=4454a34c",
+      "lineNumber": 2681,
+      "columnNumber": 33
+    },
+    {
+      "milliseconds": 33.66,
+      "functionName": "getModernOffsetsFromPoints",
+      "scriptId": "16",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/chunk-DUEPJSOF.js?v=4454a34c",
+      "lineNumber": 6547,
+      "columnNumber": 43
+    },
+    {
+      "milliseconds": 31.172,
+      "functionName": "defineKeyPropWarningGetter",
+      "scriptId": "11",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/chunk-NBJ4KYHW.js?v=4454a34c",
+      "lineNumber": 409,
+      "columnNumber": 43
+    },
+    {
+      "milliseconds": 30.241,
+      "functionName": "mergeDefs",
+      "scriptId": "47",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/zod.js?v=4454a34c",
+      "lineNumber": 810,
+      "columnNumber": 18
+    },
+    {
+      "milliseconds": 27.331,
+      "functionName": "updateHostComponent",
+      "scriptId": "16",
+      "url": "http://127.0.0.1:5189/node_modules/.vite/deps/chunk-DUEPJSOF.js?v=4454a34c",
+      "lineNumber": 14790,
+      "columnNumber": 36
+    }
+  ],
+  "interpretation": "HTML parser/sanitizer, validation, React and GC appear in samples. This does not establish one cause or isolate product-host costs. Profile preview/snapshot work separately before optimizing; preserve validation."
+}

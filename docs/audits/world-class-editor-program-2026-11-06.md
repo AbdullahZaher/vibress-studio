@@ -224,6 +224,16 @@ the media case is particularly slow. They need profiling and remeasurement.
 True INP ≤200 ms, memory-growth/leak acceptance, real mobile scrolling/paste and
 production-host autosave performance remain unverified.
 
+The harness also renders/sanitizes a live published preview on document changes.
+A separate [read-only CPU sampling run](data/media-cpu-profile-summary-2026-11-06.json)
+records parser/sanitizer, validation, React and GC work among the samples. This
+suggests that preview/snapshot costs should be profiled separately; it does not
+isolate editor-core cost or prove a single cause. The budget misses above belong
+to this documented controlled-editor-plus-preview scenario, not an editor-only
+benchmark or a production-host measurement. No validation was disabled to improve
+these numbers.
+
+
 [CPU pipeline reports](data/document-pipeline-2026-11-06.json) separately measure
 serialization, HTML rendering, Markdown export and HTML reimport over six
 synthetic workloads, with seven iterations (three for reimport), one warmup,
