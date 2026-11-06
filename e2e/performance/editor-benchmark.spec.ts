@@ -4,7 +4,7 @@ import { cpus, platform } from 'node:os';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
-for (const scenario of ['empty', '1000-words', '5000-words', '20000-words', 'mixed-5000', 'table-5000', 'media-5000']) {
+for (const scenario of ['empty', '1000-words', '5000-words', '20000-words', '50000-words', 'mixed-5000', 'table-5000', 'media-5000']) {
   test(scenario, async ({ page, browser }, testInfo) => {
     const mobile = testInfo.project.name.startsWith('mobile');
     if (mobile) {

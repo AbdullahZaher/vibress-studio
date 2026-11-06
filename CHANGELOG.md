@@ -6,6 +6,9 @@
   even when their metadata uses a legacy node discriminator.
 - Reject serializer root/source accessors before evaluating fields or spreading
   data; retain resource and future-version checks.
+- Preserve opaque card payload/root metadata during legacy AST normalization;
+  recover unsupported numeric alignments instead of silently dropping them.
+- Include 50,000-word browser stress workloads in the performance harness.
 
 - Resolve strict installed Bundler/NodeNext consumer declarations with the
   evaluated coherent Lexical 0.14.3 family; retain canonical Studio v1 admission.

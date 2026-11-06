@@ -617,18 +617,16 @@ export function normalizeStudioDocument<T>(rawDoc: T): T {
   }
   if (rawDoc && typeof rawDoc === 'object') {
     const obj = rawDoc as Record<string, unknown>;
-    if (obj.type === LEGACY_CARD_NODE_TYPE) {
-      return {
-        ...obj,
-        type: CANONICAL_CARD_NODE_TYPE,
-        children: obj.children ? normalizeStudioDocument(obj.children) : obj.children,
-      } as unknown as T;
+    // Traverse document/AST positions only. Payloads, extension metadata and
+    // unknown fields may use the same discriminator without being nodes.
+    if (obj.schema === STUDIO_SCHEMA_NAME || (obj.type === undefined && obj.root)) {
+      return { ...obj, root: normalizeStudioDocument(obj.root) } as unknown as T;
     }
-    const out: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj)) {
-      Object.defineProperty(out, key, { value: normalizeStudioDocument(value), enumerable: true, writable: true, configurable: true });
-    }
-    return out as unknown as T;
+    return {
+      ...obj,
+      ...(obj.type === LEGACY_CARD_NODE_TYPE ? { type: CANONICAL_CARD_NODE_TYPE } : {}),
+      ...(Array.isArray(obj.children) ? { children: normalizeStudioDocument(obj.children) } : {}),
+    } as unknown as T;
   }
   return rawDoc;
 }
