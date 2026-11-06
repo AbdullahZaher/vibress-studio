@@ -186,6 +186,7 @@ export function FloatingFormatToolbarPlugin({ anchorElem = document.body }: { an
 
   const handleTurnInto = (type: TurnIntoType) => {
     turnSelectedBlockInto(editor, type);
+    editor.focus();
     setOpenDropdown(null);
   };
 

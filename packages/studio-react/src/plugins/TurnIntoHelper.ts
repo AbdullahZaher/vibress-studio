@@ -2,6 +2,7 @@ import {
   $getSelection,
   $isRangeSelection,
   $createParagraphNode,
+  $getNodeByKey,
   LexicalEditor,
 } from 'lexical';
 import {
@@ -28,9 +29,17 @@ export type TurnIntoType =
 
 export function turnSelectedBlockInto(
   editor: LexicalEditor,
-  type: TurnIntoType
+  type: TurnIntoType,
+  targetNodeKey?: string,
 ): void {
   editor.update(() => {
+    if (targetNodeKey) {
+      const node = $getNodeByKey(targetNodeKey);
+      if (node && 'select' in node && typeof (node as { select?: () => void }).select === 'function') {
+        (node as { select: () => void }).select();
+      }
+    }
+
     const selection = $getSelection();
     if (!$isRangeSelection(selection)) {
       return;
@@ -69,5 +78,5 @@ export function turnSelectedBlockInto(
         break;
       }
     }
-  });
+  }, { discrete: true });
 }
