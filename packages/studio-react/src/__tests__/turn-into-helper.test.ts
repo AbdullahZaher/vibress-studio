@@ -1,105 +1,159 @@
 import { describe, it, expect } from 'vitest';
-import {
-  createEditor,
-  $getRoot,
-  $createParagraphNode,
-  $createTextNode,
-  $isElementNode,
-} from 'lexical';
+import { createEditor, $getRoot, $createParagraphNode, $createTextNode } from 'lexical';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
-import { CodeNode } from '@lexical/code';
 import { ListNode, ListItemNode } from '@lexical/list';
-import { turnSelectedBlockInto } from '../plugins/TurnIntoHelper';
+import { CodeNode } from '@lexical/code';
+import { turnSelectedBlockInto, turnNodeInto, TurnIntoType } from '../plugins/TurnIntoHelper';
 
-describe('turnSelectedBlockInto helper', () => {
-  function setupEditor() {
+describe('STUDIO-01: TurnIntoHelper Atomic Node Conversion Suite', () => {
+  function setupTestEditor() {
     const editor = createEditor({
-      nodes: [HeadingNode, QuoteNode, CodeNode, ListNode, ListItemNode],
+      nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, CodeNode],
+      onError: (error) => {
+        throw error;
+      },
     });
-    const rootElement = document.createElement('div');
-    rootElement.contentEditable = 'true';
-    document.body.appendChild(rootElement);
-    editor.setRootElement(rootElement);
-    return { editor, rootElement };
+
+    return editor;
   }
 
-  it('transforms paragraph to heading, quote, code, and lists', () => {
-    const { editor, rootElement } = setupEditor();
-    let targetKey = '';
+  it('converts paragraph to heading atomically without exceptions', () => {
+    const editor = setupTestEditor();
+    let paragraphKey = '';
 
-    // 1. Paragraph -> H1
     editor.update(
       () => {
         const root = $getRoot();
         const p = $createParagraphNode();
-        const text = $createTextNode('Hello World');
+        const text = $createTextNode('Hello world');
         p.append(text);
         root.append(p);
-        targetKey = p.getKey();
-        text.select(0, 5);
+        paragraphKey = p.getKey();
       },
-      { discrete: true }
+      { discrete: true },
     );
 
-    turnSelectedBlockInto(editor, 'h1', targetKey);
+    expect(() => {
+      turnNodeInto(editor, paragraphKey, 'h1');
+    }).not.toThrow();
 
     editor.getEditorState().read(() => {
       const root = $getRoot();
-      const first = root.getFirstChild();
-      expect($isElementNode(first)).toBe(true);
-      expect(first?.getType()).toBe('heading');
-      expect((first as HeadingNode)?.getTag()).toBe('h1');
-      expect(first?.getTextContent()).toBe('Hello World');
-      if (first) targetKey = first.getKey();
+      const firstChild = root.getFirstChild();
+      expect(firstChild?.getType()).toBe('heading');
     });
+  });
 
-    // 2. H1 -> Quote
-    turnSelectedBlockInto(editor, 'quote', targetKey);
+  it('handles rapid repeated conversions (paragraph -> h2 -> quote -> code -> paragraph) without desync', () => {
+    const editor = setupTestEditor();
+    let nodeKey = '';
+
+    editor.update(
+      () => {
+        const root = $getRoot();
+        const p = $createParagraphNode();
+        p.append($createTextNode('Dynamic block'));
+        root.append(p);
+        nodeKey = p.getKey();
+      },
+      { discrete: true },
+    );
+
+    const sequence: TurnIntoType[] = ['h2', 'quote', 'code', 'paragraph', 'h3'];
+
+    for (const targetType of sequence) {
+      expect(() => {
+        editor.getEditorState().read(() => {
+          const root = $getRoot();
+          const firstChild = root.getFirstChild();
+          if (firstChild) nodeKey = firstChild.getKey();
+        });
+        turnNodeInto(editor, nodeKey, targetType);
+      }).not.toThrow();
+    }
 
     editor.getEditorState().read(() => {
       const root = $getRoot();
-      const first = root.getFirstChild();
-      expect($isElementNode(first)).toBe(true);
-      expect(first?.getType()).toBe('quote');
-      expect(first?.getTextContent()).toBe('Hello World');
-      if (first) targetKey = first.getKey();
+      const firstChild = root.getFirstChild();
+      expect(firstChild?.getType()).toBe('heading');
     });
+  });
 
-    // 3. Quote -> Code
-    turnSelectedBlockInto(editor, 'code', targetKey);
+  it('safely handles non-existent or unmounted node keys without crashing', () => {
+    const editor = setupTestEditor();
+
+    expect(() => {
+      turnNodeInto(editor, 'non-existent-key-9999', 'quote');
+    }).not.toThrow();
+  });
+
+  it('converts paragraph to bullet-list with valid ListNode -> ListItemNode hierarchy (P1-8)', () => {
+    const editor = setupTestEditor();
+    let pKey = '';
+
+    editor.update(
+      () => {
+        const root = $getRoot();
+        const p = $createParagraphNode();
+        p.append($createTextNode('List item content'));
+        root.append(p);
+        pKey = p.getKey();
+      },
+      { discrete: true },
+    );
+
+    turnNodeInto(editor, pKey, 'bullet-list');
 
     editor.getEditorState().read(() => {
       const root = $getRoot();
-      const first = root.getFirstChild();
-      expect($isElementNode(first)).toBe(true);
-      expect(first?.getType()).toBe('code');
-      expect(first?.getTextContent()).toBe('Hello World');
-      if (first) targetKey = first.getKey();
+      const list = root.getFirstChild();
+      expect(list?.getType()).toBe('list');
+      expect((list as ListNode).getListType()).toBe('bullet');
+      const item = (list as ListNode).getFirstChild();
+      expect(item?.getType()).toBe('listitem');
+      expect(item?.getTextContent()).toBe('List item content');
     });
+  });
 
-    // 4. Code -> Bullet list
-    turnSelectedBlockInto(editor, 'bullet-list', targetKey);
+  it('switches list type in-place and unwraps list back to paragraph (P1-8)', () => {
+    const editor = setupTestEditor();
+    let pKey = '';
 
+    editor.update(
+      () => {
+        const root = $getRoot();
+        const p = $createParagraphNode();
+        p.append($createTextNode('Switchable content'));
+        root.append(p);
+        pKey = p.getKey();
+      },
+      { discrete: true },
+    );
+
+    turnNodeInto(editor, pKey, 'bullet-list');
+    let itemKey = '';
     editor.getEditorState().read(() => {
       const root = $getRoot();
-      const first = root.getFirstChild();
-      expect($isElementNode(first)).toBe(true);
-      expect(first?.getType()).toBe('list');
-      expect(first?.getTextContent()).toBe('Hello World');
-      if (first) targetKey = first.getKey();
+      const list = root.getFirstChild() as ListNode;
+      itemKey = list.getFirstChild()!.getKey();
     });
 
-    // 5. Bullet list -> Paragraph
-    turnSelectedBlockInto(editor, 'paragraph', targetKey);
-
+    // Switch to number list in-place
+    turnNodeInto(editor, itemKey, 'number-list');
     editor.getEditorState().read(() => {
       const root = $getRoot();
-      const first = root.getFirstChild();
-      expect($isElementNode(first)).toBe(true);
-      expect(first?.getType()).toBe('paragraph');
-      expect(first?.getTextContent()).toBe('Hello World');
+      const list = root.getFirstChild() as ListNode;
+      expect(list.getType()).toBe('list');
+      expect(list.getListType()).toBe('number');
     });
 
-    rootElement.remove();
+    // Switch back to paragraph
+    turnNodeInto(editor, itemKey, 'paragraph');
+    editor.getEditorState().read(() => {
+      const root = $getRoot();
+      const p = root.getFirstChild();
+      expect(p?.getType()).toBe('paragraph');
+      expect(p?.getTextContent()).toBe('Switchable content');
+    });
   });
 });

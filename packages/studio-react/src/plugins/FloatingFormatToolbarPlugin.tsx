@@ -81,7 +81,9 @@ function setFloatingElemPosition(targetRect: DOMRect | null, floatingElem: HTMLE
   floatingElem.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
 }
 
-export function FloatingFormatToolbarPlugin({ anchorElem = document.body }: { anchorElem?: HTMLElement }) {
+export function FloatingFormatToolbarPlugin({ anchorElem }: { anchorElem?: HTMLElement }) {
+  const resolvedAnchor =
+    anchorElem ?? (typeof document !== "undefined" ? document.body : null);
   const [editor] = useLexicalComposerContext();
   const [isTextSelected, setIsTextSelected] = useState(false);
   const [isBold, setIsBold] = useState(false);
@@ -97,17 +99,23 @@ export function FloatingFormatToolbarPlugin({ anchorElem = document.body }: { an
   const toolbarRef = useRef<HTMLDivElement>(null);
 
   const updatePopup = useCallback(() => {
+    // Focus moving into the toolbar's own controls (e.g. the link editor input) fires
+    // `selectionchange`; that must not collapse the toolbar (P1-7).
+    const active = typeof document !== "undefined" ? document.activeElement : null;
+    if (toolbarRef.current && active && toolbarRef.current.contains(active)) {
+      return;
+    }
     editor.getEditorState().read(() => {
       const selection = $getSelection();
       const nativeSelection = window.getSelection();
       const rootElement = editor.getRootElement();
 
       if (
-        nativeSelection !== null &&
-        (!$isRangeSelection(selection) ||
-          rootElement === null ||
-          !rootElement.contains(nativeSelection.anchorNode) ||
-          nativeSelection.isCollapsed)
+        nativeSelection === null ||
+        !$isRangeSelection(selection) ||
+        rootElement === null ||
+        !rootElement.contains(nativeSelection.anchorNode) ||
+        nativeSelection.isCollapsed
       ) {
         setIsTextSelected(false);
         setIsLinkEditorOpen(false);
@@ -163,7 +171,7 @@ export function FloatingFormatToolbarPlugin({ anchorElem = document.body }: { an
         }
       }
     }
-  }, [isTextSelected, anchorElem, editor, updatePopup, isLinkEditorOpen, openDropdown]);
+  }, [isTextSelected, resolvedAnchor, editor, updatePopup, isLinkEditorOpen, openDropdown]);
 
   // Close menus on Escape key
   useEffect(() => {
@@ -180,7 +188,7 @@ export function FloatingFormatToolbarPlugin({ anchorElem = document.body }: { an
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isLinkEditorOpen, openDropdown]);
 
-  if (!isTextSelected) {
+  if (!isTextSelected || !resolvedAnchor) {
     return null;
   }
 
@@ -444,7 +452,7 @@ export function FloatingFormatToolbarPlugin({ anchorElem = document.body }: { an
         </>
       )}
     </div>,
-    anchorElem
+    resolvedAnchor
   );
 }
 

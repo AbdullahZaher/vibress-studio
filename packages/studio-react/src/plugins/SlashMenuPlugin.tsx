@@ -14,7 +14,7 @@ import {
   $createParagraphNode,
 } from 'lexical';
 import { $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
-import { $createListNode } from '@lexical/list';
+import { $createListNode, $createListItemNode } from '@lexical/list';
 import { $createCodeNode } from '@lexical/code';
 import { $createTableNodeWithDimensions } from '@lexical/table';
 import {
@@ -525,7 +525,10 @@ export function SlashMenuPlugin({
             }
             case 'check-list': {
               const list = $createListNode('check');
+              const item = $createListItemNode();
+              list.append(item);
               selection.insertNodes([list]);
+              item.select();
               break;
             }
             case 'table': {
@@ -535,12 +538,18 @@ export function SlashMenuPlugin({
             }
             case 'bullet-list': {
               const list = $createListNode('bullet');
+              const item = $createListItemNode();
+              list.append(item);
               selection.insertNodes([list]);
+              item.select();
               break;
             }
             case 'number-list': {
               const list = $createListNode('number');
+              const item = $createListItemNode();
+              list.append(item);
               selection.insertNodes([list]);
+              item.select();
               break;
             }
             case 'quote': {
