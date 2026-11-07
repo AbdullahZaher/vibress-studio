@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { $createTextNode, $getRoot, createEditor } from 'lexical';
+import { $createTextNode, $getRoot, $getSelection, $isRangeSelection, createEditor } from 'lexical';
 import { $createListItemNode, $createListNode, ListItemNode, ListNode } from '@lexical/list';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { CodeNode } from '@lexical/code';
-import { turnNodeInto, type TurnIntoType } from '../plugins/TurnIntoHelper';
+import { getBlockTransformRestriction, turnNodeInto, type TurnIntoType } from '../plugins/TurnIntoHelper';
 
 function createListEditor() {
   return createEditor({
@@ -77,4 +77,116 @@ describe('multi-item list block transformation (Beta content integrity)', () => 
       expect(nested?.getType()).toBe('list');
     });
   });
+  it.each(['paragraph', 'h2', 'quote', 'code'] as const)(
+    'moves nested list into a valid adjacent block when converting its parent to %s',
+    (target) => {
+      const editor = createListEditor();
+      let parentKey = '';
+      editor.update(() => {
+        const list = $createListNode('number', 7);
+        list.setDirection('rtl');
+        const parent = $createListItemNode().append($createTextNode('Parent Arabic عربي'));
+        parentKey = parent.getKey();
+        const nested = $createListNode('bullet');
+        nested.append($createListItemNode().append($createTextNode('Nested A')));
+        nested.append($createListItemNode().append($createTextNode('Nested B')));
+        parent.append(nested);
+        list.append(parent, $createListItemNode().append($createTextNode('Next')));
+        $getRoot().append(list);
+      }, { discrete: true });
+      expect(getBlockTransformRestriction(editor, target, parentKey)).toBeNull();
+      turnNodeInto(editor, parentKey, target);
+      editor.getEditorState().read(() => {
+        const blocks = $getRoot().getChildren();
+        expect(blocks.map(block => block.getType())).toEqual([
+          target === 'h2' ? 'heading' : target, 'list', 'list',
+        ]);
+        expect(blocks[0]?.getTextContent()).toBe('Parent Arabic عربي');
+        const nested = blocks[1] as ListNode;
+        expect(nested.getListType()).toBe('bullet');
+        expect(nested.getChildren().map(child => child.getTextContent())).toEqual(['Nested A', 'Nested B']);
+        const trailing = blocks[2] as ListNode;
+        expect(trailing.getListType()).toBe('number');
+        expect(trailing.getStart()).toBe(8);
+        expect(trailing.getChildren().map(child => child.getTextContent())).toEqual(['Next']);
+        const selection = $getSelection();
+        expect($isRangeSelection(selection)).toBe(true);
+        if ($isRangeSelection(selection)) {
+          expect(selection.anchor.getNode().getTextContent()).toContain('Parent Arabic عربي');
+        }
+      });
+      const saved = editor.getEditorState().toJSON();
+      const restored = editor.parseEditorState(JSON.stringify(saved)).toJSON();
+      expect(restored.root.children).toEqual(saved.root.children);
+    },
+  );
+
+  it.each([0, 1, 2])('preserves custom ordered start 9 across position %s', (position) => {
+    const editor = createListEditor();
+    const keys: string[] = [];
+    editor.update(() => {
+      const list = $createListNode('number', 9);
+      list.setDirection('rtl');
+      for (const value of ['الأول', 'Second', 'الثالث']) {
+        const item = $createListItemNode().append($createTextNode(value));
+        keys.push(item.getKey());
+        list.append(item);
+      }
+      $getRoot().append(list);
+    }, { discrete: true });
+    turnNodeInto(editor, keys[position]!, 'paragraph');
+    editor.getEditorState().read(() => {
+      const root = $getRoot().getChildren();
+      const before = position > 0 ? root[0] as ListNode : null;
+      const after = position < 2 ? root[root.length - 1] as ListNode : null;
+      if (before) {
+        expect(before.getListType()).toBe('number');
+        expect(before.getStart()).toBe(9);
+        expect(before.getChildrenSize()).toBe(position);
+      }
+      if (after) {
+        expect(after.getListType()).toBe('number');
+        expect(after.getStart()).toBe(10 + position);
+        expect(after.getChildrenSize()).toBe(2 - position);
+      }
+      const readable = root.flatMap(block => block.getType() === 'list'
+        ? (block as ListNode).getChildren().map(child => child.getTextContent())
+        : [block.getTextContent()]);
+      expect(readable).toEqual(['الأول', 'Second', 'الثالث']);
+    });
+  });
+
+  it('rejects transforming nested list item without changing editor state or selection', () => {
+    const editor = createListEditor();
+    let nestedKey = '';
+    editor.update(() => {
+      const outer = $createListNode('bullet');
+      const parent = $createListItemNode().append($createTextNode('Parent'));
+      const inner = $createListNode('bullet');
+      const nested = $createListItemNode().append($createTextNode('Child'));
+      nestedKey = nested.getKey();
+      inner.append(nested);
+      parent.append(inner);
+      outer.append(parent);
+      $getRoot().append(outer);
+      nested.select(0, 0);
+    }, { discrete: true });
+    const before = editor.getEditorState().toJSON();
+    let selectedTextBefore = '';
+    editor.getEditorState().read(() => {
+      const selection = $getSelection();
+      if ($isRangeSelection(selection)) selectedTextBefore = selection.anchor.getNode().getTextContent();
+    });
+    expect(getBlockTransformRestriction(editor, 'h2', nestedKey)).toMatch(/nested list/i);
+    turnNodeInto(editor, nestedKey, 'h2');
+    expect(editor.getEditorState().toJSON()).toEqual(before);
+    editor.getEditorState().read(() => {
+      const selection = $getSelection();
+      expect($isRangeSelection(selection)).toBe(true);
+      if ($isRangeSelection(selection)) {
+        expect(selection.anchor.getNode().getTextContent()).toBe(selectedTextBefore);
+      }
+    });
+  });
+
 });
