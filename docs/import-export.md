@@ -21,8 +21,8 @@ The following matrix documents the exact transformation applied when exporting a
 
 | AST Element / Card | Markdown Export Output | Fidelity & Conversion Status |
 | :--- | :--- | :--- |
-| **Paragraph** | Plain text / inline formatted text | **Lossless** |
-| **Heading (h1–h6)** | `# Heading` through `###### Heading` | **Lossless** |
+| **Paragraph** | Plain text / inline formatted text | **Text-preserving, styling-lossy:** Standard Markdown does not represent block alignment, background or direction. |
+| **Heading (h1–h6)** | `# Heading` through `###### Heading` | **Semantic fallback:** Preserves heading level and text, but drops block alignment and direction. |
 | **Inline Formatting** | `**bold**`, `*italic*`, `~~strike~~`, `` `code` `` | **Lossless** (Lexical bitmask 1, 2, 4, 16) |
 | **Text Colors & Highlights** | Rendered as text without inline style | **Intentionally Lossy:** Standard Markdown has no inline style syntax. Colors survive to HTML renderer but not Markdown. |
 | **Bullet List** | `- Item` | **Lossless** |
@@ -56,8 +56,8 @@ When importing arbitrary or sanitized HTML into a `StudioDocument`:
 
 | Incoming HTML Element | Mapped Studio Node | Processing Rules |
 | :--- | :--- | :--- |
-| `<p>` | `paragraph` | Inlines collected into paragraph node. |
-| `<h1>` – `<h6>` | `heading` with `tag: h1` – `h6` | Retains level and direction. |
+| `<p>` | `paragraph` | Collects inline nodes; supported sanitized `text-align` maps to canonical editable `format`. |
+| `<h1>` – `<h6>` | `heading` with `tag: h1` – `h6` | Retains level and direction; supported sanitized `text-align` maps to canonical editable `format`. |
 | `<strong>`, `<b>` | `text` with `format \|= 1` | Bold formatting bitmask. |
 | `<em>`, `<i>` | `text` with `format \|= 2` | Italic formatting bitmask. |
 | `<s>`, `<del>`, `<strike>` | `text` with `format \|= 4` | Strikethrough formatting bitmask. |
@@ -69,7 +69,7 @@ When importing arbitrary or sanitized HTML into a `StudioDocument`:
 | `<li>` | `listitem` | Preserves nested lists. |
 | `<pre>` | `code` | Code block container. |
 | `<hr>` | `studio-card` (`divider`) | Horizontal separator card. |
-| `<table>` | `table` with `tablerow` & `tablecell` | Retains header cells (`<th>`), row/col spans (bounded positive integers 1–1000), cell and table `dir` attributes. Empty cells receive empty paragraphs. |
+| `<table>` | `table` with `tablerow` & `tablecell` | Retains header cells (`<th>`), row/col spans (bounded positive integers 1–1000), cell and table `dir` attributes. Cell `background-color` maps to `backgroundColor` and supported cell `text-align` maps to `format`. Empty cells receive empty paragraphs. |
 | `<figure>` with `<img>` & `<figcaption>` | `studio-card` (`image`) | Extracts `src`, `alt`, optional `href` (if wrapped in `<a>`), layout width (`wide`/`full` or numeric), and rich `<figcaption>` content as both plain `caption` and sanitized `captionHtml`. |
 | `<figure class="kg-gallery-card">` | `studio-card` (`gallery`) | Extracts gallery image items, alt text, layout width, and rich caption. |
 | `<figure class="kg-video-card">` | `studio-card` (`video`) | Extracts video `src`, `poster`, layout width, and caption. |
@@ -79,6 +79,23 @@ When importing arbitrary or sanitized HTML into a `StudioDocument`:
 | `<details>` with `<summary>` | `studio-card` (`toggle`) | Extracts summary text as `heading` and details body as `content`. |
 | `<br>` | `linebreak` | Hard line break. |
 | `dir="rtl"` / `dir="ltr"` | `direction: "rtl" \| "ltr"` | Propagated down tree to ensure bilingual fidelity. |
+
+### Editable CSS admission and known limitations
+
+After sanitization, direct paragraph/heading/table and table-cell alignment in
+`left`, `right`, `center`, or `justify` is translated into the Lexical
+`format` field. Sanitized table-cell background colors use `backgroundColor`.
+Other safe CSS declarations on these directly imported blocks remain opaque
+`style` metadata. The editable validator rejects that metadata and shows
+the original document in recovery instead of allowing a save that strips it.
+The public HTML renderer still sanitizes this retained styling.
+
+**Import of arbitrary styled HTML is not lossless.** Styles on generic wrapper
+elements, unsupported layout semantics and selected card containers may not
+survive canonical import. Do not replace the original source after converting
+such HTML until the author has reviewed the result. The host must preserve the
+original source for recovery. This is not a claim of full HTML/CSS round-trip
+fidelity, nor a guarantee that every converted document is editable.
 
 ---
 
