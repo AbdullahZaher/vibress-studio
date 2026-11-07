@@ -32,6 +32,30 @@ function positiveSpan(node: HtmlChild, name: 'colspan' | 'rowspan'): number {
   return Number.isSafeInteger(value) && value >= 1 && value <= 1000 ? value : 1;
 }
 
+/** Map supported sanitized CSS to fields that Lexical 0.14.3 actually round-trips.
+ * Keep any other safe declarations as opaque style metadata so editable
+ * admission intentionally rejects them instead of silently losing formatting. */
+function editableBlockStyle(style: string, tableCell = false): StudioNode {
+  if (!style) return {};
+  const properties: StudioNode = {};
+  const unsupported: string[] = [];
+  for (const declaration of style.split(';')) {
+    const colon = declaration.indexOf(':');
+    if (colon === -1) continue;
+    const name = declaration.slice(0, colon).trim();
+    const value = declaration.slice(colon + 1).trim();
+    if (name === 'text-align' && ['left', 'right', 'center', 'justify'].includes(value)) {
+      properties.format = value;
+    } else if (tableCell && name === 'background-color') {
+      properties.backgroundColor = value;
+    } else {
+      unsupported.push(declaration.trim());
+    }
+  }
+  if (unsupported.length > 0) properties.style = unsupported.join('; ');
+  return properties;
+}
+
 function childrenOf(node: HtmlChild): HtmlChild[] {
   return 'childNodes' in node ? node.childNodes : [];
 }
@@ -174,7 +198,7 @@ function tableRows(node: HtmlChild, inherited: Direction): StudioNode[] {
         colSpan: positiveSpan(cell, 'colspan'),
         rowSpan: positiveSpan(cell, 'rowspan'),
         direction: cellDirection,
-        ...(safeStyle ? { style: safeStyle } : {}),
+        ...editableBlockStyle(safeStyle, true),
       })];
     });
     return cells.length ? [element('tablerow', cells, { direction })] : [];
@@ -192,7 +216,7 @@ function blockNodes(node: HtmlChild, inherited: Direction = null): StudioNode[] 
   const tag = node.tagName;
   const rawStyle = getAttr(node, 'style');
   const safeStyle = rawStyle ? sanitizeInlineStyle(rawStyle) : '';
-  const styleProp = safeStyle ? { style: safeStyle } : {};
+  const styleProp = editableBlockStyle(safeStyle);
 
   if (/^h[1-6]$/.test(tag)) {
     return [element('heading', childrenOf(node).flatMap(child => inlineNodes(child)), { tag, direction, ...styleProp })];
@@ -229,7 +253,7 @@ function blockNodes(node: HtmlChild, inherited: Direction = null): StudioNode[] 
     const startAttribute = getAttr(node, 'start');
     const parsedStart = startAttribute ? Number(startAttribute) : 1;
     const start = Number.isSafeInteger(parsedStart) && parsedStart > 0 ? parsedStart : 1;
-    return [element('list', items.flatMap(item => blockNodes(item, direction)), { listType, tag, start, direction })];
+    return [element('list', items.flatMap(item => blockNodes(item, direction)), { listType, tag, start, direction, ...styleProp })];
   }
   if (tag === 'li') {
     const inline = childrenOf(node)
@@ -238,7 +262,7 @@ function blockNodes(node: HtmlChild, inherited: Direction = null): StudioNode[] 
     const nested = childrenOf(node)
       .filter(child => isElement(child) && (child.tagName === 'ul' || child.tagName === 'ol'))
       .flatMap(child => blockNodes(child, direction));
-    return [element('listitem', [...inline, ...nested], { value: 1, direction })];
+    return [element('listitem', [...inline, ...nested], { value: 1, direction, ...styleProp })];
   }
   if (tag === 'pre') {
     const codeChild = childrenOf(node).find(c => isElement(c) && c.tagName === 'code');
@@ -247,7 +271,7 @@ function blockNodes(node: HtmlChild, inherited: Direction = null): StudioNode[] 
     const langMatch = classAttr.match(/(?:language-|lang-)?([a-zA-Z0-9_#-]+)/);
     const language = langMatch ? langMatch[1] : '';
     const inlines = codeChild ? childrenOf(codeChild).flatMap(child => inlineNodes(child)) : childrenOf(node).flatMap(child => inlineNodes(child));
-    return [element('code', inlines, { ...(language ? { language } : {}) })];
+    return [element('code', inlines, { ...(language ? { language } : {}), ...styleProp })];
   }
   if (tag === 'figure') {
     const classAttr = getAttr(node, 'class') || '';
