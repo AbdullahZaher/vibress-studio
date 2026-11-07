@@ -93,6 +93,14 @@ function applyBlockType(type: TurnIntoType) {
   }
 
   if (currentListItem && currentList && $isListNode(currentList)) {
+    // A ListNode may contain only ListItemNodes. Inserting a paragraph,
+    // heading, quote or code directly into it creates an invalid tree.
+    // Nested lists have a different ownership structure: preserve them
+    // unchanged rather than moving their children into an invalid hierarchy.
+    if (!$isRootOrShadowRoot(currentList.getParent())) {
+      return;
+    }
+
     let targetNode: ElementNode;
     switch (type) {
       case 'paragraph':
@@ -115,14 +123,6 @@ function applyBlockType(type: TurnIntoType) {
     for (const child of currentListItem.getChildren()) {
       targetNode.append(child);
     }
-    // A ListNode may contain only ListItemNodes. Inserting a paragraph,
-    // heading, quote or code directly into it creates an invalid tree.
-    // Nested lists have a different ownership structure: preserve them
-    // unchanged rather than moving their children into an invalid hierarchy.
-    if (!$isRootOrShadowRoot(currentList.getParent())) {
-      return;
-    }
-
     const preceding = currentListItem.getPreviousSiblings();
     const following = currentListItem.getNextSiblings();
     if (following.length > 0) {
