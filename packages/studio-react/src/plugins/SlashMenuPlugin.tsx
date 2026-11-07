@@ -14,7 +14,7 @@ import {
   $createParagraphNode,
 } from 'lexical';
 import { $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
-import { $createListNode } from '@lexical/list';
+import { $createListNode, $createListItemNode } from '@lexical/list';
 import { $createCodeNode } from '@lexical/code';
 import { $createTableNodeWithDimensions } from '@lexical/table';
 import {
@@ -82,12 +82,14 @@ function SlashMenuPortalContent({
   selectedIndex,
   selectOptionAndCleanUp,
   setHighlightedIndex,
+  queryString,
 }: {
   anchorElement: HTMLElement;
   options: StudioMenuOption[];
   selectedIndex: number | null;
   selectOptionAndCleanUp: (opt: StudioMenuOption) => void;
   setHighlightedIndex: (idx: number) => void;
+  queryString?: string | null;
 }) {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -122,6 +124,38 @@ function SlashMenuPortalContent({
       observer.disconnect();
     };
   }, [anchorElement]);
+
+  if (options.length === 0) {
+    return (
+      <div
+        ref={menuRef}
+        role="region"
+        aria-label="Slash commands"
+        className="notion-slash-menu studio-glassy-menu"
+        style={{
+          position: 'absolute',
+          top: '24px',
+          left: 0,
+          width: '320px',
+          maxWidth: 'calc(100vw - 24px)',
+          zIndex: 250,
+          padding: '16px 12px',
+          boxSizing: 'border-box',
+          background: 'var(--vb-studio-popover, var(--popover, #ffffff))',
+          border: '1px solid var(--vb-studio-border, var(--border, #e2e8f0))',
+          borderRadius: '12px',
+          boxShadow: 'var(--vb-studio-shadow-popover, 0 12px 32px -4px rgba(0, 0, 0, 0.12))',
+          color: 'var(--vb-studio-foreground-muted, var(--muted-foreground, #64748b))',
+          textAlign: 'center',
+          fontSize: '13px',
+        }}
+      >
+        <div role="status" aria-live="polite">
+          No matching blocks for &ldquo;{queryString || ''}&rdquo;
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -160,7 +194,7 @@ function SlashMenuPortalContent({
           userSelect: 'none',
         }}
       >
-        Block Types
+        {queryString ? `Matching Blocks (${options.length})` : 'Block Types'}
       </div>
       <div
         className="studio-slash-grid"
@@ -176,6 +210,8 @@ function SlashMenuPortalContent({
           return (
             <div
               key={option.title}
+              ref={option.setRefElement}
+              id={`typeahead-item-${index}`}
               role="option"
               aria-label={option.title}
               aria-selected={isSelected}
@@ -191,7 +227,7 @@ function SlashMenuPortalContent({
                 padding: '6px 8px',
                 borderRadius: '6px',
                 cursor: 'pointer',
-                minHeight: '34px',
+                minHeight: '36px',
                 boxSizing: 'border-box',
                 userSelect: 'none',
                 background: isSelected ? 'var(--vb-studio-surface-muted, var(--muted, #f1f5f9))' : 'transparent',
@@ -489,7 +525,10 @@ export function SlashMenuPlugin({
             }
             case 'check-list': {
               const list = $createListNode('check');
+              const item = $createListItemNode();
+              list.append(item);
               selection.insertNodes([list]);
+              item.select();
               break;
             }
             case 'table': {
@@ -499,12 +538,18 @@ export function SlashMenuPlugin({
             }
             case 'bullet-list': {
               const list = $createListNode('bullet');
+              const item = $createListItemNode();
+              list.append(item);
               selection.insertNodes([list]);
+              item.select();
               break;
             }
             case 'number-list': {
               const list = $createListNode('number');
+              const item = $createListItemNode();
+              list.append(item);
               selection.insertNodes([list]);
+              item.select();
               break;
             }
             case 'quote': {
@@ -567,7 +612,7 @@ export function SlashMenuPlugin({
       triggerFn={checkForTriggerMatch}
       options={options}
       menuRenderFn={(anchorElementRef, { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex }) => {
-        if (anchorElementRef.current == null || options.length === 0) {
+        if (anchorElementRef.current == null || (options.length === 0 && !queryString)) {
           return null;
         }
 
@@ -578,6 +623,7 @@ export function SlashMenuPlugin({
             selectedIndex={selectedIndex}
             selectOptionAndCleanUp={selectOptionAndCleanUp}
             setHighlightedIndex={setHighlightedIndex}
+            queryString={queryString}
           />,
           anchorElementRef.current
         );

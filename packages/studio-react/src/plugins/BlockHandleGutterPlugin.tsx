@@ -173,6 +173,7 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
         paragraph.select();
       }
     });
+    editor.focus();
     setShowMenu(false);
   };
 
@@ -193,6 +194,7 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
         }
       }
     });
+    editor.focus();
     setShowMenu(false);
   };
 
@@ -209,6 +211,7 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
         }
       }
     });
+    editor.focus();
     setShowMenu(false);
   };
 
@@ -225,6 +228,7 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
         }
       }
     });
+    editor.focus();
     setShowMenu(false);
   };
 
@@ -235,19 +239,15 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
         node.remove();
       }
     });
+    editor.focus();
     setShowMenu(false);
     setHoveredNodeKey(null);
     setTargetRect(null);
   };
 
   const handleTurnInto = (type: TurnIntoType) => {
-    editor.update(() => {
-      const node = $getNodeByKey(hoveredNodeKey);
-      if (node && 'select' in node && typeof (node as { select?: () => void }).select === 'function') {
-        (node as { select: () => void }).select();
-      }
-    });
-    turnSelectedBlockInto(editor, type);
+    turnSelectedBlockInto(editor, type, hoveredNodeKey ?? undefined);
+    editor.focus();
     setShowMenu(false);
     setActiveSubMenu(null);
   };
