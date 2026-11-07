@@ -173,8 +173,10 @@ describe('multi-item list block transformation (Beta content integrity)', () => 
     }, { discrete: true });
     const before = editor.getEditorState().toJSON();
     let selectedTextBefore = '';
+    let hadRangeBefore = false;
     editor.getEditorState().read(() => {
       const selection = $getSelection();
+      hadRangeBefore = $isRangeSelection(selection);
       if ($isRangeSelection(selection)) selectedTextBefore = selection.anchor.getNode().getTextContent();
     });
     expect(getBlockTransformRestriction(editor, 'h2', nestedKey)).toMatch(/nested list/i);
@@ -182,7 +184,10 @@ describe('multi-item list block transformation (Beta content integrity)', () => 
     expect(editor.getEditorState().toJSON()).toEqual(before);
     editor.getEditorState().read(() => {
       const selection = $getSelection();
-      expect($isRangeSelection(selection)).toBe(true);
+      // A headless editor may have null selection even after selecting an
+      // unmounted item. Rejection must preserve the *existing* selection,
+      // not synthesize a new range that did not previously exist.
+      expect($isRangeSelection(selection)).toBe(hadRangeBefore);
       if ($isRangeSelection(selection)) {
         expect(selection.anchor.getNode().getTextContent()).toBe(selectedTextBefore);
       }
