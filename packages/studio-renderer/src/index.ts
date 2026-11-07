@@ -80,6 +80,20 @@ function firstChildDirection(node: unknown): 'ltr' | 'rtl' | null {
   return null;
 }
 
+/** Include Lexical's canonical block alignment in published HTML.
+ * Unsupported opaque style remains sanitized, never executed. */
+function elementStyleAttr(node: Record<string, unknown>, extra = ''): string {
+  const safeStyle = typeof node.style === 'string' && node.style.trim()
+    ? sanitizeInlineStyle(node.style)
+    : '';
+  const alignment = typeof node.format === 'string' &&
+    ['left', 'right', 'center', 'justify'].includes(node.format)
+    ? `text-align: ${node.format}`
+    : '';
+  const style = [extra, safeStyle, alignment].filter(Boolean).join('; ');
+  return style ? ` style="${escapeHtml(style)}"` : '';
+}
+
 function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: HeadingSlugTracker | Map<string, number>): string {
   if (!node || typeof node !== 'object') return '';
   const n = node as Record<string, unknown>;
@@ -137,8 +151,7 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
           ((child as { type?: string }).type === 'studio-card')
       );
       if (hasBlockCard) return content;
-      const safeStyle = typeof n.style === 'string' && n.style.trim() ? sanitizeInlineStyle(n.style) : '';
-      const styleAttr = safeStyle ? ` style="${escapeHtml(safeStyle)}"` : '';
+      const styleAttr = elementStyleAttr(n);
       return content ? `<p${directionAttr}${styleAttr}>${content}</p>` : `<p${directionAttr}></p>`;
     }
 
@@ -147,8 +160,7 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
       const level = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(rawTag)
         ? rawTag
         : 'h2';
-      const safeStyle = typeof n.style === 'string' && n.style.trim() ? sanitizeInlineStyle(n.style) : '';
-      const styleAttr = safeStyle ? ` style="${escapeHtml(safeStyle)}"` : '';
+      const styleAttr = elementStyleAttr(n);
       const childrenHtml = renderChildren();
       const rawText = extractNodeText(n).trim();
       let slug = '';
@@ -218,17 +230,10 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
         : (typeof n.rowSpan === 'string' && /^\d+$/.test(n.rowSpan) && parseInt(n.rowSpan, 10) > 1 ? parseInt(n.rowSpan, 10) : null);
       const colSpan = colSpanVal ? ` colspan="${colSpanVal}"` : '';
       const rowSpan = rowSpanVal ? ` rowspan="${rowSpanVal}"` : '';
-      let style = '';
-      if (typeof n.backgroundColor === 'string' && isSafeCssColor(n.backgroundColor)) {
-        style = `background-color: ${n.backgroundColor}`;
-      }
-      if (typeof n.style === 'string' && n.style.trim()) {
-        const safe = sanitizeInlineStyle(n.style);
-        if (safe) {
-          style = style ? `${style}; ${safe}` : safe;
-        }
-      }
-      const bg = style ? ` style="${escapeHtml(style)}"` : '';
+      const backgroundColor = typeof n.backgroundColor === 'string' && isSafeCssColor(n.backgroundColor)
+        ? `background-color: ${n.backgroundColor}`
+        : '';
+      const bg = elementStyleAttr(n, backgroundColor);
       return `<${tag}${colSpan}${rowSpan}${bg}${directionAttr}>${renderChildren()}</${tag}>`;
     }
 
