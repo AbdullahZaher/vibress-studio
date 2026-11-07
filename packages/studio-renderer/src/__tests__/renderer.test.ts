@@ -909,6 +909,24 @@ describe('code block interactive controls (STU-R17)', () => {
     });
   });
 
+  it('keeps a nested list within its numbered item without advancing the counter', () => {
+    const listItem = (...children: unknown[]) => ({ type: 'listitem', children });
+    const text = (value: string) => ({ type: 'text', text: value });
+    const source = doc([{
+      type: 'list', listType: 'number', start: 4,
+      children: [
+        listItem(text('Four')),
+        listItem({ type: 'list', listType: 'bullet', children: [listItem(text('Nested'))] }),
+        listItem(text('Five')),
+      ],
+    }]);
+    const before = JSON.stringify(source);
+    expect(renderStudioDocumentToHtml(source)).toBe(
+      '<ol start="4"><li>Four<ul><li>Nested</li></ul></li><li>Five</li></ol>',
+    );
+    expect(JSON.stringify(source)).toBe(before);
+  });
+
   it('preserves positive ordered-list start attributes without emitting unsafe values', () => {
     const makeList = (start?: unknown, listType = 'number') => ({
       type: 'list',

@@ -94,6 +94,29 @@ function elementStyleAttr(node: Record<string, unknown>, extra = ''): string {
   return style ? ` style="${escapeHtml(style)}"` : '';
 }
 
+function mergeOrderedListItems(children: unknown[]): unknown[] {
+  const items: unknown[] = [];
+  let previous: { children: unknown[] } | undefined;
+  for (const child of children) {
+    // Lexical stores nested lists in a separate listitem wrapper. Attach it
+    // to its parent item so the browser does not count the wrapper as a step.
+    if (isListItem(child) && previous && child.children.length > 0 &&
+        child.children.every((node) => typeof node === "object" && node !== null &&
+          "type" in node && node.type === "list")) {
+      previous.children.push(...child.children);
+      continue;
+    }
+    previous = isListItem(child) ? { ...child, children: [...child.children] } : undefined;
+    items.push(previous ?? child);
+  }
+  return items;
+}
+
+function isListItem(node: unknown): node is { type: "listitem"; children: unknown[] } {
+  return typeof node === "object" && node !== null && "type" in node &&
+    node.type === "listitem" && "children" in node && Array.isArray(node.children);
+}
+
 function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: HeadingSlugTracker | Map<string, number>): string {
   if (!node || typeof node !== 'object') return '';
   const n = node as Record<string, unknown>;
@@ -197,7 +220,9 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
       const listType = n.listType === 'number' ? 'ol' : 'ul';
       const startAttr = listType === 'ol' && typeof n.start === 'number' && Number.isSafeInteger(n.start) && n.start > 1
         ? ` start="${n.start}"` : '';
-      return `<${listType}${startAttr}${directionAttr}${elementStyleAttr(n)}>${renderChildren()}</${listType}>`;
+      const children = Array.isArray(n.children) ? n.children : [];
+      const items = listType === 'ol' ? mergeOrderedListItems(children) : children;
+      return `<${listType}${startAttr}${directionAttr}${elementStyleAttr(n)}>${items.map(item => renderNodeToHtml(item, options, slugTracker)).join('')}</${listType}>`;
     }
 
     case 'listitem': {
