@@ -177,7 +177,8 @@ function applyBlockType(type: TurnIntoType, onRejected?: (reason: string) => voi
       else targetNode.append(child);
     }
     targetNode.setDirection(currentListItem.getDirection());
-    targetNode.setFormat(currentListItem.getFormat());
+    const formats = ['', 'left', 'center', 'right', 'justify', 'start', 'end'] as const;
+    targetNode.setFormat(formats[currentListItem.getFormat()] ?? '');
     const preceding = currentListItem.getPreviousSiblings();
     const following = currentListItem.getNextSiblings();
     if (following.length > 0) {
