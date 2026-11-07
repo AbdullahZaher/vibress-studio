@@ -24,6 +24,22 @@ describe('HTML alignment import and editable admission', () => {
     expect(reimported.root.children[0]).toMatchObject({ format: 'center' });
   });
 
+  it('publishes canonical alignment on lists, quotes, tables and code blocks', () => {
+    const doc = htmlToStudioDocument(
+      '<blockquote style="text-align: right">Quote</blockquote>' +
+      '<ol style="text-align: center"><li style="text-align: right">One</li></ol>' +
+      '<table style="text-align: center"><tr><td>Value</td></tr></table>' +
+      '<pre style="text-align: left"><code>demo</code></pre>'
+    );
+    expect(() => assertStudioDocumentEditable(doc)).not.toThrow();
+    const html = renderStudioDocumentToHtml(doc);
+    expect(html).toMatch(/<blockquote[^>]*style="text-align: right"/);
+    expect(html).toMatch(/<ol[^>]*style="text-align: center"/);
+    expect(html).toMatch(/<li[^>]*style="text-align: right"/);
+    expect(html).toMatch(/<table[^>]*style="text-align: center"/);
+    expect(html).toMatch(/<div class="studio-code-block"[^>]*style="text-align: left"/);
+  });
+
   it('maps table-cell background and alignment into supported fields', () => {
     const doc = htmlToStudioDocument(
       '<table dir="rtl"><tr><td style="background-color: #fff; text-align: center">القيمة</td></tr></table>'
