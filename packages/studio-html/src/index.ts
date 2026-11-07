@@ -146,6 +146,25 @@ const BLOCK_TAGS = new Set([
   'header', 'footer', 'aside', 'figure', 'table', 'details', 'video', 'audio',
 ]);
 
+/** Generic wrappers have no serializable Lexical node of their own.
+ * Reject their meaningful *sanitized* styles rather than accepting a document
+ * that will silently drop the wrapper formatting on its first edit.
+ * The caller receives the original source in StudioMigrationError. */
+const UNSUPPORTED_STYLED_WRAPPERS = new Set([
+  'div', 'section', 'article', 'main', 'header', 'footer', 'aside',
+]);
+
+function hasLossyStyledWrapper(node: HtmlChild): boolean {
+  if (isElement(node) && UNSUPPORTED_STYLED_WRAPPERS.has(node.tagName)) {
+    const classes = getAttr(node, 'class') ?? '';
+    const isRecognizedCard = /(?:^|\\s)kg-(?:callout|button|audio|file)-card(?:\\s|$)/.test(classes);
+    if (!isRecognizedCard && sanitizeInlineStyle(getAttr(node, 'style') ?? '')) {
+      return true;
+    }
+  }
+  return childrenOf(node).some(hasLossyStyledWrapper);
+}
+
 /** Keep adjacent inline nodes in the same paragraph, including formatting
  * inherited through span/strong/em wrappers. Flush before block children.
  */
@@ -559,7 +578,15 @@ export function htmlToStudioDocument(htmlInput: string, limits?: DocumentResourc
   }
   const cleanHtml = sanitizeHtml(htmlInput.trim());
   if (!cleanHtml) return createEmptyStudioDocument();
-  const children = blocksFromChildren(parseFragment(cleanHtml).childNodes);
+  const parsed = parseFragment(cleanHtml);
+  if (parsed.childNodes.some(hasLossyStyledWrapper)) {
+    throw new StudioMigrationError(
+      'HTML contains styled containers that cannot be edited without losing formatting. Keep the original source and review the conversion.',
+      htmlInput,
+      'UNSUPPORTED_DOCUMENT'
+    );
+  }
+  const children = blocksFromChildren(parsed.childNodes);
   const doc: StudioDocument = !children.length
     ? createDefaultStudioDocument(cleanHtml.replace(/<[^>]+>/g, '').trim())
     : {
