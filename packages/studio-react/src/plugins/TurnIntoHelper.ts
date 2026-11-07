@@ -240,6 +240,12 @@ export function turnSelectedBlockInto(
           onRejected?.('The selected block is no longer available.');
           return;
         }
+        const restriction = restrictionForNode(node, type);
+        if (restriction) {
+          // Rejection must not even move the selection to the target.
+          onRejected?.(restriction);
+          return;
+        }
         if (
           'select' in node &&
           typeof (node as { select?: () => void }).select === 'function'
