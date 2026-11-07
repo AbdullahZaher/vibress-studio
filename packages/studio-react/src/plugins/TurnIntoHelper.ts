@@ -233,6 +233,13 @@ export function turnSelectedBlockInto(
   targetNodeKey?: string,
   onRejected?: (reason: string) => void,
 ): void {
+  const restriction = getBlockTransformRestriction(editor, type, targetNodeKey);
+  if (restriction) {
+    // Even a no-op editor.update may clear a headless/editor selection. Do
+    // not enter a write transaction when the command is unsupported.
+    onRejected?.(restriction);
+    return;
+  }
   editor.update(
     () => {
       if (targetNodeKey) {
