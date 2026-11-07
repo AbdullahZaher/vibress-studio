@@ -119,7 +119,8 @@ describe('editable node admission (STU-201/STU-205)', () => {
         const cell = row.getFirstChild();
         if (!$isTableCellNode(cell)) throw new Error('Table cell did not hydrate');
         const paragraph = cell.getFirstChild();
-        const text = paragraph?.getFirstChild();
+        if (!$isElementNode(paragraph)) throw new Error('Cell paragraph did not hydrate');
+        const text = paragraph.getFirstChild();
         if (!$isTextNode(text)) throw new Error('Cell text did not hydrate');
         text.setTextContent('بعد English updated');
       }, { discrete: true });
