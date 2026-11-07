@@ -1,7 +1,57 @@
 import { describe, it, expect } from 'vitest';
 import { htmlToStudioDocument } from '@vibress/studio-html';
+import { assertStudioDocumentEditable, migrateDocument } from '@vibress/studio-core';
 import { studioDocumentToMarkdown } from '@vibress/studio-markdown';
 import { renderStudioDocumentToHtml } from '@vibress/studio-renderer';
+
+describe('HTML alignment import and editable admission', () => {
+  it('maps paragraph and RTL heading alignment to Lexical format instead of opaque style', () => {
+    const doc = htmlToStudioDocument(
+      '<p style="text-align: center">مرحبا English</p>' +
+      '<h2 dir="rtl" style="text-align: right">العنوان</h2>'
+    );
+    expect(doc.root.children).toEqual([
+      expect.objectContaining({ type: 'paragraph', format: 'center' }),
+      expect.objectContaining({ type: 'heading', direction: 'rtl', format: 'right' }),
+    ]);
+    expect(() => assertStudioDocumentEditable(doc)).not.toThrow();
+    const rendered = renderStudioDocumentToHtml(doc);
+    expect(rendered).toContain('style="text-align: center"');
+    expect(rendered).toContain('dir="rtl"');
+    expect(rendered).toContain('style="text-align: right"');
+    const reimported = htmlToStudioDocument(rendered);
+    expect(() => assertStudioDocumentEditable(reimported)).not.toThrow();
+    expect(reimported.root.children[0]).toMatchObject({ format: 'center' });
+  });
+
+  it('maps table-cell background and alignment into supported fields', () => {
+    const doc = htmlToStudioDocument(
+      '<table dir="rtl"><tr><td style="background-color: #fff; text-align: center">القيمة</td></tr></table>'
+    );
+    const cell = (doc.root.children[0] as { children: Array<{ children: Array<Record<string, unknown>> }> }).children[0]!.children[0]!;
+    expect(cell).toMatchObject({ backgroundColor: '#fff', format: 'center' });
+    expect(() => assertStudioDocumentEditable(doc)).not.toThrow();
+    const html = renderStudioDocumentToHtml(doc);
+    expect(html).toContain('background-color: #fff');
+    expect(html).toContain('text-align: center');
+  });
+
+  it('retains valid CSS that Lexical cannot edit in explicit recovery, not a lossy save', () => {
+    const doc = htmlToStudioDocument('<p style="color: #aabbcc; text-align: center">Preserve color</p>');
+    expect(doc.root.children[0]).toMatchObject({ format: 'center', style: 'color: #aabbcc' });
+    expect(migrateDocument(doc)).toEqual(doc);
+    expect(() => assertStudioDocumentEditable(doc)).toThrow();
+    expect(renderStudioDocumentToHtml(doc)).toContain('color: #aabbcc');
+  });
+
+  it('never restores hostile style or event handlers', () => {
+    const doc = htmlToStudioDocument('<p onclick="alert(1)" style="background-image: url(javascript:alert(1)); text-align: center">Safe</p>');
+    expect(() => assertStudioDocumentEditable(doc)).not.toThrow();
+    const html = renderStudioDocumentToHtml(doc);
+    expect(html).not.toMatch(/javascript:|onclick|background-image/i);
+    expect(html).toContain('text-align: center');
+  });
+});
 
 describe('sanitized HTML import compatibility', () => {
   it('preserves formatting and Arabic during import and export', () => {
