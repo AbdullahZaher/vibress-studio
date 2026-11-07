@@ -73,7 +73,7 @@ describe('multi-item list block transformation (Beta content integrity)', () => 
       expect($getRoot().getTextContent()).toContain('Inner B');
       const outer = $getRoot().getFirstChild() as ListNode;
       expect(outer.getType()).toBe('list');
-      const nested = (outer.getFirstChild() as ListItemNode).getChildren().at(-1);
+      const nested = (outer.getFirstChild() as ListItemNode).getLastChild();
       expect(nested?.getType()).toBe('list');
     });
   });
