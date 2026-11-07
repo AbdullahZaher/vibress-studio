@@ -90,6 +90,15 @@ Other safe CSS declarations on these directly imported blocks remain opaque
 the original document in recovery instead of allowing a save that strips it.
 The public HTML renderer still sanitizes this retained styling.
 
+Generic containers such as `<div style="text-align: center"><p>…</p></div>`
+have no serializable standalone Lexical block for their wrapper styles. A
+sanitized, meaningfully styled generic container is **refused** with a
+`StudioMigrationError` whose `rawDocument` is the original HTML string.
+The host must present this as an import limitation and retain the raw HTML
+for a retry, preview or export; a converted editable document is **not** returned.
+The import function does not create durable host storage. Unsafe CSS declarations
+are removed by the existing parser-backed sanitizer before this check.
+
 **Import of arbitrary styled HTML is not lossless.** Styles on generic wrapper
 elements, unsupported layout semantics and selected card containers may not
 survive canonical import. Do not replace the original source after converting
