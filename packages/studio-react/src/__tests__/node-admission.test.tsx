@@ -58,6 +58,29 @@ describe('editable node admission (STU-201/STU-205)', () => {
     });
   });
 
+  it('edits and snapshots imported centered paragraphs and RTL headings without losing alignment', async () => {
+    let instance: LexicalEditor | null = null;
+    const onEditorReady = (editor: LexicalEditor | null) => { instance = editor; };
+    const onChange = vi.fn();
+    const document = htmlToStudioDocument(
+      '<p style="text-align: center">مرحبًا English</p>' +
+      '<h2 dir="rtl" style="text-align: right">العنوان</h2>'
+    );
+    render(<VibressStudio value={document} onEditorReady={onEditorReady} onChange={onChange} />);
+    if (!instance) throw new Error('Editor did not initialize');
+    const editor: LexicalEditor = instance;
+    await act(async () => {
+      editor.update(() => {
+        $getRoot().append($createParagraphNode().append($createTextNode('New content')));
+      }, { discrete: true });
+    });
+    expect(onChange.mock.lastCall?.[0].root.children).toEqual([
+      expect.objectContaining({ type: 'paragraph', format: 'center' }),
+      expect.objectContaining({ type: 'heading', format: 'right', direction: 'rtl' }),
+      expect.objectContaining({ type: 'paragraph' }),
+    ]);
+  });
+
   it('preserves table direction and alignment on import and later editing', async () => {
     let instance: LexicalEditor | null = null;
     const onEditorReady = (editor: LexicalEditor | null) => { instance = editor; };
