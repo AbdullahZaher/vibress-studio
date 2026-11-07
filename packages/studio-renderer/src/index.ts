@@ -188,16 +188,16 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
     }
 
     case 'quote':
-      return `<blockquote${directionAttr}>${renderChildren()}</blockquote>`;
+      return `<blockquote${directionAttr}${elementStyleAttr(n)}>${renderChildren()}</blockquote>`;
 
     case 'list': {
       if (n.listType === 'check') {
-        return `<ul class="studio-checklist"${directionAttr}>${renderChildren()}</ul>`;
+        return `<ul class="studio-checklist"${directionAttr}${elementStyleAttr(n)}>${renderChildren()}</ul>`;
       }
       const listType = n.listType === 'number' ? 'ol' : 'ul';
       const startAttr = listType === 'ol' && typeof n.start === 'number' && Number.isSafeInteger(n.start) && n.start > 1
         ? ` start="${n.start}"` : '';
-      return `<${listType}${startAttr}${directionAttr}>${renderChildren()}</${listType}>`;
+      return `<${listType}${startAttr}${directionAttr}${elementStyleAttr(n)}>${renderChildren()}</${listType}>`;
     }
 
     case 'listitem': {
@@ -205,15 +205,15 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
         const isChecked = n.checked;
         const checkedAttr = isChecked ? ' checked="checked"' : '';
         const checkedClass = isChecked ? ' is-checked' : '';
-        return `<li class="studio-checklist-item${checkedClass}"><input type="checkbox"${checkedAttr} disabled /><span>${renderChildren()}</span></li>`;
+        return `<li class="studio-checklist-item${checkedClass}"${directionAttr}${elementStyleAttr(n)}><input type="checkbox"${checkedAttr} disabled /><span>${renderChildren()}</span></li>`;
       }
-      return `<li${directionAttr}>${renderChildren()}</li>`;
+      return `<li${directionAttr}${elementStyleAttr(n)}>${renderChildren()}</li>`;
     }
 
     case 'table': {
       const inferred = directionAttr ? '' : firstChildDirection(n.children);
       const tableDirection = directionAttr || (inferred ? ` dir="${inferred}"` : '');
-      return `<div class="studio-table-container"><table class="studio-table"${tableDirection}><tbody>${renderChildren()}</tbody></table></div>`;
+      return `<div class="studio-table-container"><table class="studio-table"${tableDirection}${elementStyleAttr(n)}><tbody>${renderChildren()}</tbody></table></div>`;
     }
 
     case 'tablerow':
@@ -261,7 +261,7 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
       const copyBtn = options.interactiveControls
         ? '<button type="button" class="studio-code-copy-btn" aria-label="Copy code">Copy</button>'
         : '';
-      return `<div class="studio-code-block"${langAttr}><div class="studio-code-header"><span class="studio-code-lang">${escapeHtml(safeLang || 'code')}</span>${copyBtn}</div><pre><code>${codeHtml}</code></pre></div>`;
+      return `<div class="studio-code-block"${langAttr}${elementStyleAttr(n)}><div class="studio-code-header"><span class="studio-code-lang">${escapeHtml(safeLang || 'code')}</span>${copyBtn}</div><pre><code>${codeHtml}</code></pre></div>`;
     }
 
     // Handle Studio Card Nodes (canonical type after normalization)
