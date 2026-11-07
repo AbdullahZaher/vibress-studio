@@ -115,10 +115,34 @@ function applyBlockType(type: TurnIntoType) {
     for (const child of currentListItem.getChildren()) {
       targetNode.append(child);
     }
-    if (currentList.getChildrenSize() <= 1) {
-      currentList.replace(targetNode);
+    // A ListNode may contain only ListItemNodes. Inserting a paragraph,
+    // heading, quote or code directly into it creates an invalid tree.
+    // Nested lists have a different ownership structure: preserve them
+    // unchanged rather than moving their children into an invalid hierarchy.
+    if (!$isRootOrShadowRoot(currentList.getParent())) {
+      return;
+    }
+
+    const preceding = currentListItem.getPreviousSiblings();
+    const following = currentListItem.getNextSiblings();
+    if (following.length > 0) {
+      const trailingList = $createListNode(currentList.getListType());
+      if (currentList.getListType() === 'number') {
+        trailingList.setStart(currentList.getStart() + preceding.length + 1);
+      }
+      for (const sibling of following) trailingList.append(sibling);
+      currentList.insertAfter(trailingList);
+    }
+
+    if (preceding.length > 0) {
+      currentList.insertAfter(targetNode);
+      currentListItem.remove();
+    } else if (following.length > 0) {
+      currentList.insertBefore(targetNode);
+      currentListItem.remove();
+      currentList.remove();
     } else {
-      currentListItem.replace(targetNode);
+      currentList.replace(targetNode);
     }
     targetNode.select();
     return;
