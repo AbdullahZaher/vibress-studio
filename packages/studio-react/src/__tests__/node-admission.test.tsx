@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { $createParagraphNode, $createTextNode, $getRoot, $isTextNode, type LexicalEditor } from 'lexical';
+import { $createParagraphNode, $createTextNode, $getRoot, $isElementNode, $isTextNode, type LexicalEditor } from 'lexical';
 import { $isTableCellNode } from '@lexical/table';
 import { renderStudioDocumentToHtml } from '@vibress/studio-renderer';
 import { assertStudioDocumentEditable, type StudioDocument } from '@vibress/studio-core';
@@ -112,8 +112,11 @@ describe('editable node admission (STU-201/STU-205)', () => {
     const editor: LexicalEditor = instance;
     await act(async () => {
       editor.update(() => {
-        const row = $getRoot().getFirstChild()?.getFirstChild();
-        const cell = row?.getFirstChild();
+        const table = $getRoot().getFirstChild();
+        if (!$isElementNode(table)) throw new Error('Table did not hydrate');
+        const row = table.getFirstChild();
+        if (!$isElementNode(row)) throw new Error('Table row did not hydrate');
+        const cell = row.getFirstChild();
         if (!$isTableCellNode(cell)) throw new Error('Table cell did not hydrate');
         const paragraph = cell.getFirstChild();
         const text = paragraph?.getFirstChild();
@@ -150,7 +153,10 @@ describe('editable node admission (STU-201/STU-205)', () => {
     const reloadedEditor: LexicalEditor = reopened;
     reloadedEditor.getEditorState().read(() => {
       const table = $getRoot().getFirstChild();
-      const cell = table?.getFirstChild()?.getFirstChild();
+      if (!$isElementNode(table)) throw new Error('Saved table did not hydrate');
+      const row = table.getFirstChild();
+      if (!$isElementNode(row)) throw new Error('Saved row did not hydrate');
+      const cell = row.getFirstChild();
       expect($isTableCellNode(cell)).toBe(true);
       expect(cell?.getTextContent()).toBe('بعد English updated');
     });
