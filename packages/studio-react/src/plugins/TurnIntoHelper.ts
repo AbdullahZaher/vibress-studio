@@ -126,10 +126,10 @@ function applyBlockType(type: TurnIntoType) {
     const preceding = currentListItem.getPreviousSiblings();
     const following = currentListItem.getNextSiblings();
     if (following.length > 0) {
-      const trailingList = $createListNode(currentList.getListType());
-      if (currentList.getListType() === 'number') {
-        trailingList.setStart(currentList.getStart() + preceding.length + 1);
-      }
+      const trailingList = $createListNode(
+        currentList.getListType(),
+        currentList.getStart() + preceding.length + 1,
+      );
       for (const sibling of following) trailingList.append(sibling);
       currentList.insertAfter(trailingList);
     }
