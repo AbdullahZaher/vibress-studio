@@ -158,6 +158,8 @@ export function StudioCardComponent({
     return (
       <div
         data-studio-card={cardType}
+        role="region"
+        aria-label={`${cardType} card`}
         onMouseDown={handleMouseDown}
         onFocusCapture={handleFocusCapture}
       >

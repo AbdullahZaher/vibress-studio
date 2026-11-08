@@ -72,6 +72,25 @@ export function FloatingCardActionToolbarPlugin({ anchorElem = document.body }: 
   return createPortal(
     <div
       className="floating-card-action-popup studio-glassy-menu animate-in fade-in zoom-in-95 duration-150"
+      role="toolbar"
+      aria-label="Card actions"
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+          const buttons = e.currentTarget.querySelectorAll<HTMLButtonElement>('button');
+          if (!buttons || buttons.length === 0) return;
+          const btnArray = Array.from(buttons);
+          const currentIndex = btnArray.indexOf(document.activeElement as HTMLButtonElement);
+          if (currentIndex === -1) return;
+          e.preventDefault();
+          const nextIndex =
+            e.key === 'ArrowRight'
+              ? (currentIndex + 1) % btnArray.length
+              : (currentIndex - 1 + btnArray.length) % btnArray.length;
+          btnArray[nextIndex]?.focus();
+        } else if (e.key === 'Escape') {
+          editor.getRootElement()?.focus();
+        }
+      }}
       style={{
         position: 'absolute',
         top: `${Math.round(topPos)}px`,
@@ -163,12 +182,15 @@ function getBtnStyle(active: boolean): React.CSSProperties {
     color: active ? '#60a5fa' : '#e2e8f0',
     border: 'none',
     padding: '4px 7px',
+    minWidth: '32px',
+    minHeight: '32px',
     borderRadius: '6px',
     cursor: 'pointer',
     fontSize: '11px',
     fontWeight: active ? 600 : 400,
     display: 'flex',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: '4px',
     transition: 'all 0.15s ease',
   };

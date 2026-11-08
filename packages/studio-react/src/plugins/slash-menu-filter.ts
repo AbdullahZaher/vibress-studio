@@ -20,15 +20,21 @@ export interface FilterableSlashOption {
   keywords?: string[] | undefined;
 }
 
-export function computeSlashOptionRelevance(
-  option: FilterableSlashOption,
+/**
+ * Strip Arabic diacritical marks (Tashkeel / Harakat):
+ * Fatha, Damma, Kasra, Sukun, Shadda, Tanwin, Superscript Alef.
+ */
+export function stripArabicDiacritics(text: string): string {
+  return text.replace(/[\u064B-\u065F\u0670]/g, '');
+}
+
+function scoreAgainst(
+  title: string,
+  cardType: string | undefined,
+  actionType: string | undefined,
+  keywords: string[],
   needle: string,
 ): number {
-  const title = option.title.toLowerCase();
-  const cardType = option.cardType?.toLowerCase();
-  const actionType = option.actionType?.toLowerCase();
-  const keywords = option.keywords?.map((k) => k.toLowerCase()) ?? [];
-
   // Exact matches
   if (title === needle) return 100;
   if (title.startsWith(needle)) return 80;
@@ -57,6 +63,28 @@ export function computeSlashOptionRelevance(
   if (keywords.some((k) => k.includes(needle))) return 15;
 
   return 0;
+}
+
+export function computeSlashOptionRelevance(
+  option: FilterableSlashOption,
+  needle: string,
+): number {
+  const rawTitle = option.title.toLowerCase();
+  const rawCardType = option.cardType?.toLowerCase();
+  const rawActionType = option.actionType?.toLowerCase();
+  const rawKeywords = option.keywords?.map((k) => k.toLowerCase()) ?? [];
+
+  const rawScore = scoreAgainst(rawTitle, rawCardType, rawActionType, rawKeywords, needle);
+  if (rawScore > 0) return rawScore;
+
+  // Normalized Arabic diacritic matching
+  const cleanNeedle = stripArabicDiacritics(needle);
+  const cleanTitle = stripArabicDiacritics(rawTitle);
+  const cleanCardType = rawCardType ? stripArabicDiacritics(rawCardType) : undefined;
+  const cleanActionType = rawActionType ? stripArabicDiacritics(rawActionType) : undefined;
+  const cleanKeywords = rawKeywords.map(stripArabicDiacritics);
+
+  return scoreAgainst(cleanTitle, cleanCardType, cleanActionType, cleanKeywords, cleanNeedle);
 }
 
 export function filterSlashMenuOptions<T extends FilterableSlashOption>(

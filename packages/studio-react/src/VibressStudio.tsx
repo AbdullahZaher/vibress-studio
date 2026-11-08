@@ -426,6 +426,7 @@ export function VibressStudio({
                 placeholder={
                   <div
                     className="vibress-studio-placeholder"
+                    aria-hidden="true"
                     style={{
                       position: 'absolute',
                       top: '0',
