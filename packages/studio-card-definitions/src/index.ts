@@ -294,7 +294,8 @@ export const CalloutCardDefinition: StudioCardDefinition<CalloutCardData> = {
   renderHtml: (data) => {
     const emoji = escapeHtml(data.emoji);
     const content = sanitizeHtml(data.text);
-    return `<div class="kg-card kg-callout-card bg-${data.backgroundColor}"><span class="emoji">${emoji}</span><div class="content">${content}</div></div>`;
+    const safeBg = /^[a-zA-Z0-9_-]+$/.test(data.backgroundColor || '') ? data.backgroundColor : 'grey';
+    return `<div class="kg-card kg-callout-card bg-${safeBg}"><span class="emoji">${emoji}</span><div class="content">${content}</div></div>`;
   },
   renderPlainText: (data) => `${data.emoji} ${data.text}`,
 };

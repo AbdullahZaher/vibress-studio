@@ -287,6 +287,23 @@ export function sanitizeInlineStyle(style: unknown): string {
   return safeDecls.join('; ');
 }
 
+const DISCARD_CONTAINER_TAGS = new Set([
+  'script',
+  'style',
+  'textarea',
+  'title',
+  'noscript',
+  'noembed',
+  'noframes',
+  'xmp',
+  'template',
+  'object',
+  'embed',
+  'applet',
+  'frame',
+  'frameset',
+]);
+
 type P5Node = {
   nodeName: string;
   tagName?: string;
@@ -294,6 +311,7 @@ type P5Node = {
   attrs?: Array<{ name: string; value: string }>;
   childNodes?: P5Node[];
   value?: string;
+  parentNode?: P5Node;
 };
 
 function isTextNode(node: P5Node): boolean {
@@ -306,23 +324,31 @@ function isCommentNode(node: P5Node): boolean {
 
 /**
  * Returns a list of replacement nodes (0 = dropped, N = flattened safe text
- * from dropped wrappers). Dropped elements keep their inline text content so
- * readable content is never destroyed (e.g. <script>alert(1)</script> becomes
- * the inert text "alert(1)").
+ * from dropped wrappers). Discard containers (script, style, math, svg, etc.)
+ * are dropped entirely to prevent RAWTEXT escapes and namespace confusion.
+ * Safe flattened text nodes always inherit the active container parent.
  */
-function sanitizeNode(node: P5Node): P5Node[] {
-  if (isTextNode(node)) {
-    return [node];
-  }
+function sanitizeNode(node: P5Node, parentNode?: P5Node): P5Node[] {
   if (isCommentNode(node)) {
     return [];
   }
+  if (isTextNode(node)) {
+    return [{
+      nodeName: '#text',
+      value: node.value || '',
+      parentNode: parentNode,
+    }];
+  }
 
   const tag = (node.tagName || '').toLowerCase();
+  if (DISCARD_CONTAINER_TAGS.has(tag)) {
+    return [];
+  }
+
   if (!STUDIO_ALLOWED_TAGS.has(tag)) {
     const out: P5Node[] = [];
     for (const child of node.childNodes || []) {
-      out.push(...sanitizeNode(child));
+      out.push(...sanitizeNode(child, parentNode));
     }
     return out;
   }
@@ -347,6 +373,10 @@ function sanitizeNode(node: P5Node): P5Node[] {
     const allowed = GLOBAL_ATTRS.has(name) || (TAG_ATTRS[tag] || new Set()).has(name);
     if (!allowed) return false;
 
+    if (name === 'title' || name === 'alt' || name === 'aria-label') {
+      attr.value = (attr.value || '').replace(/[<>]/g, '');
+    }
+
     if (URL_ATTRS.has(name)) {
       const value = attr.value || '';
       if (tag === 'iframe') {
@@ -362,7 +392,7 @@ function sanitizeNode(node: P5Node): P5Node[] {
     const href = attrs.find((a) => a.name.toLowerCase() === 'href');
     if (!href || href.value.trim() === '') {
       // Strip an unsafe anchor but retain its readable, inert children.
-      return (node.childNodes || []).flatMap(sanitizeNode);
+      return (node.childNodes || []).flatMap((c) => sanitizeNode(c, parentNode));
     }
 
     // Validate target attribute
@@ -396,6 +426,7 @@ function sanitizeNode(node: P5Node): P5Node[] {
       );
       tokens.add('noopener');
       tokens.add('noreferrer');
+      tokens.delete('opener');
       const normalizedRel = Array.from(tokens).join(' ');
       if (relAttr) {
         relAttr.value = normalizedRel;
@@ -409,6 +440,7 @@ function sanitizeNode(node: P5Node): P5Node[] {
           .split(/\s+/)
           .filter((t) => ALLOWED_REL_TOKENS.has(t))
       );
+      tokens.delete('opener');
       if (tokens.size > 0) {
         relAttr.value = Array.from(tokens).join(' ');
       } else if (relIdx !== -1) {
@@ -429,18 +461,34 @@ function sanitizeNode(node: P5Node): P5Node[] {
     return [];
   }
 
-  const childNodes: P5Node[] = [];
-  for (const child of node.childNodes || []) {
-    childNodes.push(...sanitizeNode(child));
+  const isLeafTag = tag === 'img' || tag === 'hr' || tag === 'input' || tag === 'source' || tag === 'iframe';
+  if (isLeafTag) {
+    return [{
+      nodeName: tag,
+      tagName: tag,
+      namespaceURI: 'http://www.w3.org/1999/xhtml',
+      attrs,
+      childNodes: [],
+      parentNode: parentNode,
+    }];
   }
 
-  return [{
-    nodeName: node.nodeName,
+  const safeElement: P5Node = {
+    nodeName: tag,
     tagName: tag,
     namespaceURI: 'http://www.w3.org/1999/xhtml',
     attrs,
-    childNodes,
-  }];
+    childNodes: [],
+    parentNode: parentNode,
+  };
+
+  const childNodes: P5Node[] = [];
+  for (const child of node.childNodes || []) {
+    childNodes.push(...sanitizeNode(child, safeElement));
+  }
+  safeElement.childNodes = childNodes;
+
+  return [safeElement];
 }
 
 /** Sanitize arbitrary HTML to the Studio allowlist. Safe content survives; every script/event/unsafe-URL vector is removed. */
@@ -448,11 +496,13 @@ export function sanitizeStudioHtml(html: string): string {
   if (!html || typeof html !== 'string') return '';
   try {
     const fragment = parseFragment(html) as unknown as P5Node;
-    const childNodes: P5Node[] = [];
+    const cleanFragment: P5Node = {
+      nodeName: '#document-fragment',
+      childNodes: [],
+    };
     for (const child of fragment.childNodes || []) {
-      childNodes.push(...sanitizeNode(child));
+      cleanFragment.childNodes?.push(...sanitizeNode(child, cleanFragment));
     }
-    const cleanFragment = { nodeName: '#document-fragment', childNodes } as unknown as P5Node;
     const out = serialize(cleanFragment as never);
     return out;
   } catch {
