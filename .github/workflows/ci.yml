@@ -110,15 +110,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: AbdullahZaher/vibress
-          ref: 21c8d8b9a79763785ffd9338f0d19e52707e2b5c
+          ref: 446989032dba340f93f01a22c938019058305e50
           path: .cms-g2-source
           persist-credentials: false
 
       - name: Verify persisted v1 fixtures against exact CMS G2 HEAD
         if: github.event_name == 'pull_request' && github.event.pull_request.number == 37
         run: |
-          test "$(git -C .cms-g2-source rev-parse HEAD)" = "21c8d8b9a79763785ffd9338f0d19e52707e2b5c"
-          node scripts/verify-host-compatibility.mjs --host .cms-g2-source --ref 21c8d8b9a79763785ffd9338f0d19e52707e2b5c
+          test "$(git -C .cms-g2-source rev-parse HEAD)" = "446989032dba340f93f01a22c938019058305e50"
+          node scripts/verify-host-compatibility.mjs --host .cms-g2-source --ref 446989032dba340f93f01a22c938019058305e50
 
 
 
