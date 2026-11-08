@@ -1,7 +1,7 @@
 # Host/Standalone Studio Compatibility Evidence — 2026-11-05
 
-**Status: SOURCE COMPARISON ONLY; NOT APPROVED FOR HOST REPLACEMENT.**
-ADR-0001 remains Proposed; this document cannot approve it.
+**Status: Historical source comparison + 2026-11-08 G5 evidence addendum; NOT proof of drop-in host editor replacement.**
+ADR-0001 is **Approved (Option B: host runtime canonical, standalone downstream)**. This approval defines ownership; it does **not** approve dropping standalone Lexical into the CMS or demonstrate Yjs runtime parity. The older matrix below remains a historical comparison at its named commits.
 
 Program follow-up (2026-11-06): host candidate `cb0be3f03460cc57143e43db093c523e27b4cf0d`
 ([PR #130](https://github.com/AbdullahZaher/vibress/pull/130)) now passes all nine
@@ -54,7 +54,7 @@ See the [current verified delivery report](../audits/world-class-editor-program-
 
 Until all applicable gates and owner approvals are recorded, classify integration as **BLOCKED** for replacement. The existence of host collaboration code is not proof of compatibility with standalone Studio.
 
-## 2026-11-08 Gate G5 Verification Checkpoint (Host Parity & Clean Rollback)
+## 2026-11-08 Gate G5 Verification Checkpoint (Persisted Format & Host-Owned Collaboration)
 
 ### 1. Verified Commit Baseline
 - **Vibress Host Baseline:** `AbdullahZaher/vibress@3344f83f30dd23205abb596f4320857f4611812a` (Tag: `v1.2.0-beta.1`).
@@ -78,13 +78,18 @@ Verified via `node scripts/verify-host-compatibility.mjs --host /path/to/vibress
   - `tests/integration/studio-collaboration-production.test.ts` (17/17 passed): Multi-tenant room isolation, cross-publication blocking (403), Redis CRDT persistence and restart recovery, oversized update rejection (>64 KB), rate-limiting, and epoch increment fencing.
   - `tests/integration/collaboration-epoch-security.test.ts` (17/17 passed): Stale Yjs replay rejection (4409), monotonic epoch fencing, offline partition healing without document corruption.
 - **Architectural Policy Reaffirmed:** ADR-0001 Option B remains authoritative. The host monorepo retains ownership of active runtime collaboration and autosave persistence; standalone Studio serves as a downstream distribution target.
+- **Scope limit:** The 38 host CRDT/collaboration tests run in the **CMS host implementation**. They do **not** run the standalone editor with the host Yjs provider or prove the two editors can replace each other. The Studio CI compatibility script explicitly reports `Persisted core fixtures only; no renderer/editor/Yjs/service parity asserted`.
 
 ### 4. Independent Package Consumer & Reversible Rollback
 Verified via `node scripts/verify-packed-consumer.mjs`:
 - **Clean Installation:** 13 packages built, packed into `.tgz` tarballs, and installed in an independent React 18.3 / TS consumer without workspace links.
 - **TypeScript Resolution:** Passed with both `Bundler` and strict `NodeNext` resolution modes.
 - **Exports & Assets:** ESM and CommonJS exports, `@vibress/studio-react/styles.css` and `tokens.css` verified.
-- **Reversible Rollback Demonstration:** Tested via `--baseline-ref v1.2.0-beta.1`: Candidate created v1 document with custom cards and future nodes, rolled back to baseline packages, re-verified that baseline runtime reopens, parses, and round-trips the candidate content losslessly.
+- **Reported local rollback check:** The program report describes a `--baseline-ref v1.2.0-beta.1` packed-consumer rollback check. The normal final Studio CI checks clean Bundler/NodeNext consumer installs and persisted fixtures, **not** a production host database/provider downgrade or a live two-client rollback drill. Preserve the original local artifact before claiming those broader scenarios.
+
+### Release-claim boundary (2026-11-09)
+
+The original historical matrix contains stale unmerged-PR and old Lexical version references; read it only with its dated SHAs. **Current release-level evidence establishes persisted v1 fixture compatibility, host-only Yjs regression coverage, and packaged consumer smoke tests.** End-to-end migration from the standalone editor into live CMS collaborative sessions, actual host autosave conflict behavior under version swaps, and live rollback remain separate acceptance tasks. See [release evidence correction](../audits/release-evidence-correction-2026-11-09.md).
 
 ---
 
