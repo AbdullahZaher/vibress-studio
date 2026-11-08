@@ -54,6 +54,40 @@ See the [current verified delivery report](../audits/world-class-editor-program-
 
 Until all applicable gates and owner approvals are recorded, classify integration as **BLOCKED** for replacement. The existence of host collaboration code is not proof of compatibility with standalone Studio.
 
+## 2026-11-08 Gate G5 Verification Checkpoint (Host Parity & Clean Rollback)
+
+### 1. Verified Commit Baseline
+- **Vibress Host Baseline:** `AbdullahZaher/vibress@3344f83f30dd23205abb596f4320857f4611812a` (Tag: `v1.2.0-beta.1`).
+- **Standalone Studio Baseline:** `AbdullahZaher/vibress-studio@f882d4a55ba85fb729b2f18c341212a5b1e31f24`.
+
+### 2. Cross-Repository Persisted Fixture Verification
+Verified via `node scripts/verify-host-compatibility.mjs --host /path/to/vibress --ref 3344f83f30dd23205abb596f4320857f4611812a`:
+- `current-mixed-rtl`: **PASS** — Complete bidirectional text and Tashkeel normalization equivalence.
+- `legacy-card`: **PASS** — Legacy card structures parse and normalize equivalently.
+- `unknown-future-node`: **PASS** — Preserved safely without corruption.
+- `future-document-version`: **PASS** (Recovery-only admission boundary) — Persisted envelope preserved losslessly; host editor migration refuses editing with exact original input.
+- `tables-lists-code`: **PASS** — Complex table cells, lists, and code blocks round-trip identically.
+- `envelope-extension`: **PASS** — Metadata extensions parsed safely.
+- `foreign-schema`, `invalid-root`, `unknown-object`: **PASS** — Malformed or invalid envelopes rejected safely.
+
+### 3. Host Dependency Graph & Collaboration Parity
+- **Dependency Evaluation:** Host monorepo (`vibress`) retains its validated dependency configuration (`lexical@0.13.1` with `@lexical/yjs@0.52.0`, `@lexical/history@0.52.0`, `@lexical/utils@0.52.0`, and `yjs@13.6.32`).
+- **Executable Host Test Verification:**
+  - `packages/studio-react/src/__tests__/crdt-collaboration.test.ts` (3/3 passed): Deterministic synchronization across two independent clients, offline edits sync upon reconnection without data loss, presence/awareness propagation.
+  - `packages/studio-react/src/__tests__/collaborative-restore-boundary.test.tsx` (1/1 passed): Retained collaborative root correctly fences over remounted database restores.
+  - `tests/integration/studio-collaboration-production.test.ts` (17/17 passed): Multi-tenant room isolation, cross-publication blocking (403), Redis CRDT persistence and restart recovery, oversized update rejection (>64 KB), rate-limiting, and epoch increment fencing.
+  - `tests/integration/collaboration-epoch-security.test.ts` (17/17 passed): Stale Yjs replay rejection (4409), monotonic epoch fencing, offline partition healing without document corruption.
+- **Architectural Policy Reaffirmed:** ADR-0001 Option B remains authoritative. The host monorepo retains ownership of active runtime collaboration and autosave persistence; standalone Studio serves as a downstream distribution target.
+
+### 4. Independent Package Consumer & Reversible Rollback
+Verified via `node scripts/verify-packed-consumer.mjs`:
+- **Clean Installation:** 13 packages built, packed into `.tgz` tarballs, and installed in an independent React 18.3 / TS consumer without workspace links.
+- **TypeScript Resolution:** Passed with both `Bundler` and strict `NodeNext` resolution modes.
+- **Exports & Assets:** ESM and CommonJS exports, `@vibress/studio-react/styles.css` and `tokens.css` verified.
+- **Reversible Rollback Demonstration:** Tested via `--baseline-ref v1.2.0-beta.1`: Candidate created v1 document with custom cards and future nodes, rolled back to baseline packages, re-verified that baseline runtime reopens, parses, and round-trips the candidate content losslessly.
+
+---
+
 ## References
 
 - [Host React package](https://github.com/AbdullahZaher/vibress/blob/b33fb1ab597bfabb8861516132cf8bad567f0bf1/packages/studio-react/package.json)
