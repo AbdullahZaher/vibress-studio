@@ -1,9 +1,13 @@
 # ADR-0001: Studio runtime ownership and two-repository synchronization
 
-- **Date:** 2026-11-03
-- **State:** Proposed — implementation approval pending baseline gate G0
+- **Date:** 2026-11-03 (Updated for G2 Gate Review: 2026-11-08)
+- **State:** Proposed — Formal Review Submission (Awaiting Decision-Maker Approval; Not Self-Approved)
 - **Scope:** `AbdullahZaher/vibress` and `AbdullahZaher/vibress-studio`
-- **Decision owners:** Studio platform, Vibress Admin integration, security, accessibility and release reviewers (assign people before approval)
+- **Decision owners (Formal Independent Sign-Off Pending):**
+  - Platform Lead: [Pending Assignment / Sign-Off]
+  - Vibress Admin Integration Lead: [Pending Assignment / Sign-Off]
+  - Application Security Engineer: [Pending Independent Audit Sign-Off]
+  - Release Auditor: [Pending G2 Gate Verification]
 
 ## Context and verified evidence
 
@@ -65,8 +69,8 @@ No runtime behavior is changed by this decision. To reverse it, draft a new ADR,
 - [Host page persistence](https://github.com/AbdullahZaher/vibress/blob/main/apps/admin/src/components/PageEditor.tsx)
 - [UX roadmap (documentation PR #1)](https://github.com/AbdullahZaher/vibress-studio/blob/docs/studio-global-quality-roadmap-20261103/docs/roadmaps/global-ux-quality-roadmap.md)
 
-## 2026-11-05 verification checkpoint (informational; ADR remains Proposed)
+## 2026-11-08 G2 Release Candidate Review Checkpoint (Informational; ADR Remains Proposed)
 
-- Host main reference: `b33fb1ab597bfabb8861516132cf8bad567f0bf1`; standalone assessment PR #28 reference: `36445d0288bed112e84944b838bea7373589d5bc`.
-- Host autosave remediation is proposed separately in [Vibress PR #124](https://github.com/AbdullahZaher/vibress/pull/124), with no merge authorization or assumed runtime parity.
-- To approve this ADR, require an owner sign-off, bidirectional document/card fixture checks, pinned Lexical and Yjs compatibility evidence, two-client collaboration/persistence tests, and a reversible migration path.
+- Evaluated commit baseline: Vibress host `1cc893ff2895d0a61caed4644c4633873afaee34`; Studio `9e4d26aa86b6b042f776f594eba418d43ca7163d`.
+- **Runtime Parity Clarification:** Persisted document fixture suites demonstrate bidirectional JSON/HTML document serialization and round-trip format compatibility between both repositories. They do **not** assert or demonstrate full host/editor/Yjs collaboration runtime parity or identical conflict resolution lifecycles.
+- **Formal Sign-Off Gate:** This ADR remains in `Proposed` status. Approval requires explicit, documented sign-offs by the assigned decision owners on GitHub prior to any canonical extraction or downstream release. No automatic or self-approval is recognized.

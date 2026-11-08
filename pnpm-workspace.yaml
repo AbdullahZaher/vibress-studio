@@ -2,6 +2,16 @@ packages:
   - 'packages/*'
   - 'playground'
 
+overrides:
+  nanoid: ^3.3.18
+  brace-expansion: ^5.0.12
+  source-map-js: 1.2.2
+  "vitest>vite": 8.2.4
+  "@vitest/coverage-v8>vite": 8.2.4
+  vitest: 4.1.12
+  "@vitest/coverage-v8": 4.1.12
+  "@vitest/mocker": 4.1.12
+
 # pnpm 11 gates dependency build scripts via `allowBuilds` (the v10
 # `onlyBuiltDependencies` array is accepted but not applied). esbuild must run
 # its postinstall to install the platform binary or the build/E2E toolchain
