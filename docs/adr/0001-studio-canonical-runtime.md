@@ -35,7 +35,7 @@ The two repositories retain `schema: 'vibress-studio'`, `version: 1` and legacy-
 ## Alternatives examined
 
 - **A. Standalone canonical immediately:** rejected for the active runtime because copying its current `VibressStudio` into the host drops host-only features and existing regression safeguards.
-- **B. Host canonical with extraction:** preferred proposal, pending owner sign-off, to protect deployed functionality and allow a future reusable standalone distribution.
+- **B. Host canonical with extraction:** selected and approved under Option B for ownership; any future code extraction, runtime substitution, or standalone release still requires separate technical acceptance and release authorization.
 - **Indefinite dual-authoritative editing:** rejected; persistent divergence makes compatibility and bug fixes unverifiable.
 
 ## Explicit compatibility invariants
