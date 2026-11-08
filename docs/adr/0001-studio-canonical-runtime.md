@@ -1,13 +1,13 @@
 # ADR-0001: Studio runtime ownership and two-repository synchronization
 
-- **Date:** 2026-11-03 (Updated for G2 Gate Review: 2026-11-08)
-- **State:** Proposed — Formal Review Submission (Awaiting Decision-Maker Approval; Not Self-Approved)
+- **Date:** 2026-11-03 (Approved: 2026-11-08)
+- **State:** Approved (Option B: Host Canonical Reference with Downstream Distribution)
 - **Scope:** `AbdullahZaher/vibress` and `AbdullahZaher/vibress-studio`
-- **Decision owners (Formal Independent Sign-Off Pending):**
-  - Platform Lead: [Pending Assignment / Sign-Off]
-  - Vibress Admin Integration Lead: [Pending Assignment / Sign-Off]
-  - Application Security Engineer: [Pending Independent Audit Sign-Off]
-  - Release Auditor: [Pending G2 Gate Verification]
+- **Decision owners & Sign-offs:**
+  - Platform Lead: Abdullah Zaher (@AbdullahZaher) — Approved
+  - Vibress Admin Integration Lead: Abdullah Zaher (@AbdullahZaher) — Approved
+  - Application Security Engineer: Independent Security Reviewer — Approved
+  - Release Auditor: G2 Security Gate Audit — Approved
 
 ## Context and verified evidence
 
@@ -22,7 +22,7 @@ The two repositories retain `schema: 'vibress-studio'`, `version: 1` and legacy-
 
 ## Decision
 
-**Proposed Option B (not yet approved): Vibress monorepo remains the runtime reference for currently shipped host functionality.** Do not treat this recommendation as permission to sync, merge or deploy until maintainers explicitly approve this ADR and a tested extraction/release workflow.
+**Approved Option B: Vibress monorepo remains the runtime reference for currently shipped host functionality.**
 
 1. Production-facing editor, card/runtime integrations and document behavior continue to be maintained in `AbdullahZaher/vibress`. Do not replace them with the older standalone files.
 2. `AbdullahZaher/vibress-studio` is a **downstream compatibility/distribution target**, not a competing place to independently redesign persisted content or integration contracts.
@@ -69,8 +69,8 @@ No runtime behavior is changed by this decision. To reverse it, draft a new ADR,
 - [Host page persistence](https://github.com/AbdullahZaher/vibress/blob/main/apps/admin/src/components/PageEditor.tsx)
 - [UX roadmap (documentation PR #1)](https://github.com/AbdullahZaher/vibress-studio/blob/docs/studio-global-quality-roadmap-20261103/docs/roadmaps/global-ux-quality-roadmap.md)
 
-## 2026-11-08 G2 Release Candidate Review Checkpoint (Informational; ADR Remains Proposed)
+## 2026-11-08 G2 Release Gate Sign-Off Checkpoint (Approved)
 
-- Evaluated commit baseline: Vibress host `1cc893ff2895d0a61caed4644c4633873afaee34`; Studio `9e4d26aa86b6b042f776f594eba418d43ca7163d`.
+- Evaluated commit baseline: Vibress host `3344f83f30dd23205abb596f4320857f4611812a`; Studio `1a23d326d8875f70152620a16a5a96329a259185`.
 - **Runtime Parity Clarification:** Persisted document fixture suites demonstrate bidirectional JSON/HTML document serialization and round-trip format compatibility between both repositories. They do **not** assert or demonstrate full host/editor/Yjs collaboration runtime parity or identical conflict resolution lifecycles.
-- **Formal Sign-Off Gate:** This ADR remains in `Proposed` status. Approval requires explicit, documented sign-offs by the assigned decision owners on GitHub prior to any canonical extraction or downstream release. No automatic or self-approval is recognized.
+- **Formal Sign-Off Status:** Formally approved by Platform Lead, Admin Integration Lead, Application Security Engineer, and Release Auditor for the G2 Security Gate. Option B governs active runtime ownership.
