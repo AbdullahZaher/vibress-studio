@@ -31,7 +31,7 @@ import {
   Quote,
   Code,
 } from 'lucide-react';
-import { turnSelectedBlockInto, TurnIntoType } from './TurnIntoHelper';
+import { getBlockTransformRestriction, turnSelectedBlockInto, TurnIntoType } from './TurnIntoHelper';
 import { $deepCloneNode } from '../utils/cloneNode';
 
 const NOTION_COLORS = [
@@ -53,6 +53,7 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [activeSubMenu, setActiveSubMenu] = useState<'turnInto' | 'color' | null>(null);
+  const [transformError, setTransformError] = useState<string | null>(null);
   const handleRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -246,7 +247,13 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
   };
 
   const handleTurnInto = (type: TurnIntoType) => {
-    turnSelectedBlockInto(editor, type, hoveredNodeKey ?? undefined);
+    const restriction = getBlockTransformRestriction(editor, type, hoveredNodeKey ?? undefined);
+    if (restriction) {
+      setTransformError(restriction);
+      return;
+    }
+    setTransformError(null);
+    turnSelectedBlockInto(editor, type, hoveredNodeKey ?? undefined, setTransformError);
     editor.focus();
     setShowMenu(false);
     setActiveSubMenu(null);
@@ -392,6 +399,11 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
             <span style={{ marginInlineStart: 'auto', fontSize: '11px', color: 'var(--vb-studio-foreground-subtle, #94a3b8)' }}>›</span>
           </button>
 
+          {transformError && (
+            <p role="status" className="text-sm" style={{ padding: '6px 8px', color: 'var(--vb-studio-foreground)' }}>
+              {transformError}
+            </p>
+          )}
           {activeSubMenu === 'turnInto' && (
             <div style={subMenuContainerStyle} role="menu">
               <button style={subMenuItemStyle} onClick={() => handleTurnInto('paragraph')}>Text (Paragraph)</button>

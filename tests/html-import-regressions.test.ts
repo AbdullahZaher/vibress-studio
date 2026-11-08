@@ -1,7 +1,105 @@
 import { describe, it, expect } from 'vitest';
 import { htmlToStudioDocument } from '@vibress/studio-html';
+import { assertStudioDocumentEditable, isStudioMigrationError, migrateDocument } from '@vibress/studio-core';
 import { studioDocumentToMarkdown } from '@vibress/studio-markdown';
 import { renderStudioDocumentToHtml } from '@vibress/studio-renderer';
+
+describe('HTML alignment import and editable admission', () => {
+  it('maps paragraph and RTL heading alignment to Lexical format instead of opaque style', () => {
+    const doc = htmlToStudioDocument(
+      '<p style="text-align: center">مرحبا English</p>' +
+      '<h2 dir="rtl" style="text-align: right">العنوان</h2>'
+    );
+    expect(doc.root.children).toEqual([
+      expect.objectContaining({ type: 'paragraph', format: 'center' }),
+      expect.objectContaining({ type: 'heading', direction: 'rtl', format: 'right' }),
+    ]);
+    expect(() => assertStudioDocumentEditable(doc)).not.toThrow();
+    const rendered = renderStudioDocumentToHtml(doc);
+    expect(rendered).toContain('style="text-align: center"');
+    expect(rendered).toContain('dir="rtl"');
+    expect(rendered).toContain('style="text-align: right"');
+    const reimported = htmlToStudioDocument(rendered);
+    expect(() => assertStudioDocumentEditable(reimported)).not.toThrow();
+    expect(reimported.root.children[0]).toMatchObject({ format: 'center' });
+  });
+
+  it('publishes canonical alignment on lists, quotes, tables and code blocks', () => {
+    const doc = htmlToStudioDocument(
+      '<blockquote style="text-align: right">Quote</blockquote>' +
+      '<ol style="text-align: center"><li style="text-align: right">One</li></ol>' +
+      '<table style="text-align: center"><tr><td>Value</td></tr></table>' +
+      '<pre style="text-align: left"><code>demo</code></pre>'
+    );
+    expect(() => assertStudioDocumentEditable(doc)).not.toThrow();
+    const html = renderStudioDocumentToHtml(doc);
+    expect(html).toMatch(/<blockquote[^>]*style="text-align: right"/);
+    expect(html).toMatch(/<ol[^>]*style="text-align: center"/);
+    expect(html).toMatch(/<li[^>]*style="text-align: right"/);
+    expect(html).toMatch(/<table[^>]*style="text-align: center"/);
+    expect(html).toMatch(/<div class="studio-code-block"[^>]*style="text-align: left"/);
+  });
+
+  it('maps table-cell background and alignment into supported fields', () => {
+    const doc = htmlToStudioDocument(
+      '<table dir="rtl"><tr><td style="background-color: #fff; text-align: center">القيمة</td></tr></table>'
+    );
+    const cell = (doc.root.children[0] as { children: Array<{ children: Array<Record<string, unknown>> }> }).children[0]!.children[0]!;
+    expect(cell).toMatchObject({ backgroundColor: '#fff', format: 'center' });
+    expect(() => assertStudioDocumentEditable(doc)).not.toThrow();
+    const html = renderStudioDocumentToHtml(doc);
+    expect(html).toContain('background-color: #fff');
+    expect(html).toContain('text-align: center');
+  });
+
+  it('retains valid CSS that Lexical cannot edit in explicit recovery, not a lossy save', () => {
+    const doc = htmlToStudioDocument('<p style="color: #aabbcc; text-align: center">Preserve color</p>');
+    expect(doc.root.children[0]).toMatchObject({ format: 'center', style: 'color: #aabbcc' });
+    expect(migrateDocument(doc)).toEqual(doc);
+    expect(() => assertStudioDocumentEditable(doc)).toThrow();
+    expect(renderStudioDocumentToHtml(doc)).toContain('color: #aabbcc');
+  });
+
+  it.each([
+    '<div style="text-align: center"><p>Important content</p></div>',
+    '<section style="color: #abcdef"><p>Preserve me</p></section>',
+  ])('refuses styled wrapper import with recoverable original source: %s', (html) => {
+    try {
+      htmlToStudioDocument(html);
+      throw new Error('Expected a recoverable import error');
+    } catch (error) {
+      expect(isStudioMigrationError(error)).toBe(true);
+      if (isStudioMigrationError(error)) {
+        expect(error.code).toBe('UNSUPPORTED_DOCUMENT');
+        expect(error.rawDocument).toBe(html);
+      }
+    }
+  });
+
+  it('sanitizes hostile nested HTML and unsafe URLs without making them executable', () => {
+    const source = [
+      '<div onclick="alert(1)"><p style="text-align: center; background-image: url(javascript:alert(1))">',
+      '<a href="javascript:alert(2)">Safe link text</a>',
+      '<svg onload="alert(3)"><script>alert(4)</script></svg>',
+      '<iframe src="javascript:alert(5)" onload="alert(6)"></iframe>',
+      'Body</p></div>',
+    ].join('');
+    const doc = htmlToStudioDocument(source);
+    const output = renderStudioDocumentToHtml(doc);
+    expect(output).not.toMatch(/javascript:|onload=|onclick=|<svg|<script|<iframe|background-image/i);
+    expect(output).toContain('Safe link text');
+    expect(output).toContain('Body');
+    expect(output).toContain('text-align: center');
+  });
+
+  it('never restores hostile style or event handlers', () => {
+    const doc = htmlToStudioDocument('<p onclick="alert(1)" style="background-image: url(javascript:alert(1)); text-align: center">Safe</p>');
+    expect(() => assertStudioDocumentEditable(doc)).not.toThrow();
+    const html = renderStudioDocumentToHtml(doc);
+    expect(html).not.toMatch(/javascript:|onclick|background-image/i);
+    expect(html).toContain('text-align: center');
+  });
+});
 
 describe('sanitized HTML import compatibility', () => {
   it('preserves formatting and Arabic during import and export', () => {

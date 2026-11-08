@@ -6,6 +6,7 @@ import {
   $isRootOrShadowRoot,
   $createParagraphNode,
   ElementNode,
+  LexicalNode,
   LexicalEditor,
 } from 'lexical';
 import {
@@ -35,7 +36,50 @@ export type TurnIntoType =
   | 'quote'
   | 'code';
 
-function applyBlockType(type: TurnIntoType) {
+/** Refuse transforms that would invalidate nested list structure or reorder content.
+ * This predicate is also used by toolbars before dismissing their menus. */
+function restrictionForNode(node: LexicalNode, type: TurnIntoType): string | null {
+  if (type === 'bullet-list' || type === 'number-list' || type === 'check-list') return null;
+  let current: LexicalNode | null = node;
+  while (current && !$isListItemNode(current)) current = current.getParent();
+  if (!$isListItemNode(current)) return null;
+  const parent = current.getParent();
+  if (!$isListNode(parent)) return null;
+  if (!$isRootOrShadowRoot(parent.getParent())) {
+    return 'Cannot transform a nested list item directly. Outdent it before changing its block type.';
+  }
+  // ListNode children must remain in a ListNode; nested lists are extracted
+  // to adjacent root blocks. Interleaved inline content would change order.
+  let encounteredNestedList = false;
+  for (const child of current.getChildren()) {
+    if ($isListNode(child)) encounteredNestedList = true;
+    else if (encounteredNestedList) {
+      return 'Cannot transform an item with content after a nested list without reordering it.';
+    }
+  }
+  return null;
+}
+
+/** Read-only preflight so unsupported choices show actionable feedback. */
+export function getBlockTransformRestriction(
+  editor: LexicalEditor,
+  type: TurnIntoType,
+  targetNodeKey?: string,
+): string | null {
+  let reason: string | null = null;
+  editor.getEditorState().read(() => {
+    const node = targetNodeKey
+      ? $getNodeByKey(targetNodeKey)
+      : (() => {
+          const selection = $getSelection();
+          return $isRangeSelection(selection) ? selection.anchor.getNode() : null;
+        })();
+    reason = node ? restrictionForNode(node, type) : 'Select a block before changing its type.';
+  });
+  return reason;
+}
+
+function applyBlockType(type: TurnIntoType, onRejected?: (reason: string) => void) {
   const selection = $getSelection();
   if (!$isRangeSelection(selection)) {
     return;
@@ -51,6 +95,11 @@ function applyBlockType(type: TurnIntoType) {
       : 'check';
 
   const anchorNode = selection.anchor.getNode();
+  const rejection = restrictionForNode(anchorNode, type);
+  if (rejection) {
+    onRejected?.(rejection);
+    return;
+  }
   const currentListItem = $isListItemNode(anchorNode)
     ? anchorNode
     : $isListItemNode(anchorNode.getParent())
@@ -93,6 +142,14 @@ function applyBlockType(type: TurnIntoType) {
   }
 
   if (currentListItem && currentList && $isListNode(currentList)) {
+    // A ListNode may contain only ListItemNodes. Inserting a paragraph,
+    // heading, quote or code directly into it creates an invalid tree.
+    // Nested lists have a different ownership structure: preserve them
+    // unchanged rather than moving their children into an invalid hierarchy.
+    if (!$isRootOrShadowRoot(currentList.getParent())) {
+      return;
+    }
+
     let targetNode: ElementNode;
     switch (type) {
       case 'paragraph':
@@ -112,14 +169,37 @@ function applyBlockType(type: TurnIntoType) {
       default:
         targetNode = $createParagraphNode();
     }
+    // Preserve both the inline content and trailing nested sublists.
+    // Nested lists cannot be direct children of paragraph/heading/quote/code.
+    const nestedLists: ListNode[] = [];
     for (const child of currentListItem.getChildren()) {
-      targetNode.append(child);
+      if ($isListNode(child)) nestedLists.push(child);
+      else targetNode.append(child);
     }
-    if (currentList.getChildrenSize() <= 1) {
-      currentList.replace(targetNode);
-    } else {
-      currentListItem.replace(targetNode);
+    targetNode.setDirection(currentListItem.getDirection());
+    const formats = ['', 'left', 'center', 'right', 'justify', 'start', 'end'] as const;
+    targetNode.setFormat(formats[currentListItem.getFormat()] ?? '');
+    const preceding = currentListItem.getPreviousSiblings();
+    const following = currentListItem.getNextSiblings();
+    if (following.length > 0) {
+      const trailingList = $createListNode(
+        currentList.getListType(),
+        currentList.getStart() + preceding.length + 1,
+      );
+      trailingList.setDirection(currentList.getDirection());
+      for (const sibling of following) trailingList.append(sibling);
+      currentList.insertAfter(trailingList);
     }
+    if (preceding.length > 0) currentList.insertAfter(targetNode);
+    else currentList.insertBefore(targetNode);
+
+    let previous: ElementNode = targetNode;
+    for (const nestedList of nestedLists) {
+      previous.insertAfter(nestedList);
+      previous = nestedList;
+    }
+    currentListItem.remove();
+    if (currentList.getChildrenSize() === 0) currentList.remove();
     targetNode.select();
     return;
   }
@@ -151,20 +231,37 @@ export function turnSelectedBlockInto(
   editor: LexicalEditor,
   type: TurnIntoType,
   targetNodeKey?: string,
+  onRejected?: (reason: string) => void,
 ): void {
+  const restriction = getBlockTransformRestriction(editor, type, targetNodeKey);
+  if (restriction) {
+    // Even a no-op editor.update may clear a headless/editor selection. Do
+    // not enter a write transaction when the command is unsupported.
+    onRejected?.(restriction);
+    return;
+  }
   editor.update(
     () => {
       if (targetNodeKey) {
         const node = $getNodeByKey(targetNodeKey);
+        if (!node) {
+          onRejected?.('The selected block is no longer available.');
+          return;
+        }
+        const restriction = restrictionForNode(node, type);
+        if (restriction) {
+          // Rejection must not even move the selection to the target.
+          onRejected?.(restriction);
+          return;
+        }
         if (
-          node &&
           'select' in node &&
           typeof (node as { select?: () => void }).select === 'function'
         ) {
           (node as { select: () => void }).select();
         }
       }
-      applyBlockType(type);
+      applyBlockType(type, onRejected);
     },
     { discrete: true },
   );

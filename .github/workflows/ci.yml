@@ -100,6 +100,28 @@ jobs:
       - name: Accessibility tests
         run: pnpm test:a11y
 
+      # Fetch the separate host checkout only AFTER all recursive Vitest,
+      # coverage and security/a11y discovery. Otherwise Vitest collects the
+      # host's unrelated tests without its own dependencies and fails.
+      # Beta G2 cross-repository evidence is pinned to the exact immutable
+      # CMS candidate. Do not infer Lexical/editor/Yjs runtime parity.
+      - name: Checkout pinned CMS G2 candidate (PR #37 only)
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 37
+        uses: actions/checkout@v4
+        with:
+          repository: AbdullahZaher/vibress
+          ref: 786b50f0eabf42dae912bc7b42e1b7b9eadf83fc
+          path: .cms-g2-source
+          persist-credentials: false
+
+      - name: Verify persisted v1 fixtures against exact CMS G2 HEAD
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 37
+        run: |
+          test "$(git -C .cms-g2-source rev-parse HEAD)" = "786b50f0eabf42dae912bc7b42e1b7b9eadf83fc"
+          node scripts/verify-host-compatibility.mjs --host .cms-g2-source --ref 786b50f0eabf42dae912bc7b42e1b7b9eadf83fc
+
+
+
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 25

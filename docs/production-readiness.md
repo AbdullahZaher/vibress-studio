@@ -13,6 +13,14 @@ completion claims as the current record for this branch. The
 defines full acceptance criteria; the [release policy](release-policy.md) defines
 distribution and rollback constraints.
 
+> **Beta-freeze amendment — 2026-11-07 (PR #37):** A focused content
+integrity correction refuses generic styled HTML wrappers without silently
+discarding their formatting, provides explicit transform refusal for unsupported
+nested list scenarios, and adds mounted Lexical table-edit tests. This is source
+scope only until the final immutable PR HEAD has green CI, audited host
+integration, and maintainer sign-off. A host must durably preserve raw HTML
+when import rejects unsupported wrappers; this is not proven by standalone CI.
+
 ## Gate status
 
 | Gate | Current state |

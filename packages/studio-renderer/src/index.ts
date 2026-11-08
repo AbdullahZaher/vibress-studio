@@ -80,6 +80,43 @@ function firstChildDirection(node: unknown): 'ltr' | 'rtl' | null {
   return null;
 }
 
+/** Include Lexical's canonical block alignment in published HTML.
+ * Unsupported opaque style remains sanitized, never executed. */
+function elementStyleAttr(node: Record<string, unknown>, extra = ''): string {
+  const safeStyle = typeof node.style === 'string' && node.style.trim()
+    ? sanitizeInlineStyle(node.style)
+    : '';
+  const alignment = typeof node.format === 'string' &&
+    ['left', 'right', 'center', 'justify'].includes(node.format)
+    ? `text-align: ${node.format}`
+    : '';
+  const style = [extra, safeStyle, alignment].filter(Boolean).join('; ');
+  return style ? ` style="${escapeHtml(style)}"` : '';
+}
+
+function mergeOrderedListItems(children: unknown[]): unknown[] {
+  const items: unknown[] = [];
+  let previous: { children: unknown[] } | undefined;
+  for (const child of children) {
+    // Lexical stores nested lists in a separate listitem wrapper. Attach it
+    // to its parent item so the browser does not count the wrapper as a step.
+    if (isListItem(child) && previous && child.children.length > 0 &&
+        child.children.every((node) => typeof node === "object" && node !== null &&
+          "type" in node && node.type === "list")) {
+      previous.children.push(...child.children);
+      continue;
+    }
+    previous = isListItem(child) ? { ...child, children: [...child.children] } : undefined;
+    items.push(previous ?? child);
+  }
+  return items;
+}
+
+function isListItem(node: unknown): node is { type: "listitem"; children: unknown[] } {
+  return typeof node === "object" && node !== null && "type" in node &&
+    node.type === "listitem" && "children" in node && Array.isArray(node.children);
+}
+
 function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: HeadingSlugTracker | Map<string, number>): string {
   if (!node || typeof node !== 'object') return '';
   const n = node as Record<string, unknown>;
@@ -137,8 +174,7 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
           ((child as { type?: string }).type === 'studio-card')
       );
       if (hasBlockCard) return content;
-      const safeStyle = typeof n.style === 'string' && n.style.trim() ? sanitizeInlineStyle(n.style) : '';
-      const styleAttr = safeStyle ? ` style="${escapeHtml(safeStyle)}"` : '';
+      const styleAttr = elementStyleAttr(n);
       return content ? `<p${directionAttr}${styleAttr}>${content}</p>` : `<p${directionAttr}></p>`;
     }
 
@@ -147,8 +183,7 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
       const level = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(rawTag)
         ? rawTag
         : 'h2';
-      const safeStyle = typeof n.style === 'string' && n.style.trim() ? sanitizeInlineStyle(n.style) : '';
-      const styleAttr = safeStyle ? ` style="${escapeHtml(safeStyle)}"` : '';
+      const styleAttr = elementStyleAttr(n);
       const childrenHtml = renderChildren();
       const rawText = extractNodeText(n).trim();
       let slug = '';
@@ -176,16 +211,18 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
     }
 
     case 'quote':
-      return `<blockquote${directionAttr}>${renderChildren()}</blockquote>`;
+      return `<blockquote${directionAttr}${elementStyleAttr(n)}>${renderChildren()}</blockquote>`;
 
     case 'list': {
       if (n.listType === 'check') {
-        return `<ul class="studio-checklist"${directionAttr}>${renderChildren()}</ul>`;
+        return `<ul class="studio-checklist"${directionAttr}${elementStyleAttr(n)}>${renderChildren()}</ul>`;
       }
       const listType = n.listType === 'number' ? 'ol' : 'ul';
       const startAttr = listType === 'ol' && typeof n.start === 'number' && Number.isSafeInteger(n.start) && n.start > 1
         ? ` start="${n.start}"` : '';
-      return `<${listType}${startAttr}${directionAttr}>${renderChildren()}</${listType}>`;
+      const children = Array.isArray(n.children) ? n.children : [];
+      const items = listType === 'ol' ? mergeOrderedListItems(children) : children;
+      return `<${listType}${startAttr}${directionAttr}${elementStyleAttr(n)}>${items.map(item => renderNodeToHtml(item, options, slugTracker)).join('')}</${listType}>`;
     }
 
     case 'listitem': {
@@ -193,15 +230,15 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
         const isChecked = n.checked;
         const checkedAttr = isChecked ? ' checked="checked"' : '';
         const checkedClass = isChecked ? ' is-checked' : '';
-        return `<li class="studio-checklist-item${checkedClass}"><input type="checkbox"${checkedAttr} disabled /><span>${renderChildren()}</span></li>`;
+        return `<li class="studio-checklist-item${checkedClass}"${directionAttr}${elementStyleAttr(n)}><input type="checkbox"${checkedAttr} disabled /><span>${renderChildren()}</span></li>`;
       }
-      return `<li${directionAttr}>${renderChildren()}</li>`;
+      return `<li${directionAttr}${elementStyleAttr(n)}>${renderChildren()}</li>`;
     }
 
     case 'table': {
       const inferred = directionAttr ? '' : firstChildDirection(n.children);
       const tableDirection = directionAttr || (inferred ? ` dir="${inferred}"` : '');
-      return `<div class="studio-table-container"><table class="studio-table"${tableDirection}><tbody>${renderChildren()}</tbody></table></div>`;
+      return `<div class="studio-table-container"><table class="studio-table"${tableDirection}${elementStyleAttr(n)}><tbody>${renderChildren()}</tbody></table></div>`;
     }
 
     case 'tablerow':
@@ -218,17 +255,10 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
         : (typeof n.rowSpan === 'string' && /^\d+$/.test(n.rowSpan) && parseInt(n.rowSpan, 10) > 1 ? parseInt(n.rowSpan, 10) : null);
       const colSpan = colSpanVal ? ` colspan="${colSpanVal}"` : '';
       const rowSpan = rowSpanVal ? ` rowspan="${rowSpanVal}"` : '';
-      let style = '';
-      if (typeof n.backgroundColor === 'string' && isSafeCssColor(n.backgroundColor)) {
-        style = `background-color: ${n.backgroundColor}`;
-      }
-      if (typeof n.style === 'string' && n.style.trim()) {
-        const safe = sanitizeInlineStyle(n.style);
-        if (safe) {
-          style = style ? `${style}; ${safe}` : safe;
-        }
-      }
-      const bg = style ? ` style="${escapeHtml(style)}"` : '';
+      const backgroundColor = typeof n.backgroundColor === 'string' && isSafeCssColor(n.backgroundColor)
+        ? `background-color: ${n.backgroundColor}`
+        : '';
+      const bg = elementStyleAttr(n, backgroundColor);
       return `<${tag}${colSpan}${rowSpan}${bg}${directionAttr}>${renderChildren()}</${tag}>`;
     }
 
@@ -256,7 +286,7 @@ function renderNodeToHtml(node: unknown, options: RenderOptions, slugTracker?: H
       const copyBtn = options.interactiveControls
         ? '<button type="button" class="studio-code-copy-btn" aria-label="Copy code">Copy</button>'
         : '';
-      return `<div class="studio-code-block"${langAttr}><div class="studio-code-header"><span class="studio-code-lang">${escapeHtml(safeLang || 'code')}</span>${copyBtn}</div><pre><code>${codeHtml}</code></pre></div>`;
+      return `<div class="studio-code-block"${langAttr}${elementStyleAttr(n)}><div class="studio-code-header"><span class="studio-code-lang">${escapeHtml(safeLang || 'code')}</span>${copyBtn}</div><pre><code>${codeHtml}</code></pre></div>`;
     }
 
     // Handle Studio Card Nodes (canonical type after normalization)

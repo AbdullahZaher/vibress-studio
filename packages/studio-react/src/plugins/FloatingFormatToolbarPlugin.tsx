@@ -25,7 +25,7 @@ import {
   CheckSquare,
   Quote,
 } from 'lucide-react';
-import { turnSelectedBlockInto, TurnIntoType } from './TurnIntoHelper';
+import { getBlockTransformRestriction, turnSelectedBlockInto, TurnIntoType } from './TurnIntoHelper';
 import { FloatingLinkEditorPopover } from '../components/ui/FloatingLinkEditorPopover';
 
 const NOTION_COLORS = [
@@ -95,6 +95,7 @@ export function FloatingFormatToolbarPlugin({ anchorElem }: { anchorElem?: HTMLE
   const [currentLinkUrl, setCurrentLinkUrl] = useState('');
   const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<'turnInto' | 'color' | null>(null);
+  const [transformError, setTransformError] = useState<string | null>(null);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
 
@@ -193,7 +194,13 @@ export function FloatingFormatToolbarPlugin({ anchorElem }: { anchorElem?: HTMLE
   }
 
   const handleTurnInto = (type: TurnIntoType) => {
-    turnSelectedBlockInto(editor, type);
+    const restriction = getBlockTransformRestriction(editor, type);
+    if (restriction) {
+      setTransformError(restriction);
+      return;
+    }
+    setTransformError(null);
+    turnSelectedBlockInto(editor, type, undefined, setTransformError);
     editor.focus();
     setOpenDropdown(null);
   };
@@ -278,6 +285,11 @@ export function FloatingFormatToolbarPlugin({ anchorElem }: { anchorElem?: HTMLE
               <ChevronDown size={12} />
             </button>
 
+            {transformError && (
+              <p role="status" className="text-sm" style={{ padding: '4px 8px', maxWidth: '220px' }}>
+                {transformError}
+              </p>
+            )}
             {openDropdown === 'turnInto' && (
               <div
                 className="studio-glassy-menu"

@@ -14,7 +14,7 @@ pnpm build
 pnpm verify:package-exports
 ```
 
-Public imports use `@vibress/studio-*` package export maps. React 18.3, React DOM 18.3 and Lexical 0.13.1 are pinned in the standalone workspace. Do not copy another repository's editor files or deep-import package internals to simulate host parity.
+Public imports use `@vibress/studio-*` package export maps. React 18.3 and React DOM 18.3 are pinned in the standalone workspace. Its current verified Lexical contract is 0.14.3; the host has a distinct mixed-version graph that needs independent compatibility verification. Do not copy another repository's editor files or deep-import package internals to simulate host parity.
 
 ## Embedding in an authorized host
 
