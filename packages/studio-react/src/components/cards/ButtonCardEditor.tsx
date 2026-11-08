@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { useLexicalNodeSelection } from '@lexical/react/useLexicalNodeSelection';
 import { NodeKey, $getNodeByKey } from 'lexical';
@@ -14,6 +14,8 @@ export function ButtonCardEditor({ nodeKey, cardData }: Props) {
   const [isSelected, setSelected] = useLexicalNodeSelection(nodeKey);
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonTextId = useId();
+  const buttonUrlId = useId();
 
   const text = cardData.text || '';
   const url = cardData.url || '';
@@ -77,6 +79,9 @@ export function ButtonCardEditor({ nodeKey, cardData }: Props) {
           <button
             type="button"
             onClick={handleToggle}
+            aria-haspopup="dialog"
+            aria-expanded={isOpen}
+            aria-label={text ? `Button: ${text}` : 'Add button text'}
             className="px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-lg cursor-pointer hover:opacity-90 select-none text-sm leading-snug shadow-sm transition"
             style={{
               outline: isOpen || isSelected ? '2px solid #6366f1' : 'none',
@@ -88,6 +93,8 @@ export function ButtonCardEditor({ nodeKey, cardData }: Props) {
 
           {isOpen && (
             <div 
+              role="dialog"
+              aria-label="Button settings"
               className={`absolute top-full mt-2.5 studio-glassy-menu bg-card/95 dark:bg-[#1a1c20]/95 backdrop-blur-2xl p-4 rounded-xl shadow-2xl border border-border/80 dark:border-white/10 z-50 w-80 flex flex-col gap-3 text-foreground animate-in fade-in zoom-in-95 duration-150 ${
                 alignment === 'left' ? 'left-0' : alignment === 'right' ? 'right-0' : 'left-1/2 -translate-x-1/2'
               }`}
@@ -101,9 +108,11 @@ export function ButtonCardEditor({ nodeKey, cardData }: Props) {
               />
 
               <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Button Text</label>
+                <label htmlFor={buttonTextId} className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Button Text</label>
                 <input
+                  id={buttonTextId}
                   type="text"
+                  aria-label="Button Text"
                   value={text}
                   onChange={(e) => updateCardData({ text: e.target.value })}
                   placeholder="Add button text"
@@ -112,9 +121,11 @@ export function ButtonCardEditor({ nodeKey, cardData }: Props) {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Button URL</label>
+                <label htmlFor={buttonUrlId} className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Button URL</label>
                 <input
+                  id={buttonUrlId}
                   type="url"
+                  aria-label="Button URL"
                   value={url}
                   onChange={(e) => updateCardData({ url: e.target.value })}
                   placeholder="https://..."

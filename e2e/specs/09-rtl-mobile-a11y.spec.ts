@@ -99,6 +99,17 @@ test.describe('Mobile, RTL, Mixed-Script, and Accessibility (Phase C / STU-R14)'
         await page.keyboard.press('Backspace');
       }
 
+      // 1b. Search for Image with Tashkeel '/صُورَة' (IME / vowelized input)
+      await page.keyboard.type('/صُورَة');
+      await expect(menu).toBeVisible();
+      const imageOptionVowelized = menu.locator('[role="option"]').filter({ hasText: 'Image' });
+      await expect(imageOptionVowelized).toBeVisible();
+
+      // Clear search
+      for (let i = 0; i < 8; i++) {
+        await page.keyboard.press('Backspace');
+      }
+
       // 2. Search for Table using Arabic keyword '/جدول'
       await page.keyboard.type('/جدول');
       await expect(menu).toBeVisible();

@@ -38,6 +38,15 @@ describe("slash menu literal query matching", () => {
     expect(filterSlashMenuOptions(options, "مقولة")).toEqual([options[2]]);
   });
 
+  it("matches Arabic keywords with Tashkeel/diacritics transparently", () => {
+    // Needle with Tashkeel (Fatha, Damma, Sukun) matches plain keyword "صورة"
+    expect(filterSlashMenuOptions(options, "صُورَة")).toEqual([options[0]]);
+    // Needle with Shadda and Damma matches "عنوان"
+    expect(filterSlashMenuOptions(options, "عُنْوَان")).toEqual([options[1]]);
+    // Substring with Tanwin and Kasra matches "نص عربي"
+    expect(filterSlashMenuOptions(options, "عَرَبِيّ")).toEqual([options[3]]);
+  });
+
   it("does not return unrelated commands", () => {
     expect(filterSlashMenuOptions(options, "gallery")).toEqual([]);
   });

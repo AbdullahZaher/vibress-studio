@@ -56,6 +56,7 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
   const [transformError, setTransformError] = useState<string | null>(null);
   const handleRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const gripBtnRef = useRef<HTMLButtonElement>(null);
 
   // Track hovered element
   const handleMouseMove = useCallback(
@@ -149,12 +150,21 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
     }
   }, [showMenu]);
 
+  // Focus first menu item on open
+  useEffect(() => {
+    if (showMenu) {
+      const firstBtn = menuRef.current?.querySelector<HTMLButtonElement>('button');
+      firstBtn?.focus();
+    }
+  }, [showMenu]);
+
   // Keyboard navigation & dismissal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && showMenu) {
         setShowMenu(false);
         setActiveSubMenu(null);
+        gripBtnRef.current?.focus();
       }
     };
     document.addEventListener('keydown', handleKeyDown);
@@ -331,6 +341,7 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
       </button>
 
       <button
+        ref={gripBtnRef}
         type="button"
         title="Click for block actions (move up, move down, color, duplicate, delete)"
         aria-label="Block actions"
@@ -353,6 +364,20 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
           className="notion-block-menu studio-glassy-menu"
           role="menu"
           aria-label="Block actions"
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              const items = e.currentTarget.querySelectorAll<HTMLButtonElement>('button');
+              if (!items || items.length === 0) return;
+              const itemArray = Array.from(items);
+              const currentIndex = itemArray.indexOf(document.activeElement as HTMLButtonElement);
+              e.preventDefault();
+              const nextIndex =
+                e.key === 'ArrowDown'
+                  ? (currentIndex + 1) % itemArray.length
+                  : (currentIndex - 1 + itemArray.length) % itemArray.length;
+              itemArray[nextIndex]?.focus();
+            }
+          }}
           style={{
             position: 'absolute',
             top: '32px',
@@ -375,12 +400,12 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
           <div className="studio-slash-header">Block Actions</div>
 
           {/* Move Up / Move Down (WCAG 2.5.7 non-drag alternative) */}
-          <button type="button" style={menuItemStyle} onClick={handleMoveUp}>
+          <button role="menuitem" type="button" style={menuItemStyle} onClick={handleMoveUp}>
             <ArrowUp size={14} />
             <span>Move up</span>
           </button>
 
-          <button type="button" style={menuItemStyle} onClick={handleMoveDown}>
+          <button role="menuitem" type="button" style={menuItemStyle} onClick={handleMoveDown}>
             <ArrowDown size={14} />
             <span>Move down</span>
           </button>
@@ -388,6 +413,7 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
           <div style={{ height: '1px', backgroundColor: 'var(--vb-studio-border, #e2e8f0)', margin: '4px 0' }} />
 
           <button
+            role="menuitem"
             type="button"
             style={menuItemStyle}
             onClick={() => setActiveSubMenu(activeSubMenu === 'turnInto' ? null : 'turnInto')}
@@ -406,19 +432,20 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
           )}
           {activeSubMenu === 'turnInto' && (
             <div style={subMenuContainerStyle} role="menu">
-              <button style={subMenuItemStyle} onClick={() => handleTurnInto('paragraph')}>Text (Paragraph)</button>
-              <button style={subMenuItemStyle} onClick={() => handleTurnInto('h1')}><Heading1 size={13} /> Heading 1</button>
-              <button style={subMenuItemStyle} onClick={() => handleTurnInto('h2')}><Heading2 size={13} /> Heading 2</button>
-              <button style={subMenuItemStyle} onClick={() => handleTurnInto('h3')}><Heading3 size={13} /> Heading 3</button>
-              <button style={subMenuItemStyle} onClick={() => handleTurnInto('check-list')}><CheckSquare size={13} /> To-do list</button>
-              <button style={subMenuItemStyle} onClick={() => handleTurnInto('bullet-list')}><List size={13} /> Bulleted list</button>
-              <button style={subMenuItemStyle} onClick={() => handleTurnInto('number-list')}><ListOrdered size={13} /> Numbered list</button>
-              <button style={subMenuItemStyle} onClick={() => handleTurnInto('quote')}><Quote size={13} /> Quote</button>
-              <button style={subMenuItemStyle} onClick={() => handleTurnInto('code')}><Code size={13} /> Code block</button>
+              <button role="menuitem" style={subMenuItemStyle} onClick={() => handleTurnInto('paragraph')}>Text (Paragraph)</button>
+              <button role="menuitem" style={subMenuItemStyle} onClick={() => handleTurnInto('h1')}><Heading1 size={13} /> Heading 1</button>
+              <button role="menuitem" style={subMenuItemStyle} onClick={() => handleTurnInto('h2')}><Heading2 size={13} /> Heading 2</button>
+              <button role="menuitem" style={subMenuItemStyle} onClick={() => handleTurnInto('h3')}><Heading3 size={13} /> Heading 3</button>
+              <button role="menuitem" style={subMenuItemStyle} onClick={() => handleTurnInto('check-list')}><CheckSquare size={13} /> To-do list</button>
+              <button role="menuitem" style={subMenuItemStyle} onClick={() => handleTurnInto('bullet-list')}><List size={13} /> Bulleted list</button>
+              <button role="menuitem" style={subMenuItemStyle} onClick={() => handleTurnInto('number-list')}><ListOrdered size={13} /> Numbered list</button>
+              <button role="menuitem" style={subMenuItemStyle} onClick={() => handleTurnInto('quote')}><Quote size={13} /> Quote</button>
+              <button role="menuitem" style={subMenuItemStyle} onClick={() => handleTurnInto('code')}><Code size={13} /> Code block</button>
             </div>
           )}
 
           <button
+            role="menuitem"
             type="button"
             style={menuItemStyle}
             onClick={() => setActiveSubMenu(activeSubMenu === 'color' ? null : 'color')}
@@ -437,6 +464,7 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
                 {NOTION_COLORS.map((c) => (
                   <button
                     key={c.name}
+                    role="menuitem"
                     title={c.name}
                     aria-label={c.name}
                     onClick={() => handleApplyColor(c.color, c.bg)}
@@ -464,12 +492,12 @@ export function BlockHandleGutterPlugin({ anchorElem = document.body }: { anchor
 
           <div style={{ height: '1px', backgroundColor: 'var(--vb-studio-border, #e2e8f0)', margin: '4px 0' }} />
 
-          <button type="button" style={menuItemStyle} onClick={handleDuplicate}>
+          <button role="menuitem" type="button" style={menuItemStyle} onClick={handleDuplicate}>
             <Copy size={14} />
             <span>Duplicate</span>
           </button>
 
-          <button type="button" style={{ ...menuItemStyle, color: 'var(--vb-studio-danger, #ef4444)' }} onClick={handleDelete}>
+          <button role="menuitem" type="button" style={{ ...menuItemStyle, color: 'var(--vb-studio-danger, #ef4444)' }} onClick={handleDelete}>
             <Trash2 size={14} />
             <span>Delete block</span>
           </button>

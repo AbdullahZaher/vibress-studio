@@ -69,6 +69,7 @@ export function CalloutCardEditor({ nodeKey, cardData }: Props) {
       <div className="flex-shrink-0 text-2xl leading-none flex items-start pt-0.5">
         <input
           type="text"
+          aria-label="Callout icon"
           value={emoji}
           onChange={(e) => {
              const val = e.target.value;
@@ -89,6 +90,7 @@ export function CalloutCardEditor({ nodeKey, cardData }: Props) {
       <div className="flex-1 min-w-0">
         <textarea
            ref={textareaRef}
+           aria-label="Callout text"
            value={text}
            onChange={(e) => updateCardData({ text: e.target.value })}
            placeholder="Type callout text here..."

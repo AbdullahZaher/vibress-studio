@@ -19,13 +19,16 @@ test.describe('Keyboard navigation and focus (E2E 7)', () => {
     // Assert each committed selection before the next key. Immediate textContent
     // snapshots can observe React's preceding render on a busy CI browser.
     await expect(options.first()).toHaveAttribute('aria-selected', 'true');
+    await expect(listbox).toHaveAttribute('aria-activedescendant', 'typeahead-item-0');
     await page.keyboard.press('ArrowDown');
     await expect(options.nth(1)).toHaveAttribute('aria-selected', 'true');
     await expect(options.first()).toHaveAttribute('aria-selected', 'false');
+    await expect(listbox).toHaveAttribute('aria-activedescendant', 'typeahead-item-1');
 
     await page.keyboard.press('ArrowUp');
     await expect(options.first()).toHaveAttribute('aria-selected', 'true');
     await expect(options.nth(1)).toHaveAttribute('aria-selected', 'false');
+    await expect(listbox).toHaveAttribute('aria-activedescendant', 'typeahead-item-0');
 
     // Escape closes the menu and focus returns to the editor.
     await page.keyboard.press('Escape');
@@ -69,18 +72,22 @@ test.describe('Keyboard navigation and focus (E2E 7)', () => {
     await openHarness(page);
     await insertCardViaSlash(page, 'callout');
     await expect(page.locator('.vb-callout-card')).toBeVisible();
+    await expect(page.getByLabel('Callout icon')).toBeVisible();
+    await expect(page.getByLabel('Callout text')).toBeVisible();
 
     // Arrow navigation moves past the card into a fresh paragraph.
     await page.keyboard.press('ArrowDown');
     await page.keyboard.type('/toggle');
     await page.getByRole('option', { name: /^toggle$/i }).click();
     await expect(page.locator('.vb-toggle-card')).toBeVisible();
+    await expect(page.getByLabel('Toggle heading')).toBeVisible();
 
     await page.keyboard.press('ArrowDown');
     await page.keyboard.type('/button');
     await page.getByRole('option', { name: /^button$/i }).click();
     await page.locator('.vb-button-card').first().click();
     await expect(page.getByPlaceholder('Add button text')).toBeVisible();
-    await expect(page.locator('.vb-button-card input[type="url"]')).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Button Text' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Button URL' })).toBeVisible();
   });
 });

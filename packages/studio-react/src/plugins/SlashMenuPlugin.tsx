@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState, useRef, useLayoutEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef, useLayoutEffect } from 'react';
 import { filterSlashMenuOptions } from './slash-menu-filter';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
@@ -120,10 +120,25 @@ function SlashMenuPortalContent({
       attributeFilter: ['style'],
     });
 
+    const handleViewportChange = () => clampAnchor();
+    window.visualViewport?.addEventListener('resize', handleViewportChange);
+    window.visualViewport?.addEventListener('scroll', handleViewportChange);
+
     return () => {
       observer.disconnect();
+      window.visualViewport?.removeEventListener('resize', handleViewportChange);
+      window.visualViewport?.removeEventListener('scroll', handleViewportChange);
     };
   }, [anchorElement]);
+
+  useEffect(() => {
+    if (selectedIndex !== null && menuRef.current) {
+      const activeEl = menuRef.current.querySelector(`#typeahead-item-${selectedIndex}`);
+      if (activeEl && typeof activeEl.scrollIntoView === 'function') {
+        activeEl.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [selectedIndex]);
 
   if (options.length === 0) {
     return (
@@ -162,6 +177,11 @@ function SlashMenuPortalContent({
       ref={menuRef}
       role="listbox"
       aria-label="Insert card"
+      aria-activedescendant={
+        selectedIndex !== null && options[selectedIndex]
+          ? `typeahead-item-${selectedIndex}`
+          : undefined
+      }
       className="notion-slash-menu studio-glassy-menu"
       style={{
         position: 'absolute',
@@ -285,9 +305,20 @@ export function SlashMenuPlugin({
   const [queryString, setQueryString] = useState<string | null>(null);
   const [mediaError, setMediaError] = useState(false);
 
-  const checkForTriggerMatch = useBasicTypeaheadTriggerMatch('/', {
+  const basicTriggerMatch = useBasicTypeaheadTriggerMatch('/', {
     minLength: 0,
   });
+
+  const checkForTriggerMatch = useCallback(
+    (text: string, editorInstance: typeof editor) => {
+      // Guard against interrupting active IME composition (e.g. Arabic diacritics / soft keyboard buffers)
+      if (editorInstance.isComposing()) {
+        return null;
+      }
+      return basicTriggerMatch(text, editorInstance);
+    },
+    [basicTriggerMatch]
+  );
 
   const baseOptions: StudioMenuOption[] = useMemo(() => {
     return [

@@ -98,6 +98,9 @@ export function FloatingFormatToolbarPlugin({ anchorElem }: { anchorElem?: HTMLE
   const [transformError, setTransformError] = useState<string | null>(null);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const turnIntoBtnRef = useRef<HTMLButtonElement>(null);
+  const colorBtnRef = useRef<HTMLButtonElement>(null);
+  const linkBtnRef = useRef<HTMLButtonElement>(null);
 
   const updatePopup = useCallback(() => {
     // Focus moving into the toolbar's own controls (e.g. the link editor input) fires
@@ -174,20 +177,57 @@ export function FloatingFormatToolbarPlugin({ anchorElem }: { anchorElem?: HTMLE
     }
   }, [isTextSelected, resolvedAnchor, editor, updatePopup, isLinkEditorOpen, openDropdown]);
 
-  // Close menus on Escape key
+  // Reposition on mobile soft keyboard scroll/resize
+  useEffect(() => {
+    const handleViewport = () => {
+      if (isTextSelected && toolbarRef.current) {
+        const nativeSelection = window.getSelection();
+        if (nativeSelection && !nativeSelection.isCollapsed) {
+          const rootElement = editor.getRootElement();
+          if (rootElement) {
+            const rect = getDOMRangeRect(nativeSelection);
+            setFloatingElemPosition(rect, toolbarRef.current);
+          }
+        }
+      }
+    };
+    window.visualViewport?.addEventListener('resize', handleViewport);
+    window.visualViewport?.addEventListener('scroll', handleViewport);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleViewport);
+      window.visualViewport?.removeEventListener('scroll', handleViewport);
+    };
+  }, [isTextSelected, editor]);
+
+  // Focus first item when dropdown opens
+  useEffect(() => {
+    if (openDropdown === 'turnInto' || openDropdown === 'color') {
+      const firstBtn = toolbarRef.current?.querySelector<HTMLButtonElement>('[role="menu"] button');
+      firstBtn?.focus();
+    }
+  }, [openDropdown]);
+
+  // Close menus on Escape key and restore focus to trigger
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (isLinkEditorOpen) {
           setIsLinkEditorOpen(false);
-        } else if (openDropdown) {
+          linkBtnRef.current?.focus();
+        } else if (openDropdown === 'turnInto') {
           setOpenDropdown(null);
+          turnIntoBtnRef.current?.focus();
+        } else if (openDropdown === 'color') {
+          setOpenDropdown(null);
+          colorBtnRef.current?.focus();
+        } else if (toolbarRef.current?.contains(document.activeElement)) {
+          editor.getRootElement()?.focus();
         }
       }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isLinkEditorOpen, openDropdown]);
+  }, [isLinkEditorOpen, openDropdown, editor]);
 
   if (!isTextSelected || !resolvedAnchor) {
     return null;
@@ -228,12 +268,47 @@ export function FloatingFormatToolbarPlugin({ anchorElem }: { anchorElem?: HTMLE
     setIsLinkEditorOpen(false);
   };
 
+  const handleToolbarKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (openDropdown || isLinkEditorOpen) return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      const buttons = toolbarRef.current?.querySelectorAll<HTMLButtonElement>(
+        'button:not([disabled])'
+      );
+      if (!buttons || buttons.length === 0) return;
+      const btnArray = Array.from(buttons);
+      const currentIndex = btnArray.indexOf(document.activeElement as HTMLButtonElement);
+      if (currentIndex === -1) return;
+      e.preventDefault();
+      const nextIndex =
+        e.key === 'ArrowRight'
+          ? (currentIndex + 1) % btnArray.length
+          : (currentIndex - 1 + btnArray.length) % btnArray.length;
+      btnArray[nextIndex]?.focus();
+    }
+  };
+
+  const handleDropdownKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const items = e.currentTarget.querySelectorAll<HTMLButtonElement>('button');
+      if (!items || items.length === 0) return;
+      const itemArray = Array.from(items);
+      const currentIndex = itemArray.indexOf(document.activeElement as HTMLButtonElement);
+      e.preventDefault();
+      const nextIndex =
+        e.key === 'ArrowDown'
+          ? (currentIndex + 1) % itemArray.length
+          : (currentIndex - 1 + itemArray.length) % itemArray.length;
+      itemArray[nextIndex]?.focus();
+    }
+  };
+
   return createPortal(
     <div
       ref={toolbarRef}
       className="notion-floating-format-popup"
       role="toolbar"
       aria-label="Text formatting toolbar"
+      onKeyDown={handleToolbarKeyDown}
       style={{
         position: 'absolute',
         top: 0,
@@ -259,13 +334,17 @@ export function FloatingFormatToolbarPlugin({ anchorElem }: { anchorElem?: HTMLE
           initialUrl={currentLinkUrl}
           onApply={handleLinkSubmit}
           onRemove={handleLinkRemove}
-          onCancel={() => setIsLinkEditorOpen(false)}
+          onCancel={() => {
+            setIsLinkEditorOpen(false);
+            linkBtnRef.current?.focus();
+          }}
         />
       ) : (
         <>
           {/* Turn into selector */}
           <div style={{ position: 'relative' }}>
             <button
+              ref={turnIntoBtnRef}
               type="button"
               className="notion-format-btn"
               onClick={() => setOpenDropdown(openDropdown === 'turnInto' ? null : 'turnInto')}
@@ -294,6 +373,8 @@ export function FloatingFormatToolbarPlugin({ anchorElem }: { anchorElem?: HTMLE
               <div
                 className="studio-glassy-menu"
                 role="menu"
+                aria-label="Turn into options"
+                onKeyDown={handleDropdownKeyDown}
                 style={{
                   position: 'absolute',
                   top: '32px',
@@ -310,15 +391,15 @@ export function FloatingFormatToolbarPlugin({ anchorElem }: { anchorElem?: HTMLE
                   boxShadow: 'var(--vb-studio-shadow-popover, 0 10px 15px -3px rgba(0, 0, 0, 0.3))',
                 }}
               >
-                <button className="notion-format-btn" style={dropdownItemStyle} onClick={() => handleTurnInto('paragraph')}>Text</button>
-                <button className="notion-format-btn" style={dropdownItemStyle} onClick={() => handleTurnInto('h1')}><Heading1 size={13} /> Heading 1</button>
-                <button className="notion-format-btn" style={dropdownItemStyle} onClick={() => handleTurnInto('h2')}><Heading2 size={13} /> Heading 2</button>
-                <button className="notion-format-btn" style={dropdownItemStyle} onClick={() => handleTurnInto('h3')}><Heading3 size={13} /> Heading 3</button>
-                <button className="notion-format-btn" style={dropdownItemStyle} onClick={() => handleTurnInto('check-list')}><CheckSquare size={13} /> To-do list</button>
-                <button className="notion-format-btn" style={dropdownItemStyle} onClick={() => handleTurnInto('bullet-list')}><List size={13} /> Bullet list</button>
-                <button className="notion-format-btn" style={dropdownItemStyle} onClick={() => handleTurnInto('number-list')}><ListOrdered size={13} /> Numbered list</button>
-                <button className="notion-format-btn" style={dropdownItemStyle} onClick={() => handleTurnInto('quote')}><Quote size={13} /> Quote</button>
-                <button className="notion-format-btn" style={dropdownItemStyle} onClick={() => handleTurnInto('code')}><Code size={13} /> Code</button>
+                <button role="menuitem" className="notion-format-btn" style={dropdownItemStyle} onClick={() => handleTurnInto('paragraph')}>Text</button>
+                <button role="menuitem" className="notion-format-btn" style={dropdownItemStyle} onClick={() => handleTurnInto('h1')}><Heading1 size={13} /> Heading 1</button>
+                <button role="menuitem" className="notion-format-btn" style={dropdownItemStyle} onClick={() => handleTurnInto('h2')}><Heading2 size={13} /> Heading 2</button>
+                <button role="menuitem" className="notion-format-btn" style={dropdownItemStyle} onClick={() => handleTurnInto('h3')}><Heading3 size={13} /> Heading 3</button>
+                <button role="menuitem" className="notion-format-btn" style={dropdownItemStyle} onClick={() => handleTurnInto('check-list')}><CheckSquare size={13} /> To-do list</button>
+                <button role="menuitem" className="notion-format-btn" style={dropdownItemStyle} onClick={() => handleTurnInto('bullet-list')}><List size={13} /> Bullet list</button>
+                <button role="menuitem" className="notion-format-btn" style={dropdownItemStyle} onClick={() => handleTurnInto('number-list')}><ListOrdered size={13} /> Numbered list</button>
+                <button role="menuitem" className="notion-format-btn" style={dropdownItemStyle} onClick={() => handleTurnInto('quote')}><Quote size={13} /> Quote</button>
+                <button role="menuitem" className="notion-format-btn" style={dropdownItemStyle} onClick={() => handleTurnInto('code')}><Code size={13} /> Code</button>
               </div>
             )}
           </div>
@@ -382,6 +463,7 @@ export function FloatingFormatToolbarPlugin({ anchorElem }: { anchorElem?: HTMLE
             <Code size={14} />
           </button>
           <button
+            ref={linkBtnRef}
             type="button"
             title={isLink ? 'Edit Link' : 'Add Link'}
             aria-label={isLink ? 'Edit Link' : 'Add Link'}
@@ -398,6 +480,7 @@ export function FloatingFormatToolbarPlugin({ anchorElem }: { anchorElem?: HTMLE
           {/* Color Palette */}
           <div style={{ position: 'relative' }}>
             <button
+              ref={colorBtnRef}
               type="button"
               title="Text & Highlight Color"
               aria-label="Text & Highlight Color"
@@ -418,6 +501,7 @@ export function FloatingFormatToolbarPlugin({ anchorElem }: { anchorElem?: HTMLE
                 className="studio-glassy-menu"
                 role="menu"
                 aria-label="Color options"
+                onKeyDown={handleDropdownKeyDown}
                 style={{
                   position: 'absolute',
                   top: '32px',
@@ -437,6 +521,7 @@ export function FloatingFormatToolbarPlugin({ anchorElem }: { anchorElem?: HTMLE
                 {NOTION_COLORS.map((c) => (
                   <button
                     key={c.name}
+                    role="menuitem"
                     title={c.name}
                     aria-label={c.name}
                     onClick={() => handleApplyColor(c.color, c.bg)}
@@ -472,9 +557,14 @@ function getFormatBtnStyle(active: boolean): React.CSSProperties {
   return {
     color: active ? 'var(--vb-studio-primary, #38bdf8)' : 'var(--vb-studio-foreground, #f8fafc)',
     backgroundColor: active ? 'var(--vb-studio-surface-muted, rgba(255, 255, 255, 0.1))' : 'transparent',
-    minWidth: '28px',
-    height: '28px',
+    minWidth: '32px',
+    height: '32px',
     padding: '0 6px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '4px',
+    cursor: 'pointer',
   };
 }
 
