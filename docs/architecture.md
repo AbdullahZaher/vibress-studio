@@ -73,9 +73,9 @@ Current embed allowlist supports YouTube and Vimeo. Treat all document, caption,
 - Preserves selection, caret position, and undo/redo stacks when content is unchanged.
 - Guarantees deterministic heading slug allocation between `studio-renderer` and `extractTableOfContentsFromDocument` via `HeadingSlugTracker`.
 
-## Canonical runtime proposal
+## Approved runtime ownership (ADR-0001 Option B)
 
-`docs/adr/0001-studio-canonical-runtime.md` says **Proposed**. Its intended direction uses `AbdullahZaher/vibress` as the reference for the currently shipped runtime and standalone as a downstream distribution target. The source review observed host SHA `b33fb1ab597bfabb8861516132cf8bad567f0bf1`. Host collaboration exports are missing from standalone, so **do not assume parity or copy host files blindly**. Obtain explicit ADR approval and compare named SHAs and v1 fixtures before syncing.
+[`ADR-0001`](adr/0001-studio-canonical-runtime.md) records **Approved — Option B** as of 2026-11-08: `AbdullahZaher/vibress` remains the reference for currently shipped host runtime behavior, and standalone Studio is a downstream compatibility/distribution target. The evaluated immutable host SHA is `3344f83f30dd23205abb596f4320857f4611812a` (CMS beta.1), compared with Studio release candidate `f13bdf1e049434c71da74572f4e226457fdb6393` (Studio beta.2). The nine persisted core fixtures are checked in CI; the standalone editor **does not** thereby acquire the host's Yjs provider, autosave, or collaboration contracts. Do not substitute runtimes or copy code blindly. See [G0–G5 release evidence correction](audits/release-evidence-correction-2026-11-09.md).
 
 ## Visual CSS contract and accessibility
 

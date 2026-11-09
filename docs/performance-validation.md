@@ -1,6 +1,6 @@
 # Performance & Latency Validation Baseline (F11 / Gate G4)
 
-Status: **Verified across CPU document pipeline and multi-browser rendering suite (Chromium, Mobile 4× CPU Emulation, Firefox, WebKit).**
+Status: **Historical/local measurement evidence, not blanket performance SLA or Core Web Vitals INP certification.** The 32 Playwright scenarios record editor input-to-second-animation-frame proxies; the release CI runs the separate Node document-pipeline benchmark, not `benchmark:editor`. Re-run the browser suite on each final candidate SHA before quoting its measurements as release evidence.
 
 ---
 
@@ -34,12 +34,12 @@ The script reports: timestamp, exact commit SHA, Node version, OS architecture, 
 ### Methodology & Harness
 Browser editor latency is evaluated via Playwright under [`e2e/performance.config.ts`](../e2e/performance.config.ts) against the isolated E2E test harness (`/e2e.html?benchmark=<scenario>`).
 
-1. **Mount Latency (`mountMs`):** Time from initial page navigation to double requestAnimationFrame after `LexicalEditor` initialization and benchmark readiness.
-2. **Keystroke Latency Proxy (`typing`):** Measured via capturing `keydown` to the second animation frame (`requestAnimationFrame(() => requestAnimationFrame(...))`), capturing input dispatch, React reconciliation, Lexical DOM mutation, and layout/paint presentation.
+1. **Mount Readiness Proxy (`mountMs`):** Recorded by the test harness after editor initialization and its readiness callback; it is not a field-measured navigation or Core Web Vitals metric.
+2. **Keystroke Latency Proxy (`typing`):** Time from `keydown` to the second `requestAnimationFrame` callback. This is a browser-harness proxy, **not** end-to-end input latency, guaranteed paint time or an official INP measurement; Playwright drives 20 `x` keypresses per scenario.
 3. **Commit Pipeline Latency (`commitLatency`):** Time from `keydown` capture to a microtask following the synchronous `editor.registerUpdateListener` chain, isolating pure JavaScript serialization and listener overhead without browser paint.
 4. **Slash Command Latency (`slashCommandLatencyMs`):** Time from typing `/` to `.vibress-slash-menu` / `[role="listbox"]` becoming visible.
 5. **Paste Latency (`pasteLatencyMs`):** Time to inject and commit a clipboard data transfer block.
-6. **Memory Footprint & DOM Stability:** JS heap used and total DOM node count measured before and after repeated insertion/deletion editing cycles.
+6. **Memory & DOM snapshots:** Samples `performance.memory.usedJSHeapSize` when the browser exposes it, plus DOM element counts before/after ten insert/backspace cycles. A single before/after snapshot **cannot prove absence of leaks**; Firefox/WebKit heap samples can be unavailable. Event Timing entries are collected on supporting engines, but are not a field INP distribution.
 
 ### Verified Multi-Browser Benchmark Results
 
@@ -93,19 +93,39 @@ Browser editor latency is evaluated via Playwright under [`e2e/performance.confi
 
 ---
 
-## 3. Verified Performance Budgets & Release SLA
+## 3. Observed results vs proposed budgets (not a blanket SLA pass)
 
-Based on empirical multi-browser measurement, the following performance budgets are established:
+These values are the **recorded historical local benchmark observations** in the tables above. The final release workflow [CI #42522465244](https://github.com/AbdullahZaher/vibress-studio/actions/runs/42522465244) ran `benchmark:document` (Node document pipeline) and the normal editor E2E suite, **not** the 32-case `benchmark:editor` suite. The latter must be repeated with artifacts pinned to the candidate SHA before treating its numbers as final-release evidence.
 
-1. **Keystroke Responsiveness:**
-   - **Target SLA ($p_{95} \le 50\text{ ms}$):** Met across standard publishing articles ($\le 5,000$ words, mixed Arabic/English, media cards) on Desktop Chromium, Firefox, and WebKit ($16\text{ ms}$–$43\text{ ms}$).
-   - **Mobile SLA ($4\times\text{ CPU Throttling}$):** $p_{95} \le 85\text{ ms}$ up to 5,000 words. Stress documents ($20,000$–$50,000$ words) scale linearly with single-DOM tree reflow costs ($225\text{ ms}$–$512\text{ ms}$).
-2. **Lexical Commit Pipeline:**
-   - Pure synchronous JS update listener duration remains **$< 5.5\text{ ms}$** across all document sizes on desktop, and **$< 40\text{ ms}$** under 4× CPU throttling on 50,000 words.
-3. **Mount & Hydration:**
-   - Standard articles mount in **$< 85\text{ ms}$** on desktop and **$< 350\text{ ms}$** on 4× throttled mobile. Even 50,000-word payloads hydrate in $< 215\text{ ms}$ desktop / $< 900\text{ ms}$ throttled mobile.
-4. **Slash Command & Paste:**
-   - Slash menu opens in **$< 45\text{ ms}$** desktop / **$< 115\text{ ms}$** mobile. Paste commits in **$< 60\text{ ms}$** across all scenarios.
-5. **Memory & Detached DOM Nodes:**
-   - Zero memory leaks detected; $\Delta\text{Heap} \le 0$ across repeated editing cycles with maximum heap bounded under $46\text{ MB}$ even for 360-cell table documents. Detached DOM node growth is strictly bounded ($\Delta\text{DOM} \le 15$ for undo/selection state).
+### Typing proxy p95
 
+The proposed **desktop p95 ≤ 50 ms** threshold is achieved by ordinary 5k-word text (Chromium 17.2 ms, Firefox 42 ms, WebKit 32 ms) and mixed Arabic/English 5k-word text (34.3/43/31 ms). It **is not achieved by all 5k-word or card-heavy scenarios**:
+
+| Scenario | Chromium desktop | Firefox desktop | WebKit desktop | Chromium mobile 4× CPU |
+| --- | ---: | ---: | ---: | ---: |
+| Plain 5k-word | 17.2 ms | 42 ms | 32 ms | 84.2 ms |
+| Mixed Arabic/English 5k | 34.3 ms | 43 ms | 31 ms | 148.1 ms |
+| Tables 5k (360 cells) | **74.8 ms** | **299 ms** | **94 ms** | **293.7 ms** |
+| Media 5k (50 cards) | 33.5 ms | **69 ms** | 48 ms | **143.2 ms** |
+| Plain 20k | **56.3 ms** | **138 ms** | **63 ms** | **225.1 ms** |
+| Plain 50k | **132.1 ms** | **335 ms** | **130 ms** | **512.3 ms** |
+
+Bold values exceed the proposed **desktop 50 ms** threshold or the **mobile 85 ms** threshold. Desktop and mobile limits are **proposal budgets**, not CI-enforced acceptance checks.
+
+### Mount, commit pipeline, slash, paste and memory caveats
+
+- **Mount readiness**: the proposed desktop < 85 ms target is exceeded by Chromium 5k tables (122.9 ms), media (110.7 ms), 20k (105.9 ms), and 50k (212.4 ms). Mobile 4× CPU table/media/20k/50k exceed the proposed < 350 ms target (512.5/476.9/444.6/880.3 ms).
+- **Synchronous commit/listener proxy**: the statement that all desktop scenarios stay under 5.5 ms is contradicted by media 5k on Chromium (28.7 ms) and WebKit (32 ms), plus WebKit tables 5k (6 ms). Mobile media 5k measures 122.9 ms, above a proposed 40 ms mobile target. The measured scope excludes subsequent paint and host persistence.
+- **Slash command**: several stress scenarios exceed the blanket < 45 ms desktop / < 115 ms mobile claims (e.g. desktop Chromium tables 79.7 ms, mobile tables 316.9 ms). The harness suppresses slash measurement failures as `null`; only non-null recorded samples support a timing claim.
+- **Paste**: the harness dispatches a synthetic `ClipboardEvent` and waits a fixed 50 ms before taking a stopwatch reading. Its ~52–86 ms figures are **not isolated paste processing latency**, nor proof of a 60 ms budget.
+- **INP**: Event Timing entries are optional and local. The harness explicitly labels its typing and commit measurements `Not INP`. No real-user Core Web Vitals INP p75 ≤ 200 ms acceptance is established here; require measured interaction IDs and appropriate field data/window before an INP claim.
+- **Memory**: `performance.memory` snapshots and DOM element counts after ten edit/delete cycles do not establish `zero leaks`, `ΔHeap = 0` or detached-node absence. Require repeated long-duration sessions, GC-aware comparisons where supported, snapshots/allocations, and more than a single short loop.
+
+### Reverification criteria
+
+1. Run `pnpm install --frozen-lockfile && pnpm build && pnpm benchmark:editor` on the exact candidate SHA, record platform/CPU/browser versions, and preserve all 32 JSON artifacts.
+2. Separately define pass/fail budgets per document class and device profile (plain, RTL/mixed, tables, media, long-form); do not silently omit failing profiles.
+3. Add explicit CI assertions only after repeatability assessment, with a documented variance tolerance. Measure genuine INP/field responsiveness separately from typing-to-rAF proxies.
+4. Validate real mobile hardware, Arabic IME and host autosave independently; standalone benchmark numbers cannot certify host runtime responsiveness or WCAG conformance.
+
+This correction **does not invalidate successful CI, shipped beta tags, or the historical measurements**. It narrows what those signals actually prove.
