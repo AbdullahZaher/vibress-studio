@@ -46,5 +46,5 @@ pnpm test:e2e
 See [Testing](/testing) for additional setup, browser dependencies and release gates.
 
 ::: warning Compatibility and publishing
-The standalone packages are not proof of parity with the current Vibress CMS runtime. Check the [proposed ADR-0001](/adr/0001-studio-canonical-runtime), verify public APIs against source, and test the version you integrate. Hosting, media storage and saving stay in the host application.
+The standalone packages are not proof of parity with the current Vibress CMS runtime. Check [ADR-0001 (Approved Option B)](/adr/0001-studio-canonical-runtime), verify public APIs against source, and test the version you integrate. Hosting, media storage and saving stay in the host application.
 :::

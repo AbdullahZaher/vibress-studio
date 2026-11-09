@@ -33,7 +33,7 @@ features:
 Studio is a **library, not a CMS**. Your application supplies authentication, persistence, media storage, permissions, publishing and any AI provider. Read the [architecture](/architecture) and [host integration](/vibress-integration) documentation before embedding it.
 
 ::: warning Runtime compatibility
-The Vibress host and this standalone repository are not automatically feature-equivalent. [ADR-0001](/adr/0001-studio-canonical-runtime) is **proposed**, and identifies the host as the current runtime reference. Verify public exports and integration compatibility at the exact revision you deploy.
+The Vibress host and this standalone repository are not automatically feature-equivalent. [ADR-0001](/adr/0001-studio-canonical-runtime) is **Approved (Option B)**, and identifies the host as the current runtime reference while Studio acts as a downstream distribution library. Current pre-release baseline: **v1.2.0-beta.3**. Verify public exports and integration compatibility at the exact revision you deploy.
 :::
 
 For the current proposed improvement program, see the [World-class editor 9+ delivery plan](/roadmaps/world-class-editor-9-plus-plan-2026-11-06). It separates proposed work from verified code, assigns Studio versus Host responsibilities, and defines evidence-based release gates; **it is not a release certification**.

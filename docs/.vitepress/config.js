@@ -32,6 +32,7 @@ const enSidebar = [
       { text: 'Program implementation status (2026-11-05)', link: '/audits/studio-program-implementation-2026-11-05' },
       { text: 'Design handoff', link: '/design-readiness-spec' },
       { text: 'Release and rollback policy', link: '/release-policy' },
+      { text: 'G0–G5 release evidence correction', link: '/audits/release-evidence-correction-2026-11-09' },
       { text: 'ADR-0001: runtime ownership', link: '/adr/0001-studio-canonical-runtime' },
       { text: 'Documentation development', link: '/guide/documentation-site' },
     ],

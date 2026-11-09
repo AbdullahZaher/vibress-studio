@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.0-beta.3] - 2026-11-09
+
+### Documentation & Release Evidence Alignment (PR #43)
+- **ADR-0001 Approved Option B Alignment**: Clarified canonical runtime ownership where `AbdullahZaher/vibress` remains the authoritative host runtime reference and standalone Studio is an independent, reusable downstream distribution library.
+- **Performance Measurement Transparency**: Strictly distinguished keydown-to-double-rAF paint proxies from genuine Core Web Vitals INP (annotated as `Not INP`). Published complete 6-scenario benchmark results across Chromium, Firefox, WebKit, and throttled mobile profiles.
+- **A11y Verification Boundaries**: Separated automated axe/Lighthouse checks from pending formal manual screen-reader (NVDA/VoiceOver) WCAG 2.2 AA certification (tracked in Issue #44).
+- **Memory Diagnostic Qualifications**: Qualified single-session `performance.memory` and DOM node observations to avoid unsupported blanket zero-leak claims.
+- **Exact-SHA Release Baseline Cross-Check**: Established immutable release baseline evidence against CMS `3344f83f` (v1.2.0-beta.1) and Studio `f13bdf1e` (v1.2.0-beta.2).
+
 ## Unreleased — focused package contract follow-up
 
 - Normalize only the document root, preserving opaque envelope/editor values
